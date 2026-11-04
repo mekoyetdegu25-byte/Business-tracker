@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Business Tracker — HaniTech</title>
 <meta name="theme-color" content="#1a365d">
-<meta name="description" content="Multi-Industry Business Management System">
+<meta name="theme-color" content="#1a365d">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4617,6 +4619,16 @@ setTimeout(() => {
 
 console.log('✅ Business Tracker — Phase 2 loaded');
 </script>
-
+<script>
+  // PWA Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('✅ Service Worker Registered'))
+        .catch(err => console.log('❌ SW Error', err));
+    });
+  }
+</script>
+   
 </body>
 </html>
