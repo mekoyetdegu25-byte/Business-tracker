@@ -79,9 +79,16 @@
           <option value="pro">🔵 Pro</option>
         </select>
       </div>
-      <div>
+            <div>
         <label style="font-size:12px; font-weight:bold;">ማብቂያ ቀን (Expiry Date)</label>
         <input type="date" id="newExpiry">
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:bold;">💳 Credit Tab ይኑረው? (ለBasicም ቢሆን)</label>
+        <select id="newHasCredit">
+          <option value="false">❌ አይኑረው (Pro ብቻ)</option>
+          <option value="true">✅ ይኑረው (Basic ላይም)</option>
+        </select>
       </div>
     </div>
     <hr style="margin: 15px 0; border: 0; border-top: 1px dashed #ccc;">
@@ -153,8 +160,9 @@ onAuthStateChanged(auth, (user) => {
 window.createTenant = async function() {
   const name = document.getElementById('newName').value;
   const bizType = document.getElementById('newBizType').value;
-  const plan = document.getElementById('newPlan').value;
+    const plan = document.getElementById('newPlan').value;
   const expiry = document.getElementById('newExpiry').value;
+  const hasCredit = document.getElementById('newHasCredit').value === 'true';
   const ownerEmail = document.getElementById('newOwnerEmail').value;
   const password = document.getElementById('newPassword').value;
   const status = document.getElementById('createStatus');
@@ -165,8 +173,8 @@ window.createTenant = async function() {
   try {
     // 1. Create Tenant Doc
     const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString().slice(-4);
-    await setDoc(doc(db, 'tenants', tenantId), {
-      name, businessType: bizType, plan, expiryDate: expiry,
+        await setDoc(doc(db, 'tenants', tenantId), {
+      name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
       isSuspended: false, createdAt: serverTimestamp(),
       lowStockThreshold: 10, currency: 'ETB', language: 'am'
     });
