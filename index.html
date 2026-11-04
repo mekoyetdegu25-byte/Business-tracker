@@ -2207,8 +2207,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
       <input type="text" id="laundryCustomerPhone" placeholder="+251...">
       <label class="field-label">📅 Pickup Date</label>
       <input type="date" id="laundryPickupDate">
-      <label class="field-label">📝 Notes</label>
+            <label class="field-label">📝 Notes</label>
       <input type="text" id="laundryNotes" placeholder="Special instructions">
+      <label class="field-label">💰 Paid Amount (Partial)</label>
+      <input type="number" id="laundryPaidAmount" placeholder="0.00 (Leave empty for full payment)" step="any">
       <button class="btn btn-success" style="margin-top:16px;" onclick="confirmLaundrySale()">✅ Confirm & Complete</button>
     </div>
   </div>
@@ -2233,8 +2235,8 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
         <option value="yes">Yes</option>
       </select>
       <div id="deliveryFields" style="display:none;">
-        <label class="field-label">📍 Delivery Address</label>
-        <input type="text" id="drinksAddress" placeholder="Full address">
+                <label class="field-label">📍 Delivery Address (Optional)</label>
+        <input type="text" id="drinksAddress" placeholder="Full address (optional)">
         <label class="field-label">📅 Delivery Date</label>
         <input type="date" id="drinksDeliveryDate">
         <label class="field-label">💰 Deposit</label>
@@ -2759,8 +2761,9 @@ async function loadUserAndTenant(user) {
       return;
     }
     const tenantData = tenantDoc.data();
-    businessType = tenantData.businessType || 'hotel';
+        businessType = tenantData.businessType || 'hotel';
     plan = tenantData.plan || 'basic';
+    window.currentHasCredit = tenantData.hasCredit || false;
     lowStockThreshold = tenantData.lowStockThreshold || 10;
     
     // ===== Check Lockout =====
@@ -2859,8 +2862,9 @@ function renderExtraProductFields() {
 }
 
 function applyPlanRestrictions() {
-  const isPro = plan === 'pro';
-  document.getElementById('menu_credit').style.display = isPro ? 'block' : 'none';
+    const isPro = plan === 'pro';
+  const showCredit = isPro || window.currentHasCredit; // Pro ወይም አድሚኑ የፈቀደው
+  document.getElementById('menu_credit').style.display = showCredit ? 'block' : 'none';
   document.getElementById('stockTransferSection').style.display = isPro ? 'block' : 'none';
   document.getElementById('branchAddSection').style.display = isPro ? 'flex' : 'none';
   
@@ -3671,11 +3675,15 @@ window.confirmLaundrySale = async function() {
   const customer = document.getElementById('laundryCustomerName').value.trim();
   const phone = document.getElementById('laundryCustomerPhone').value.trim();
   const pickup = document.getElementById('laundryPickupDate').value;
-  const notes = document.getElementById('laundryNotes').value.trim();
+    const notes = document.getElementById('laundryNotes').value.trim();
+  const paid = parseFloat(document.getElementById('laundryPaidAmount').value) || 0;
   if (!customer) return showToast('የደንበኛ ስም አስፈልጋል', 'error');
   if (!pickup) return showToast('የማስረከቢያ ቀን አስፈልጋል', 'error');
   
-  await executeSale({ customer, phone, pickupDate: pickup, notes });
+  // Force credit method if partial payment is made
+  if (paid > 0) document.getElementById('sellPaymentMethod').value = 'credit';
+  
+  await executeSale({ customer, phone, pickupDate: pickup, notes, paidAmount: paid });
   document.getElementById('laundryModal').classList.remove('open');
   document.getElementById('laundryCustomerName').value = '';
   document.getElementById('laundryCustomerPhone').value = '';
@@ -3702,8 +3710,8 @@ async function executeSale(extras) {
   const receipt = document.getElementById('sellReceipt').value.trim();
   if (!date || !branch) return showToast('ቀን እና ቅርንጫፍ ያስፈልጋሉ', 'error');
   
-  let customer = extras.customer || '';
-  let paidAmount = 0;
+    let customer = extras.customer || '';
+  let paidAmount = extras.paidAmount || 0; 
   const totalAmount = cart.reduce((s, c) => s + (c.price * c.qty), 0);
   
   if (method === 'credit') {
@@ -3711,7 +3719,9 @@ async function executeSale(extras) {
       customer = document.getElementById('sellCreditCustomer').value.trim();
       if (!customer) return showToast('የደንበኛ ስም አስፈልጋል (Credit)', 'error');
     }
-    paidAmount = parseFloat(document.getElementById('sellCreditPaid').value) || 0;
+    if(paidAmount === 0) { // If it wasn't passed from Laundry modal
+      paidAmount = parseFloat(document.getElementById('sellCreditPaid').value) || 0;
+    }
     if (paidAmount > totalAmount) paidAmount = totalAmount;
   } else {
     paidAmount = totalAmount;
