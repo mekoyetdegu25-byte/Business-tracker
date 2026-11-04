@@ -3358,7 +3358,8 @@ window.addProduct = async function() {
       });
     }
     
-    showToast('ምርት ተጨምሯል');
+            showToast('ምርት ተጨምሯል');
+    logActivity('አዲስ ምርት ተጨምሯል: ' + name);
     await loadCategories();
   } catch (e) {
     showToast('ስህተት: ' + e.message, 'error');
@@ -3867,9 +3868,10 @@ window.addExpense = async function() {
       tenantId: currentTenantId, category: cat, branch, amount, date, note,
       timestamp: serverTimestamp()
     });
-    document.getElementById('expAmount').value = '';
+        document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
     showToast('✅ ተመዝግቧል');
+    logActivity('አዲስ ወጪ ተመዝግቧል: ' + amount + ' ETB');
   } catch (e) { showToast('ስህተት', 'error'); }
 };
 
@@ -4131,7 +4133,7 @@ function loadDashboard() {
   document.getElementById('dashProfit').textContent = money(profit);
   document.getElementById('dashSalesCount').textContent = sales.length + quick.length;
   
-  // Daily chart
+  // 1. Daily Line Chart
   const ctx = document.getElementById('dailyChartCanvas');
   if (ctx) {
     const year = parseInt(month.split('-')[0]);
@@ -4148,22 +4150,42 @@ function loadDashboard() {
     if (dailyChartInstance) dailyChartInstance.destroy();
     dailyChartInstance = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Sales',
-          data,
-          borderColor: '#1a365d',
-          backgroundColor: 'rgba(26, 54, 93, 0.1)',
-          tension: 0.3,
-          fill: true
-        }]
-      },
+      data: { labels, datasets: [{ label: 'Sales', data, borderColor: '#1a365d', backgroundColor: 'rgba(26, 54, 93, 0.1)', tension: 0.3, fill: true }] },
       options: { responsive: true, maintainAspectRatio: false }
     });
   }
+
+  // 2. Expense Pie Chart
+  const pieCtx = document.getElementById('expensePieCanvas');
+  const legendEl = document.getElementById('expenseLegend');
+  if (pieCtx) {
+    const expCats = {};
+    exp.forEach(e => { expCats[e.category] = (expCats[e.category] || 0) + e.amount; });
+    fixed.forEach(f => { const cat = 'Fixed: ' + f.category; expCats[cat] = (expCats[cat] || 0) + f.amount; });
+    
+    const labels = Object.keys(expCats);
+    const data = Object.values(expCats);
+    if (expensePieInstance) expensePieInstance.destroy();
+    
+    if(labels.length === 0) {
+        if(legendEl) legendEl.innerHTML = '<p style="text-align:center; color:var(--text-muted);">ምንም ወጪ የለም</p>';
+        pieCtx.getContext('2d').clearRect(0,0,pieCtx.width,pieCtx.height);
+    } else {
+        expensePieInstance = new Chart(pieCtx, {
+          type: 'doughnut',
+          data: { labels, datasets: [{ data, backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'] }] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        if(legendEl) {
+            let lHtml = '<table style="width:100%; font-size:13px;">';
+            labels.forEach((l, i) => { lHtml += `<tr><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;background:${expensePieInstance.data.datasets[0].backgroundColor[i]};margin-right:8px;"></span>${esc(l)}</td><td style="text-align:right;font-weight:bold;">${money(data[i])}</td></tr>`; });
+            lHtml += '</table>';
+            legendEl.innerHTML = lHtml;
+        }
+    }
+  }
   
-  // Top selling
+  // 3. Top 10
   const stats = {};
   sales.forEach(s => {
     if (!stats[s.productName]) stats[s.productName] = { qty: 0, rev: 0 };
@@ -4175,18 +4197,15 @@ function loadDashboard() {
   const topSellingTbody = document.getElementById('topSellingTableBody');
   if (topSellingTbody) {
     const top = [...arr].sort((a, b) => b.qty - a.qty).slice(0, 10);
-    topSellingTbody.innerHTML = top.length === 0 ? '<tr><td colspan="3" style="text-align:center;">ምንም ዳታ የለም</td></tr>' :
-      top.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td style="color:var(--success); font-weight:700;">${x.qty}</td></tr>`).join('');
+    topSellingTbody.innerHTML = top.length === 0 ? '<tr><td colspan="3" style="text-align:center;">ምንም ዳታ የለም</td></tr>' : top.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td style="color:var(--success); font-weight:700;">${x.qty}</td></tr>`).join('');
   }
   
   const topRevenueTbody = document.getElementById('topRevenueTableBody');
   if (topRevenueTbody) {
     const top = [...arr].sort((a, b) => b.rev - a.rev).slice(0, 10);
-    topRevenueTbody.innerHTML = top.length === 0 ? '<tr><td colspan="3" style="text-align:center;">ምንም ዳታ የለም</td></tr>' :
-      top.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td style="color:var(--accent); font-weight:700;">${money(x.rev)}</td></tr>`).join('');
+    topRevenueTbody.innerHTML = top.length === 0 ? '<tr><td colspan="3" style="text-align:center;">ምንም ዳታ የለም</td></tr>' : top.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td style="color:var(--accent); font-weight:700;">${money(x.rev)}</td></tr>`).join('');
   }
 }
-
 // ============================================
 // 📄 REPORTS
 // ============================================
