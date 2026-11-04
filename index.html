@@ -1841,9 +1841,14 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📄</span><span class="sec-title">Custom Report</span></div>
               </div>
               <div class="section-body open" id="bodyCustomReport">
-                <div style="background:var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
-                  <label class="field-label" style="margin-top:0;">📊 Report Type</label>
-                  <select id="reportType" onchange="toggleReportDatePicker()">
+                                <div class="section-collapsible">
+                  <div class="section-header open" onclick="toggleSection('hdrCustomRep', 'bodyCustomRep')">
+                    <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📄</span><span class="sec-title">Custom Report</span></div>
+                  </div>
+                  <div class="section-body open" id="bodyCustomRep">
+                    <div style="background:var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                      <label class="field-label" style="margin-top:0;">📊 Report Type</label>
+                      <select id="reportType" onchange="toggleReportDatePicker()">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
