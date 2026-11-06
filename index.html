@@ -5,14 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Business Tracker — HaniTech</title>
 <meta name="theme-color" content="#1a365d">
-<meta name="theme-color" content="#1a365d">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HaniTech">
-<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 /* ============================================
@@ -1260,7 +1258,7 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
           </div>
         </div>
 
-        <!-- Credit (Pro only) -->
+        <!-- Credit (Pro only or HasCredit) -->
         <div class="menu-group" id="menu_credit" style="display:none;">
           <label class="menu-header" onclick="switchPage('panel7', null, this)">
             <div class="m-left"><i>💳</i> <span>Credit</span> <span class="pro-badge-sidebar">PRO</span></div>
@@ -1864,11 +1862,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                     <input type="month" id="reportMonthInput">
                   </div>
                   <button class="btn btn-primary" style="margin-top:16px;" onclick="generateReport()">📄 Generate Report</button>
-<button class="btn btn-success" style="margin-top:8px;" onclick="exportReportCSV()">📥 Download CSV</button>
-<button class="btn btn-warning" style="margin-top:8px;" onclick="printReport()">🖨️ Print Report</button>
-<div id="reportDisplay" style="margin-top: 20px;"></div>
+                  <button class="btn btn-success" style="margin-top:8px;" onclick="exportReportCSV()">📥 Download CSV</button>
+                  <button class="btn btn-warning" style="margin-top:8px;" onclick="printReport()">🖨️ Print Report</button>
+                  <div id="reportDisplay" style="margin-top: 20px; overflow-x:auto;"></div>
                 </div>
-                <div id="reportDisplay"></div>
               </div>
             </div>
           </div>
@@ -2207,7 +2204,7 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
       <input type="text" id="laundryCustomerPhone" placeholder="+251...">
       <label class="field-label">📅 Pickup Date</label>
       <input type="date" id="laundryPickupDate">
-            <label class="field-label">📝 Notes</label>
+      <label class="field-label">📝 Notes</label>
       <input type="text" id="laundryNotes" placeholder="Special instructions">
       <label class="field-label">💰 Paid Amount (Partial)</label>
       <input type="number" id="laundryPaidAmount" placeholder="0.00 (Leave empty for full payment)" step="any">
@@ -2235,7 +2232,7 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
         <option value="yes">Yes</option>
       </select>
       <div id="deliveryFields" style="display:none;">
-                <label class="field-label">📍 Delivery Address (Optional)</label>
+        <label class="field-label">📍 Delivery Address (Optional)</label>
         <input type="text" id="drinksAddress" placeholder="Full address (optional)">
         <label class="field-label">📅 Delivery Date</label>
         <input type="date" id="drinksDeliveryDate">
@@ -2303,6 +2300,7 @@ let currentTenantId = null;
 let currentRole = 'employee';
 let businessType = 'hotel';
 let plan = 'basic';
+let currentHasCredit = false;
 let lowStockThreshold = 10;
 
 let allProducts = [];
@@ -2544,7 +2542,7 @@ window.switchPage = function(panelId, subPanelId, el) {
   if (panelId === 'panel4') loadInventory();
   if (panelId === 'panel5') loadDashboard();
   if (panelId === 'panel7') renderUnpaidCredits();
-    if (panelId === 'panel8') { loadSettingsData(); loadPermissions(); loadAuditTrail(); }
+  if (panelId === 'panel8') { loadSettingsData(); loadPermissions(); loadAuditTrail(); }
   if (panelId === 'panel6' && subPanelId === 'sub6_2') loadDailyReport();
   if (panelId === 'panel6' && subPanelId === 'sub6_3') loadMonthlyReport();
 };
@@ -2592,7 +2590,7 @@ function buildModernMenu() {
       { panel: 'panel6', sub: 'sub6_3', icon: '📆', label: 'Monthly' }
     ]},
     { label: '⚙️ System', items: [
-      ...(plan === 'pro' ? [{ panel: 'panel7', sub: null, icon: '💳', label: 'Credit' }] : []),
+      ...(plan === 'pro' || currentHasCredit ? [{ panel: 'panel7', sub: null, icon: '💳', label: 'Credit' }] : []),
       { panel: 'panel8', sub: null, icon: '⚙️', label: 'Settings' }
     ]}
   ];
@@ -2761,7 +2759,7 @@ async function loadUserAndTenant(user) {
       return;
     }
     const tenantData = tenantDoc.data();
-        businessType = tenantData.businessType || 'hotel';
+    businessType = tenantData.businessType || 'hotel';
     plan = tenantData.plan || 'basic';
     window.currentHasCredit = tenantData.hasCredit || false;
     lowStockThreshold = tenantData.lowStockThreshold || 10;
@@ -2811,7 +2809,7 @@ async function loadUserAndTenant(user) {
     }
     
     // ===== Load Data =====
-        await loadAllData();
+    await loadAllData();
     await loadSupportInfo();
     loadPermissions();
     loadAuditTrail();
@@ -2862,7 +2860,7 @@ function renderExtraProductFields() {
 }
 
 function applyPlanRestrictions() {
-    const isPro = plan === 'pro';
+  const isPro = plan === 'pro';
   const showCredit = isPro || window.currentHasCredit; // Pro ወይም አድሚኑ የፈቀደው
   document.getElementById('menu_credit').style.display = showCredit ? 'block' : 'none';
   document.getElementById('stockTransferSection').style.display = isPro ? 'block' : 'none';
@@ -2870,7 +2868,7 @@ function applyPlanRestrictions() {
   
   // Update PRO badges visibility
   document.querySelectorAll('.pro-badge-sidebar').forEach(b => {
-    b.style.display = isPro ? 'inline-block' : 'none';
+    b.style.display = showCredit ? 'inline-block' : 'none';
   });
 }
 
@@ -3675,8 +3673,9 @@ window.confirmLaundrySale = async function() {
   const customer = document.getElementById('laundryCustomerName').value.trim();
   const phone = document.getElementById('laundryCustomerPhone').value.trim();
   const pickup = document.getElementById('laundryPickupDate').value;
-    const notes = document.getElementById('laundryNotes').value.trim();
+  const notes = document.getElementById('laundryNotes').value.trim();
   const paid = parseFloat(document.getElementById('laundryPaidAmount').value) || 0;
+  
   if (!customer) return showToast('የደንበኛ ስም አስፈልጋል', 'error');
   if (!pickup) return showToast('የማስረከቢያ ቀን አስፈልጋል', 'error');
   
@@ -3688,6 +3687,7 @@ window.confirmLaundrySale = async function() {
   document.getElementById('laundryCustomerName').value = '';
   document.getElementById('laundryCustomerPhone').value = '';
   document.getElementById('laundryNotes').value = '';
+  document.getElementById('laundryPaidAmount').value = '';
 };
 
 window.confirmDrinksSale = async function() {
@@ -3710,7 +3710,7 @@ async function executeSale(extras) {
   const receipt = document.getElementById('sellReceipt').value.trim();
   if (!date || !branch) return showToast('ቀን እና ቅርንጫፍ ያስፈልጋሉ', 'error');
   
-    let customer = extras.customer || '';
+  let customer = extras.customer || '';
   let paidAmount = extras.paidAmount || 0; 
   const totalAmount = cart.reduce((s, c) => s + (c.price * c.qty), 0);
   
@@ -3719,7 +3719,7 @@ async function executeSale(extras) {
       customer = document.getElementById('sellCreditCustomer').value.trim();
       if (!customer) return showToast('የደንበኛ ስም አስፈልጋል (Credit)', 'error');
     }
-    if(paidAmount === 0) { // If it wasn't passed from Laundry modal
+    if (paidAmount === 0) {
       paidAmount = parseFloat(document.getElementById('sellCreditPaid').value) || 0;
     }
     if (paidAmount > totalAmount) paidAmount = totalAmount;
@@ -3731,7 +3731,8 @@ async function executeSale(extras) {
     for (const item of cart) {
       const itemTotal = item.price * item.qty;
       const itemPaid = method === 'credit' ? (itemTotal * (paidAmount / totalAmount)) : itemTotal;
-      await addDoc(collection(db, 'sales'), {
+      
+      const saleData = {
         tenantId: currentTenantId,
         productId: item.id,
         productName: item.name,
@@ -3744,13 +3745,26 @@ async function executeSale(extras) {
         receipt,
         branch,
         date,
-        ...extras,
+        ...extras, // Laundry/Drinks special fields
         timestamp: serverTimestamp()
-      });
+      };
+      
+      // Clean up extras to avoid undefined fields
+      if (extras.customer) saleData.customerName = extras.customer;
+      if (extras.phone) saleData.customerPhone = extras.phone;
+      if (extras.pickupDate) saleData.pickupDate = extras.pickupDate;
+      if (extras.notes) saleData.laundryNotes = extras.notes;
+      if (extras.saleType) saleData.drinksSaleType = extras.saleType;
+      if (extras.delivery) saleData.deliveryRequired = extras.delivery;
+      if (extras.address) saleData.deliveryAddress = extras.address;
+      if (extras.deliveryDate) saleData.deliveryDate = extras.deliveryDate;
+      if (extras.deposit) saleData.depositAmount = extras.deposit;
+      
+      await addDoc(collection(db, 'sales'), saleData);
       await updateDoc(doc(db, 'products', item.id), { quantity: increment(-item.qty) });
     }
     
-        showToast('✅ ሽያጭ ተመዝግቧል');
+    showToast('✅ ሽያጭ ተመዝግቧል');
     logActivity('አዲስ ሽያጭ ተመዘገበ');
     cart = [];
     renderCart();
@@ -3833,7 +3847,8 @@ function renderSalesHistory() {
         📅 ${esc(item.date)} | 📦 Qty: ${item.quantity} | 🏷️ ${money(item.unitPrice)} | 🏢 ${esc(item.branch || '-')}
       </div>
       ${unpaid > 0 ? `<div style="font-size:12px; color:var(--danger); margin-top:4px;">📝 Unpaid: ${money(unpaid)} ETB | 👤 ${esc(item.customer || '-')}</div>` : ''}
-      ${item.customer && item.customerName ? `<div style="font-size:12px; color:var(--primary); margin-top:4px;">👤 ${esc(item.customer)} | 📞 ${esc(item.phone || '-')} | 📅 Pickup: ${esc(item.pickupDate || '-')}</div>` : ''}
+      ${item.customerName ? `<div style="font-size:12px; color:var(--primary); margin-top:4px;">👤 ${esc(item.customerName)} | 📞 ${esc(item.customerPhone || '-')} | 📅 Pickup: ${esc(item.pickupDate || '-')}</div>` : ''}
+      ${item.deliveryRequired ? `<div style="font-size:12px; color:var(--primary); margin-top:4px;">🚚 ${esc(item.deliveryAddress || 'No address')} | 📅 ${esc(item.deliveryDate || '-')}</div>` : ''}
     </div>`;
   }).join('');
   
@@ -3865,6 +3880,7 @@ window.addExpense = async function() {
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
     showToast('✅ ተመዝግቧል');
+    logActivity('አዲስ ወጪ ተመዝግቧል');
   } catch (e) { showToast('ስህተት', 'error'); }
 };
 
@@ -4157,8 +4173,38 @@ function loadDashboard() {
       options: { responsive: true, maintainAspectRatio: false }
     });
   }
+
+  // Expense Pie Chart
+  const pieCtx = document.getElementById('expensePieCanvas');
+  const legendEl = document.getElementById('expenseLegend');
+  if (pieCtx) {
+    const expCats = {};
+    exp.forEach(e => { expCats[e.category] = (expCats[e.category] || 0) + e.amount; });
+    fixed.forEach(f => { const cat = 'Fixed: ' + f.category; expCats[cat] = (expCats[cat] || 0) + f.amount; });
+    
+    const labels = Object.keys(expCats);
+    const data = Object.values(expCats);
+    if (expensePieInstance) expensePieInstance.destroy();
+    
+    if(labels.length === 0) {
+        if(legendEl) legendEl.innerHTML = '<p style="text-align:center; color:var(--text-muted);">ምንም ወጪ የለም</p>';
+        pieCtx.getContext('2d').clearRect(0,0,pieCtx.width,pieCtx.height);
+    } else {
+        expensePieInstance = new Chart(pieCtx, {
+          type: 'doughnut',
+          data: { labels, datasets: [{ data, backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'] }] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        if(legendEl) {
+            let lHtml = '<table style="width:100%; font-size:13px;">';
+            labels.forEach((l, i) => { lHtml += `<tr><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;background:${expensePieInstance.data.datasets[0].backgroundColor[i]};margin-right:8px;"></span>${esc(l)}</td><td style="text-align:right;font-weight:bold;">${money(data[i])}</td></tr>`; });
+            lHtml += '</table>';
+            legendEl.innerHTML = lHtml;
+        }
+    }
+  }
   
-  // Top selling
+  // Top 10
   const stats = {};
   sales.forEach(s => {
     if (!stats[s.productName]) stats[s.productName] = { qty: 0, rev: 0 };
@@ -4412,7 +4458,7 @@ function renderUnpaidCredits() {
 }
 
 window.addCreditPayment = async function() {
-  if (plan !== 'pro') return showToast('Pro ብቻ', 'error');
+  if (plan !== 'pro' && !window.currentHasCredit) return showToast('Pro ብቻ', 'error');
   const customer = document.getElementById('creditCustomerSelect').value;
   const branch = document.getElementById('creditBranchSelect').value;
   const date = document.getElementById('creditDate').value;
