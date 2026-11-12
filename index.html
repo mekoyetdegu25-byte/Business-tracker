@@ -371,7 +371,6 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 #panelMobileHome { display: none; }
 @media (max-width: 768px) {
   #panelMobileHome.active { display: block !important; animation: fadeIn 0.3s ease; }
-  #panel5.active { display: none !important; }
 }
 @media (min-width: 769px) {
   #panelMobileHome { display: none !important; }
@@ -413,7 +412,6 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 .qa-card .qa-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 12px; }
 .qa-card .qa-title { font-size: 13px; font-weight: 700; color: var(--text-main); line-height: 1.3; }
 
-</style> <-- መዝጊያው እዚህ ይሆናል
 </style>
 </head>
 <body>
@@ -626,17 +624,6 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
              PANEL 0: MOBILE HOME (የሞባይል መነሻ ገጽ)
              ============================================ -->
         <div class="panel" id="panelMobileHome">
-          <!-- Mobile Header Info -->
-          <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); border-bottom: 1px solid var(--border); margin: -24px -24px 20px -24px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: var(--info); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;" id="mobAvatar">U</div>
-              <div>
-                <div style="font-size: 16px; font-weight: 800; color: var(--text-main);" id="mobBizName">Business Name</div>
-                <div style="font-size: 12px; color: var(--text-muted);" id="mobUserRole">👑 Owner</div>
-              </div>
-            </div>
-            <button class="h-btn" style="background: var(--bg); color: var(--text-main); border: 1px solid var(--border);" onclick="logout()">🚪</button>
-          </div>
 
           <div style="padding: 0 16px 20px 16px;">
             <!-- Today's Summary Card -->
@@ -689,16 +676,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                 <div class="qa-title">Inventory</div>
               </div>
               
-              <!-- 6. Credit (Pro Only) -->
-              <div class="qa-card" id="qa_credit" onclick="switchPage('panel7', null, null)" style="display: none;">
-                <div class="qa-icon" style="background: rgba(236, 72, 153, 0.1); color: #ec4899;">💳</div>
-                <div class="qa-title">Credit (Debt)</div>
-              </div>
-              
-              <!-- 6. Fallback: Reports (Basic Only) -->
-              <div class="qa-card" id="qa_basicFallback" onclick="switchPage('panel6', 'sub6_2', null)" style="display: none;">
-                <div class="qa-icon" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;">📊</div>
-                <div class="qa-title">Reports</div>
+                            <!-- 6. Dashboard (ለሁሉም ፕላን) -->
+              <div class="qa-card" onclick="switchPage('panel5', null, null)">
+                <div class="qa-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">📊</div>
+                <div class="qa-title">Dashboard</div>
               </div>
             </div>
           </div>
@@ -1418,7 +1399,7 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
           </div>
         </div>
 
-        <!-- ============================================
+                <!-- ============================================
              PANEL 8: SETTINGS
              ============================================ -->
         <div class="panel" id="panel8">
@@ -1435,10 +1416,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Business Info -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrBizInfo', 'bodyBizInfo')">
+              <div class="section-header" onclick="toggleSection('hdrBizInfo', 'bodyBizInfo')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏢</span><span class="sec-title">Business Info</span></div>
               </div>
-              <div class="section-body open" id="bodyBizInfo">
+              <div class="section-body" id="bodyBizInfo">
                 <label class="field-label">🏢 Business Name</label>
                 <input type="text" id="settingBizName" placeholder="Business name">
                 <label class="field-label">📞 Phone Number</label>
@@ -1449,10 +1430,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Security -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrSecurity', 'bodySecurity')">
+              <div class="section-header" onclick="toggleSection('hdrSecurity', 'bodySecurity')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🔒</span><span class="sec-title">Security & Password</span></div>
               </div>
-              <div class="section-body open" id="bodySecurity">
+              <div class="section-body" id="bodySecurity">
                 <label class="field-label">Current Password</label>
                 <input type="password" id="currentPassword" placeholder="Enter current password">
                 <label class="field-label">New Password</label>
@@ -1465,10 +1446,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Preferences -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrPreferences', 'bodyPreferences')">
+              <div class="section-header" onclick="toggleSection('hdrPreferences', 'bodyPreferences')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🌍</span><span class="sec-title">System Preferences</span></div>
               </div>
-              <div class="section-body open" id="bodyPreferences">
+              <div class="section-body" id="bodyPreferences">
                 <label class="field-label">💰 Currency</label>
                 <select id="settingCurrency">
                   <option value="ETB">ETB (ብር)</option>
@@ -1495,10 +1476,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Limits -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrLimits', 'bodyLimits')">
+              <div class="section-header" onclick="toggleSection('hdrLimits', 'bodyLimits')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📦</span><span class="sec-title">Limits & Alerts</span></div>
               </div>
-              <div class="section-body open" id="bodyLimits">
+              <div class="section-body" id="bodyLimits">
                 <label class="field-label">Low Stock Threshold</label>
                 <input type="number" id="settingStockLimit" placeholder="e.g. 10">
                 <button class="btn btn-primary" onclick="saveLimits()">💾 Save Limits</button>
@@ -1507,10 +1488,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Branches -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrBranches', 'bodyBranches')">
+              <div class="section-header" onclick="toggleSection('hdrBranches', 'bodyBranches')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏢</span><span class="sec-title">Branches <span class="pro-badge-sidebar" style="margin-left:6px;">PRO</span></span></div>
               </div>
-              <div class="section-body open" id="bodyBranches">
+              <div class="section-body" id="bodyBranches">
                 <div id="branchAddSection" style="display:flex; gap:10px; margin-bottom:10px;">
                   <input type="text" id="newBranch" placeholder="New branch name" style="flex:1;">
                   <button class="btn btn-primary" style="width:auto; margin-top:0; padding:0 16px;" onclick="addBranch()">+ Add</button>
@@ -1521,10 +1502,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Customers -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrCustomers', 'bodyCustomers')">
+              <div class="section-header" onclick="toggleSection('hdrCustomers', 'bodyCustomers')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏪</span><span class="sec-title">Customers</span></div>
               </div>
-              <div class="section-body open" id="bodyCustomers">
+              <div class="section-body" id="bodyCustomers">
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                   <input type="text" id="newCustomer" placeholder="New customer name" style="flex:1;">
                   <button class="btn btn-primary" style="width:auto; margin-top:0; padding:0 16px;" onclick="addCustomer()">+ Add</button>
@@ -1535,33 +1516,33 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Permissions -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrPermissions', 'bodyPermissions')">
+              <div class="section-header" onclick="toggleSection('hdrPermissions', 'bodyPermissions')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🎯</span><span class="sec-title">Employee Permissions</span></div>
               </div>
-              <div class="section-body open" id="bodyPermissions">
+              <div class="section-body" id="bodyPermissions">
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Toggle which tabs each role can access.</p>
                 <div id="permissionGrid"></div>
                 <button class="btn btn-primary" style="margin-top:16px;" onclick="savePermissions()">💾 Save Permissions</button>
               </div>
             </div>
 
-            <!-- NEW: Employee Management -->
+            <!-- Employee Management -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrEmployeeMgr', 'bodyEmployeeMgr')">
+              <div class="section-header" onclick="toggleSection('hdrEmployeeMgr', 'bodyEmployeeMgr')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">👥</span><span class="sec-title">Employee Management</span></div>
               </div>
-              <div class="section-body open" id="bodyEmployeeMgr">
+              <div class="section-body" id="bodyEmployeeMgr">
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Manage employees, roles, and access.</p>
                 <div id="employeeListDisplay"></div>
               </div>
             </div>
 
-            <!-- NEW: Notifications -->
+            <!-- Notifications -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrNotifications', 'bodyNotifications')">
+              <div class="section-header" onclick="toggleSection('hdrNotifications', 'bodyNotifications')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🔔</span><span class="sec-title">Notification Settings</span></div>
               </div>
-              <div class="section-body open" id="bodyNotifications">
+              <div class="section-body" id="bodyNotifications">
                 <div class="toggle-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
                   <div><strong>Low Stock Alerts</strong><br><span style="font-size:12px; color:var(--text-muted);">Notify when stock is low</span></div>
                   <label class="switch" style="position:relative; display:inline-block; width:46px; height:26px;">
@@ -1587,12 +1568,12 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
               </div>
             </div>
 
-            <!-- NEW: Audit Trail -->
+            <!-- Audit Trail -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrAuditTrail', 'bodyAuditTrail')">
+              <div class="section-header" onclick="toggleSection('hdrAuditTrail', 'bodyAuditTrail')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📝</span><span class="sec-title">Audit Trail</span></div>
               </div>
-              <div class="section-body open" id="bodyAuditTrail">
+              <div class="section-body" id="bodyAuditTrail">
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Recent activity logs.</p>
                 <div id="auditTrailList"></div>
               </div>
@@ -1600,10 +1581,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Backup -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrBackup', 'bodyBackup')">
+              <div class="section-header" onclick="toggleSection('hdrBackup', 'bodyBackup')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">💾</span><span class="sec-title">Backup & Restore</span></div>
               </div>
-              <div class="section-body open" id="bodyBackup">
+              <div class="section-body" id="bodyBackup">
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                   <button class="btn btn-primary" style="flex:1;" onclick="backupData()">📥 Download Backup</button>
                   <button class="btn btn-warning" style="flex:1;" onclick="document.getElementById('restoreFile').click()">📤 Restore</button>
@@ -1614,10 +1595,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Support -->
             <div class="section-collapsible">
-              <div class="section-header open" onclick="toggleSection('hdrSupport', 'bodySupport')">
+              <div class="section-header" onclick="toggleSection('hdrSupport', 'bodySupport')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📞</span><span class="sec-title">Support & Help</span></div>
               </div>
-              <div class="section-body open" id="bodySupport">
+              <div class="section-body" id="bodySupport">
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:15px;">
                   <div style="background:var(--bg); padding:15px; border-radius:10px; text-align:center;">
                     <div style="font-size:24px; margin-bottom:8px;">📞</div>
@@ -1653,11 +1634,6 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
           </div>
         </div>
-
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ============================================
      🪟 MODALS
@@ -1959,11 +1935,20 @@ window.toggleDarkMode = function(isDark) {
 window.toggleSection = function(h, b) {
   const header = document.getElementById(h);
   const body = document.getElementById(b);
-  if (!header || !body) return;
-  header.classList.toggle('open');
-  body.classList.toggle('open');
-};
+  
+  if (!header || !body) {
+    console.warn('Section not found:', h, b);
+    return;
+  }
 
+  if (header.classList.contains('open')) {
+    header.classList.remove('open');
+    body.classList.remove('open');
+  } else {
+    header.classList.add('open');
+    body.classList.add('open');
+  }
+};
 window.toggleMenu = function(el) {
   const allHeaders = document.querySelectorAll('.menu-header');
   const allSubMenus = document.querySelectorAll('.sub-menu');
@@ -2011,7 +1996,23 @@ window.switchPage = function(panelId, subPanelId, el) {
   if (panelId === 'panel4') loadInventory();
   if (panelId === 'panel5') loadDashboard();
   if (panelId === 'panel7') renderUnpaidCredits();
-  if (panelId === 'panel8') { loadSettingsData(); loadPermissions(); loadEmployees(); loadNotifications(); loadAuditTrail(); }
+      if (panelId === 'panel8') { 
+    // 1. ሁሉንም ሳጥኖች ዝጋ
+    document.querySelectorAll('#panel8 .section-header').forEach(h => h.classList.remove('open'));
+    document.querySelectorAll('#panel8 .section-body').forEach(b => b.classList.remove('open'));
+    
+    // 2. የመጀመሪያውን (System Settings) ብቻ ክፈት
+    const mainH = document.getElementById('hdrSettingsMain');
+    const mainB = document.getElementById('bodySettingsMain');
+    if (mainH && mainB) { mainH.classList.add('open'); mainB.classList.add('open'); }
+
+    // 3. ዳታውን ጫን
+    loadSettingsData(); 
+    loadPermissions(); 
+    loadEmployees(); 
+    loadNotifications(); 
+    loadAuditTrail(); 
+  }
   if (panelId === 'panel6' && subPanelId === 'sub6_2') loadDailyReport();
   if (panelId === 'panel6' && subPanelId === 'sub6_3') loadMonthlyReport();
 };
@@ -2026,15 +2027,6 @@ window.updateMobileHome = function() {
   if (mobBizName) mobBizName.textContent = document.getElementById('hdrBusinessName').textContent;
   if (mobUserRole) mobUserRole.textContent = document.getElementById('hdrRoleBadge').textContent;
   if (mobAvatar) mobAvatar.textContent = document.getElementById('hdrUserInitial').textContent;
-
-  // Show/Hide Credit vs Reports based on plan
-  const showCredit = plan === 'pro' || window.currentHasCredit;
-  const qaCredit = document.getElementById('qa_credit');
-  const qaFallback = document.getElementById('qa_basicFallback');
-  if (qaCredit && qaFallback) {
-    qaCredit.style.display = showCredit ? 'flex' : 'none';
-    qaFallback.style.display = showCredit ? 'none' : 'flex';
-  }
 
   // Calculate Today's Stats
   const today = todayStr();
