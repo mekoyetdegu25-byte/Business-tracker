@@ -632,10 +632,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
           <!-- Sub 1.2: Add Product -->
           <div class="sub-panel" id="sub1_2">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrAddProduct', 'bodyAddProduct')">
+              <div class="section-header open" onclick="toggleSection('hdrAddProduct', 'bodyAddProduct')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">➕</span><span class="sec-title" data-label="addProductTitle">አዲስ ምርት ጨምር</span></div>
               </div>
-              <div class="section-body" id="bodyAddProduct">
+              <div class="section-body open" id="bodyAddProduct">
                 <div style="background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
@@ -684,10 +684,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
           <!-- Sub 1.3: Categories -->
           <div class="sub-panel" id="sub1_3">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrCategories', 'bodyCategories')">
+              <div class="section-header open" onclick="toggleSection('hdrCategories', 'bodyCategories')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🗂️</span><span class="sec-title">Categories</span></div>
               </div>
-              <div class="section-body" id="bodyCategories">
+              <div class="section-body open" id="bodyCategories">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
                   <div>
                     <label class="field-label" style="margin-top: 0;">Main Category</label>
@@ -786,10 +786,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
           <!-- Sub 2.2: Quick Sale -->
           <div class="sub-panel" id="sub2_2">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrQuickSale', 'bodyQuickSale')">
+              <div class="section-header open" onclick="toggleSection('hdrQuickSale', 'bodyQuickSale')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">⚡</span><span class="sec-title">Quick Sale</span></div>
               </div>
-              <div class="section-body" id="bodyQuickSale">
+              <div class="section-body open" id="bodyQuickSale">
                 <div style="background:rgba(59,130,246,0.08); color:var(--info); padding:12px; border-radius:8px; margin-bottom:16px; font-size:13px;">💡 Record total income directly without product selection.</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                   <div>
@@ -828,6 +828,7 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                   </select>
                   <input type="date" id="filterStartDate" onchange="salesHistPage=1; renderSalesHistory()" style="width:150px;" title="Start">
                   <input type="date" id="filterEndDate" onchange="salesHistPage=1; renderSalesHistory()" style="width:150px;" title="End">
+                  <button class="btn btn-danger" style="width:auto; margin-top:0; padding:0 16px;" onclick="clearAllSales()">🗑️ Clear All</button>
                 </div>
                 <div id="salesHistoryList"></div>
                 <div class="pagination-controls">
@@ -881,10 +882,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
           <div class="sub-panel" id="sub3_2">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrFixedExpense', 'bodyFixedExpense')">
+              <div class="section-header open" onclick="toggleSection('hdrFixedExpense', 'bodyFixedExpense')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏢</span><span class="sec-title">Fixed Expense</span></div>
               </div>
-              <div class="section-body" id="bodyFixedExpense">
+              <div class="section-body open" id="bodyFixedExpense">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                   <div><label class="field-label">📁 Category</label><select id="fixCategory"></select></div>
                   <div><label class="field-label">🏢 Branch</label><select id="fixBranch"></select></div>
@@ -914,7 +915,11 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                     <option value="daily">📅 Daily</option>
                     <option value="fixed">🏢 Fixed</option>
                   </select>
-                  <input type="month" id="expFilterMonth" onchange="renderAllExpensesList()" style="width:180px;">
+                  <select id="expFilterCategory" onchange="renderAllExpensesList()" style="width:150px;">
+                    <option value="all">All Categories</option>
+                  </select>
+                  <input type="date" id="expFilterStartDate" onchange="renderAllExpensesList()" style="width:150px;" title="Start Date">
+                  <input type="date" id="expFilterEndDate" onchange="renderAllExpensesList()" style="width:150px;" title="End Date">
                 </div>
                 <div id="allExpensesListDisplay"></div>
               </div>
@@ -923,10 +928,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
           <div class="sub-panel" id="sub3_4">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrExpCategory', 'bodyExpCategory')">
+              <div class="section-header open" onclick="toggleSection('hdrExpCategory', 'bodyExpCategory')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🗂️</span><span class="sec-title">Expense Categories</span></div>
               </div>
-              <div class="section-body" id="bodyExpCategory">
+              <div class="section-body open" id="bodyExpCategory">
                 <div style="display:flex; gap:10px; margin-bottom:20px;">
                   <input type="text" id="newExpCategory" placeholder="New category name">
                   <button class="btn btn-primary" style="width:auto; margin-top:0; padding:0 16px;" onclick="addExpCategory()">+ Add</button>
@@ -957,6 +962,9 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                 </div>
                 <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
                   <input type="text" id="searchInventory" placeholder="🔍 Search..." oninput="invPage=1; loadInventory()" style="flex:1;">
+                  <select id="filterInvCategory" onchange="invPage=1; loadInventory()" style="width:160px;">
+                    <option value="all">All Categories</option>
+                  </select>
                   <select id="filterInvBranch" onchange="invPage=1; loadInventory()" style="width:160px;">
                     <option value="all">All Branches</option>
                   </select>
@@ -983,10 +991,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
           <div class="sub-panel" id="sub4_3">
             <div class="section-collapsible full-width">
-              <div class="section-header" onclick="toggleSection('hdrAdjustStock', 'bodyAdjustStock')">
+              <div class="section-header open" onclick="toggleSection('hdrAdjustStock', 'bodyAdjustStock')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🔧</span><span class="sec-title">Adjust Stock</span></div>
               </div>
-              <div class="section-body" id="bodyAdjustStock">
+              <div class="section-body open" id="bodyAdjustStock">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                   <div><label class="field-label">🏢 Branch</label><select id="adjustBranch" onchange="populateAdjustProducts()"></select></div>
                   <div>
@@ -1035,9 +1043,25 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
               </div>
               <div class="section-body open" id="bodyPurchaseHistory">
                 <div style="margin-bottom:16px;">
-                  <input type="text" id="searchPurchaseHist" placeholder="🔍 Search..." oninput="renderPurchaseHistory()" style="width:100%;">
+                  <input type="text" id="searchPurchaseHist" placeholder="🔍 Search..." oninput="purchaseHistPage=1; renderPurchaseHistory()" style="width:100%;">
                 </div>
                 <div id="purchaseHistoryList"></div>
+                <div class="pagination-controls">
+                  <div class="rows-per-page">
+                    Show
+                    <select id="purchaseHistRowsPerPage" onchange="purchaseHistPage=1; renderPurchaseHistory()">
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                    </select>
+                    entries
+                  </div>
+                  <div id="purchaseHistPageInfo" style="font-size:13px; color:var(--text-muted);">Page 1 of 1</div>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn btn-outline btn-sm" id="btnPrevPurchaseHist" onclick="changePurchaseHistPage(-1)">⬅️</button>
+                    <button class="btn btn-outline btn-sm" id="btnNextPurchaseHist" onclick="changePurchaseHistPage(1)">➡️</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1173,9 +1197,17 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📅</span><span class="sec-title">Daily Report</span></div>
               </div>
               <div class="section-body open" id="bodyDailyRep">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px; margin-bottom:20px;">
                   <div><label class="field-label">📅 Date</label><input type="date" id="dailyReportDate" onchange="loadDailyReport()"></div>
                   <div><label class="field-label">🏢 Branch</label><select id="dailyReportBranch" onchange="loadDailyReport()"><option value="all">All Branches</option></select></div>
+                  <div><label class="field-label">💳 Payment Type</label>
+                    <select id="dailyReportType" onchange="loadDailyReport()">
+                      <option value="all">All</option>
+                      <option value="cash">💵 Cash</option>
+                      <option value="transfer">🏦 Transfer</option>
+                      <option value="credit">📝 Credit</option>
+                    </select>
+                  </div>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
                   <div class="summary-box green" style="margin-bottom:0;"><div class="label">Revenue</div><div class="value" id="dailyRev" style="font-size:20px;">0.00</div></div>
@@ -1193,9 +1225,17 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📆</span><span class="sec-title">Monthly Report</span></div>
               </div>
               <div class="section-body open" id="bodyMonthlyRep">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px; margin-bottom:20px;">
                   <div><label class="field-label">📅 Month</label><input type="month" id="monthlyReportMonth" onchange="loadMonthlyReport()"></div>
                   <div><label class="field-label">🏢 Branch</label><select id="monthlyReportBranch" onchange="loadMonthlyReport()"><option value="all">All Branches</option></select></div>
+                  <div><label class="field-label">💳 Payment Type</label>
+                    <select id="monthlyReportType" onchange="loadMonthlyReport()">
+                      <option value="all">All</option>
+                      <option value="cash">💵 Cash</option>
+                      <option value="transfer">🏦 Transfer</option>
+                      <option value="credit">📝 Credit</option>
+                    </select>
+                  </div>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
                   <div class="summary-box green" style="margin-bottom:0;"><div class="label">Revenue</div><div class="value" id="monthlyRev" style="font-size:20px;">0.00</div></div>
@@ -1262,10 +1302,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Business Info -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrBizInfo', 'bodyBizInfo')">
+              <div class="section-header open" onclick="toggleSection('hdrBizInfo', 'bodyBizInfo')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏢</span><span class="sec-title">Business Info</span></div>
               </div>
-              <div class="section-body" id="bodyBizInfo">
+              <div class="section-body open" id="bodyBizInfo">
                 <label class="field-label">🏢 Business Name</label>
                 <input type="text" id="settingBizName" placeholder="Business name">
                 <label class="field-label">📞 Phone Number</label>
@@ -1276,10 +1316,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Security -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrSecurity', 'bodySecurity')">
+              <div class="section-header open" onclick="toggleSection('hdrSecurity', 'bodySecurity')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🔒</span><span class="sec-title">Security & Password</span></div>
               </div>
-              <div class="section-body" id="bodySecurity">
+              <div class="section-body open" id="bodySecurity">
                 <label class="field-label">Current Password</label>
                 <input type="password" id="currentPassword" placeholder="Enter current password">
                 <label class="field-label">New Password</label>
@@ -1292,10 +1332,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Preferences -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrPreferences', 'bodyPreferences')">
+              <div class="section-header open" onclick="toggleSection('hdrPreferences', 'bodyPreferences')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🌍</span><span class="sec-title">System Preferences</span></div>
               </div>
-              <div class="section-body" id="bodyPreferences">
+              <div class="section-body open" id="bodyPreferences">
                 <label class="field-label">💰 Currency</label>
                 <select id="settingCurrency">
                   <option value="ETB">ETB (ብር)</option>
@@ -1322,10 +1362,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Limits -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrLimits', 'bodyLimits')">
+              <div class="section-header open" onclick="toggleSection('hdrLimits', 'bodyLimits')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📦</span><span class="sec-title">Limits & Alerts</span></div>
               </div>
-              <div class="section-body" id="bodyLimits">
+              <div class="section-body open" id="bodyLimits">
                 <label class="field-label">Low Stock Threshold</label>
                 <input type="number" id="settingStockLimit" placeholder="e.g. 10">
                 <button class="btn btn-primary" onclick="saveLimits()">💾 Save Limits</button>
@@ -1334,10 +1374,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Branches -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrBranches', 'bodyBranches')">
+              <div class="section-header open" onclick="toggleSection('hdrBranches', 'bodyBranches')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏢</span><span class="sec-title">Branches <span class="pro-badge-sidebar" style="margin-left:6px;">PRO</span></span></div>
               </div>
-              <div class="section-body" id="bodyBranches">
+              <div class="section-body open" id="bodyBranches">
                 <div id="branchAddSection" style="display:flex; gap:10px; margin-bottom:10px;">
                   <input type="text" id="newBranch" placeholder="New branch name" style="flex:1;">
                   <button class="btn btn-primary" style="width:auto; margin-top:0; padding:0 16px;" onclick="addBranch()">+ Add</button>
@@ -1348,10 +1388,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Customers -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrCustomers', 'bodyCustomers')">
+              <div class="section-header open" onclick="toggleSection('hdrCustomers', 'bodyCustomers')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🏪</span><span class="sec-title">Customers</span></div>
               </div>
-              <div class="section-body" id="bodyCustomers">
+              <div class="section-body open" id="bodyCustomers">
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                   <input type="text" id="newCustomer" placeholder="New customer name" style="flex:1;">
                   <button class="btn btn-primary" style="width:auto; margin-top:0; padding:0 16px;" onclick="addCustomer()">+ Add</button>
@@ -1362,22 +1402,75 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Permissions -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrPermissions', 'bodyPermissions')">
+              <div class="section-header open" onclick="toggleSection('hdrPermissions', 'bodyPermissions')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🎯</span><span class="sec-title">Employee Permissions</span></div>
               </div>
-              <div class="section-body" id="bodyPermissions">
+              <div class="section-body open" id="bodyPermissions">
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Toggle which tabs each role can access.</p>
                 <div id="permissionGrid"></div>
                 <button class="btn btn-primary" style="margin-top:16px;" onclick="savePermissions()">💾 Save Permissions</button>
               </div>
             </div>
 
+            <!-- NEW: Employee Management -->
+            <div class="section-collapsible">
+              <div class="section-header open" onclick="toggleSection('hdrEmployeeMgr', 'bodyEmployeeMgr')">
+                <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">👥</span><span class="sec-title">Employee Management</span></div>
+              </div>
+              <div class="section-body open" id="bodyEmployeeMgr">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Manage employees, roles, and access.</p>
+                <div id="employeeListDisplay"></div>
+              </div>
+            </div>
+
+            <!-- NEW: Notifications -->
+            <div class="section-collapsible">
+              <div class="section-header open" onclick="toggleSection('hdrNotifications', 'bodyNotifications')">
+                <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">🔔</span><span class="sec-title">Notification Settings</span></div>
+              </div>
+              <div class="section-body open" id="bodyNotifications">
+                <div class="toggle-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+                  <div><strong>Low Stock Alerts</strong><br><span style="font-size:12px; color:var(--text-muted);">Notify when stock is low</span></div>
+                  <label class="switch" style="position:relative; display:inline-block; width:46px; height:26px;">
+                    <input type="checkbox" id="notifLowStock" checked style="opacity:0; width:0; height:0;">
+                    <span style="position:absolute; cursor:pointer; inset:0; background:var(--border); transition:.3s; border-radius:26px;"></span>
+                  </label>
+                </div>
+                <div class="toggle-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+                  <div><strong>Expiry Alerts</strong><br><span style="font-size:12px; color:var(--text-muted);">Notify when products are near expiry</span></div>
+                  <label class="switch" style="position:relative; display:inline-block; width:46px; height:26px;">
+                    <input type="checkbox" id="notifExpiry" checked style="opacity:0; width:0; height:0;">
+                    <span style="position:absolute; cursor:pointer; inset:0; background:var(--border); transition:.3s; border-radius:26px;"></span>
+                  </label>
+                </div>
+                <div class="toggle-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+                  <div><strong>Credit Alerts</strong><br><span style="font-size:12px; color:var(--text-muted);">Notify on new credit sales</span></div>
+                  <label class="switch" style="position:relative; display:inline-block; width:46px; height:26px;">
+                    <input type="checkbox" id="notifCredit" style="opacity:0; width:0; height:0;">
+                    <span style="position:absolute; cursor:pointer; inset:0; background:var(--border); transition:.3s; border-radius:26px;"></span>
+                  </label>
+                </div>
+                <button class="btn btn-primary" style="margin-top:16px;" onclick="saveNotifications()">💾 Save Notifications</button>
+              </div>
+            </div>
+
+            <!-- NEW: Audit Trail -->
+            <div class="section-collapsible">
+              <div class="section-header open" onclick="toggleSection('hdrAuditTrail', 'bodyAuditTrail')">
+                <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📝</span><span class="sec-title">Audit Trail</span></div>
+              </div>
+              <div class="section-body open" id="bodyAuditTrail">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Recent activity logs.</p>
+                <div id="auditTrailList"></div>
+              </div>
+            </div>
+
             <!-- Backup -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrBackup', 'bodyBackup')">
+              <div class="section-header open" onclick="toggleSection('hdrBackup', 'bodyBackup')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">💾</span><span class="sec-title">Backup & Restore</span></div>
               </div>
-              <div class="section-body" id="bodyBackup">
+              <div class="section-body open" id="bodyBackup">
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                   <button class="btn btn-primary" style="flex:1;" onclick="backupData()">📥 Download Backup</button>
                   <button class="btn btn-warning" style="flex:1;" onclick="document.getElementById('restoreFile').click()">📤 Restore</button>
@@ -1388,10 +1481,10 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 
             <!-- Support -->
             <div class="section-collapsible">
-              <div class="section-header" onclick="toggleSection('hdrSupport', 'bodySupport')">
+              <div class="section-header open" onclick="toggleSection('hdrSupport', 'bodySupport')">
                 <div class="sec-left"><span class="sec-arrow">▶</span><span class="sec-icon">📞</span><span class="sec-title">Support & Help</span></div>
               </div>
-              <div class="section-body" id="bodySupport">
+              <div class="section-body open" id="bodySupport">
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:15px;">
                   <div style="background:var(--bg); padding:15px; border-radius:10px; text-align:center;">
                     <div style="font-size:24px; margin-bottom:8px;">📞</div>
@@ -1620,11 +1713,13 @@ let allExpCategories = [];
 let allCustomers = [];
 let allCreditPayments = [];
 let allPurchases = [];
+let allEmployees = [];
 let cart = [];
 
 let productPage = 1;
 let posPage = 1;
 let salesHistPage = 1;
+let purchaseHistPage = 1;
 const POS_ROWS_PER_PAGE = 12;
 
 let currentCategoryFilter = 'all';
@@ -1781,7 +1876,7 @@ window.switchPage = function(panelId, subPanelId, el) {
   if (panelId === 'panel4') loadInventory();
   if (panelId === 'panel5') loadDashboard();
   if (panelId === 'panel7') renderUnpaidCredits();
-  if (panelId === 'panel8') { loadSettingsData(); loadPermissions(); }
+  if (panelId === 'panel8') { loadSettingsData(); loadPermissions(); loadEmployees(); loadNotifications(); loadAuditTrail(); }
   if (panelId === 'panel6' && subPanelId === 'sub6_2') loadDailyReport();
   if (panelId === 'panel6' && subPanelId === 'sub6_3') loadMonthlyReport();
 };
@@ -2090,7 +2185,7 @@ async function loadSupportInfo() {
 // ============================================
 async function loadAllData() {
   if (!currentTenantId) return;
-  await Promise.all([ loadCategories(), loadExpCategories(), loadBranches(), loadCustomers() ]);
+  await Promise.all([ loadCategories(), loadExpCategories(), loadBranches(), loadCustomers(), loadEmployees() ]);
   
   const today = todayStr();
   const month = thisMonthStr();
@@ -2148,11 +2243,19 @@ async function loadCategories() {
     const snap = await getDocs(query(collection(db, 'categories'), where('tenantId', '==', currentTenantId)));
     allCategories = []; allSubcategories = {};
     const catList = document.getElementById('addCategoryList'); const filterCat = document.getElementById('filterCategory');
-    if (catList) catList.innerHTML = ''; if (filterCat) filterCat.innerHTML = '<option value="all">All Categories</option>';
+    const filterInvCat = document.getElementById('filterInvCategory'); const filterExpCat = document.getElementById('expFilterCategory');
+    
+    if (catList) catList.innerHTML = ''; 
+    if (filterCat) filterCat.innerHTML = '<option value="all">All Categories</option>';
+    if (filterInvCat) filterInvCat.innerHTML = '<option value="all">All Categories</option>';
+    if (filterExpCat) filterExpCat.innerHTML = '<option value="all">All Categories</option>';
+    
     snap.forEach(d => {
       const cat = d.data().name; allCategories.push(cat);
       if (catList) catList.innerHTML += `<option value="${esc(cat)}">`;
       if (filterCat) filterCat.innerHTML += `<option value="${esc(cat)}">${esc(cat)}</option>`;
+      if (filterInvCat) filterInvCat.innerHTML += `<option value="${esc(cat)}">${esc(cat)}</option>`;
+      if (filterExpCat) filterExpCat.innerHTML += `<option value="${esc(cat)}">${esc(cat)}</option>`;
     });
     const subSnap = await getDocs(query(collection(db, 'subcategories'), where('tenantId', '==', currentTenantId)));
     subSnap.forEach(d => {
@@ -2290,6 +2393,96 @@ window.deleteCustomer = async function(name) {
 };
 
 // ============================================
+// 👥 EMPLOYEES
+// ============================================
+async function loadEmployees() {
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', currentTenantId)));
+    allEmployees = []; 
+    snap.forEach(d => allEmployees.push({ id: d.id, ...d.data() }));
+    renderEmployeeList();
+  } catch (e) { console.error(e); }
+}
+
+function renderEmployeeList() {
+  const el = document.getElementById('employeeListDisplay'); if (!el) return;
+  if (allEmployees.length === 0) { el.innerHTML = '<p style="font-size:13px; color:var(--text-muted);">No employees found.</p>'; return; }
+  el.innerHTML = `<div class="responsive-table-container"><table class="data-table"><thead><tr><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody>` +
+    allEmployees.map(emp => `<tr><td>${esc(emp.email)}</td><td><span class="role-badge ${emp.role}">${esc(emp.role)}</span></td><td>
+      <button class="action-btn btn-delete" onclick="deleteEmployee('${emp.id}')">🗑️</button>
+    </td></tr>`).join('') + `</tbody></table></div>`;
+}
+
+window.deleteEmployee = async function(id) {
+  if (!confirm('Are you sure you want to delete this employee?')) return;
+  try {
+    await deleteDoc(doc(db, 'users', id));
+    showToast('✅ Employee deleted');
+    await loadEmployees();
+  } catch (e) { showToast('❌ Error: ' + e.message, 'error'); }
+};
+
+// ============================================
+// 🔔 NOTIFICATIONS
+// ============================================
+async function loadNotifications() {
+  try {
+    const snap = await getDoc(doc(db, 'tenants', currentTenantId, 'settings', 'notifications'));
+    if (snap.exists()) {
+      const d = snap.data();
+      document.getElementById('notifLowStock').checked = d.lowStock !== false;
+      document.getElementById('notifExpiry').checked = d.expiry !== false;
+      document.getElementById('notifCredit').checked = d.credit === true;
+    }
+  } catch(e) { console.warn(e); }
+}
+
+window.saveNotifications = async function() {
+  const lowStock = document.getElementById('notifLowStock').checked;
+  const expiry = document.getElementById('notifExpiry').checked;
+  const credit = document.getElementById('notifCredit').checked;
+  try {
+    await setDoc(doc(db, 'tenants', currentTenantId, 'settings', 'notifications'), { lowStock, expiry, credit }, { merge: true });
+    showToast('✅ Notifications saved');
+  } catch(e) { showToast('❌ Error: ' + e.message, 'error'); }
+};
+
+// ============================================
+// 📝 AUDIT TRAIL
+// ============================================
+window.logActivity = async function(action) {
+  if(!currentTenantId) return;
+  try {
+    await addDoc(collection(db, 'tenants', currentTenantId, 'activities'), {
+      user: document.getElementById('hdrUserEmail').textContent,
+      action: action,
+      timestamp: serverTimestamp()
+    });
+  } catch(e) { console.warn('Audit error:', e); }
+};
+
+async function loadAuditTrail() {
+  if(!currentTenantId) return;
+  const listEl = document.getElementById('auditTrailList'); if(!listEl) return;
+  try {
+    const q = query(collection(db, 'tenants', currentTenantId, 'activities'), orderBy('timestamp', 'desc'), limit(15));
+    const snap = await getDocs(q);
+    if(snap.empty) return listEl.innerHTML = '<p style="font-size:13px; color:var(--text-muted);">No recent activity</p>';
+    
+    let html = '';
+    snap.forEach(d => {
+      const data = d.data();
+      const date = data.timestamp ? data.timestamp.toDate().toLocaleString() : 'Unknown';
+      html += `<div style="padding:10px; border-bottom:1px solid var(--border); font-size:13px;">
+        <div style="font-weight:bold; color:var(--primary);">${esc(data.user)}</div>
+        <div style="color:var(--text-muted);">${esc(data.action)} - ${date}</div>
+      </div>`;
+    });
+    listEl.innerHTML = html;
+  } catch(e) { console.error('Audit load error:', e); }
+}
+
+// ============================================
 // 📦 PRODUCTS CRUD & CSV IMPORT
 // ============================================
 window.addProduct = async function() {
@@ -2315,7 +2508,7 @@ window.addProduct = async function() {
     document.getElementById('addProductName').value = ''; document.getElementById('addProductCost').value = '';
     document.getElementById('addProductPrice').value = ''; document.getElementById('addProductQty').value = '';
     if (cfg.extraProductFields) { cfg.extraProductFields.forEach(f => { const el = document.getElementById('extra_' + f.id); if (el) el.value = ''; }); }
-    showToast('ምርት ተጨምሯል'); await loadCategories();
+    showToast('ምርት ተጨምሯል'); logActivity('Added new product: ' + name); await loadCategories();
   } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 };
 
@@ -2543,7 +2736,7 @@ async function executeSale(extras) {
       saleItems.push({ name: item.name, qty: item.qty, price: item.price, total: itemTotal });
     }
     
-    showToast('✅ ሽያጭ ተመዝግቧል');
+    showToast('✅ ሽያጭ ተመዝግቧል'); logActivity('New sale: ' + totalAmount + ' ETB');
     printReceipt(customer, saleItems, totalAmount, paidAmount, method, date);
     
     cart = []; renderCart();
@@ -2638,6 +2831,19 @@ function renderSalesHistory() {
 
 window.changeSalesHistPage = function(dir) { salesHistPage += dir; renderSalesHistory(); };
 
+window.clearAllSales = async function() {
+  if (!confirm('🚨 Are you sure you want to delete ALL sales history? This cannot be undone!')) return;
+  if (!confirm('Final confirmation: Delete all sales?')) return;
+  try {
+    const batch = writeBatch(db);
+    allSales.forEach(s => batch.delete(doc(db, 'sales', s.id)));
+    allQuickSales.forEach(q => batch.delete(doc(db, 'quickSales', q.id)));
+    await batch.commit();
+    showToast('✅ All sales cleared');
+    logActivity('Cleared all sales history');
+  } catch(e) { showToast('❌ Error: ' + e.message, 'error'); }
+};
+
 // ============================================
 // 💸 EXPENSES
 // ============================================
@@ -2646,7 +2852,7 @@ window.addExpense = async function() {
   const amount = parseFloat(document.getElementById('expAmount').value); const date = document.getElementById('expDate').value;
   const note = document.getElementById('expNote').value.trim();
   if (!cat || !branch || isNaN(amount) || amount <= 0 || !date) return showToast('ሁሉንም ሙላ', 'error');
-  try { await addDoc(collection(db, 'expenses'), { tenantId: currentTenantId, category: cat, branch, amount, date, note, timestamp: serverTimestamp() }); document.getElementById('expAmount').value = ''; document.getElementById('expNote').value = ''; showToast('✅ ተመዝግቧል'); } catch (e) { showToast('ስህተት', 'error'); }
+  try { await addDoc(collection(db, 'expenses'), { tenantId: currentTenantId, category: cat, branch, amount, date, note, timestamp: serverTimestamp() }); document.getElementById('expAmount').value = ''; document.getElementById('expNote').value = ''; showToast('✅ ተመዝግቧል'); logActivity('Added expense: ' + amount + ' ETB'); } catch (e) { showToast('ስህተት', 'error'); }
 };
 
 window.addFixedExpense = async function() {
@@ -2654,20 +2860,24 @@ window.addFixedExpense = async function() {
   const amount = parseFloat(document.getElementById('fixAmount').value); const month = document.getElementById('fixMonth').value;
   const note = document.getElementById('fixNote').value.trim();
   if (!cat || !branch || isNaN(amount) || amount <= 0 || !month) return showToast('ሁሉንም ሙላ', 'error');
-  try { await addDoc(collection(db, 'fixedExpenses'), { tenantId: currentTenantId, category: cat, branch, amount, month, note, timestamp: serverTimestamp() }); document.getElementById('fixAmount').value = ''; document.getElementById('fixNote').value = ''; showToast('✅ ተመዝግቧል'); } catch (e) { showToast('ስህተት', 'error'); }
+  try { await addDoc(collection(db, 'fixedExpenses'), { tenantId: currentTenantId, category: cat, branch, amount, month, note, timestamp: serverTimestamp() }); document.getElementById('fixAmount').value = ''; document.getElementById('fixNote').value = ''; showToast('✅ ተመዝግቧል'); logActivity('Added fixed expense: ' + amount + ' ETB'); } catch (e) { showToast('ስህተት', 'error'); }
 };
 
 function renderAllExpensesList() {
   const el = document.getElementById('allExpensesListDisplay'); if (!el) return;
   const type = document.getElementById('expFilterType')?.value || 'all';
-  const month = document.getElementById('expFilterMonth')?.value;
+  const catFilter = document.getElementById('expFilterCategory')?.value || 'all';
+  const startDate = document.getElementById('expFilterStartDate')?.value;
+  const endDate = document.getElementById('expFilterEndDate')?.value;
   const search = (document.getElementById('searchExpense')?.value || '').toLowerCase();
   
   let combined = [];
   if (type === 'all' || type === 'daily') allExpenses.forEach(e => combined.push({ ...e, _type: 'daily', _date: e.date }));
   if (type === 'all' || type === 'fixed') allFixed.forEach(e => combined.push({ ...e, _type: 'fixed', _date: e.month }));
   
-  if (month) combined = combined.filter(e => e._date && e._date.startsWith(month));
+  if (catFilter !== 'all') combined = combined.filter(e => e.category === catFilter);
+  if (startDate) combined = combined.filter(e => e._date >= startDate);
+  if (endDate) combined = combined.filter(e => e._date <= endDate);
   if (search) combined = combined.filter(e => (e.category || '').toLowerCase().includes(search) || (e.note || '').toLowerCase().includes(search));
   
   combined.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
@@ -2690,9 +2900,11 @@ function renderAllExpensesList() {
 function loadInventory() {
   const el = document.getElementById('inventoryList'); if (!el) return;
   const search = (document.getElementById('searchInventory')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filterInvCategory')?.value || 'all';
   const branch = document.getElementById('filterInvBranch')?.value || 'all';
   
   let filtered = allProducts;
+  if (catFilter !== 'all') filtered = filtered.filter(p => p.category === catFilter);
   if (branch !== 'all') filtered = filtered.filter(p => p.branch === branch);
   if (search) filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(search));
   
@@ -2766,7 +2978,7 @@ window.adjustStock = async function() {
   if (qtyVal !== '') { const q = parseInt(qtyVal); if (isNaN(q) || q < 0) return showToast('ትክክል ያልሆነ ብዛት', 'error'); updates.quantity = q; }
   if (priceVal !== '') { const p = parseFloat(priceVal); if (isNaN(p) || p < 0) return showToast('ትክክል ያልሆነ ዋጋ', 'error'); updates.price = p; }
   if (Object.keys(updates).length === 0) return showToast('ምንም ለውጥ የለም', 'error');
-  try { await updateDoc(doc(db, 'products', id), updates); document.getElementById('adjustQty').value = ''; document.getElementById('adjustPrice').value = ''; document.getElementById('adjustReason').value = ''; showToast('✅ ተስተካክሏል'); } catch (e) { showToast('ስህተት', 'error'); }
+  try { await updateDoc(doc(db, 'products', id), updates); document.getElementById('adjustQty').value = ''; document.getElementById('adjustPrice').value = ''; document.getElementById('adjustReason').value = ''; showToast('✅ ተስተካክሏል'); logActivity('Adjusted stock for product ID: ' + id); } catch (e) { showToast('ስህተት', 'error'); }
 };
 
 window.transferStock = async function() {
@@ -2788,8 +3000,32 @@ window.transferStock = async function() {
 
 function renderPurchaseHistory() {
   const el = document.getElementById('purchaseHistoryList'); if (!el) return;
-  el.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-muted);">Purchase history coming soon</p>';
+  const search = (document.getElementById('searchPurchaseHist')?.value || '').toLowerCase();
+  const perPage = parseInt(document.getElementById('purchaseHistRowsPerPage')?.value) || 10;
+  
+  let filtered = allPurchases;
+  if (search) filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(search));
+  filtered.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+  
+  if (filtered.length === 0) { el.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-muted);">No purchase history found.</p>'; document.getElementById('purchaseHistPageInfo').textContent = 'Page 1 of 1'; return; }
+  
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (purchaseHistPage > totalPages) purchaseHistPage = totalPages; if (purchaseHistPage < 1) purchaseHistPage = 1;
+  const start = (purchaseHistPage - 1) * perPage; const paginated = filtered.slice(start, start + perPage);
+  
+  let html = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Date</th><th>Item Name</th><th>Qty Added</th><th>Unit Cost</th></tr></thead><tbody>`;
+  paginated.forEach(p => {
+    html += `<tr><td>${esc(p.date)}</td><td><strong>${esc(p.name)}</strong></td><td style="color:var(--success); font-weight:bold;">+${p.qtyAdded}</td><td>${money(p.cost)} ETB</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+  
+  document.getElementById('purchaseHistPageInfo').textContent = `Page ${purchaseHistPage} of ${totalPages}`;
+  document.getElementById('btnPrevPurchaseHist').disabled = purchaseHistPage === 1;
+  document.getElementById('btnNextPurchaseHist').disabled = purchaseHistPage === totalPages;
 }
+
+window.changePurchaseHistPage = function(dir) { purchaseHistPage += dir; renderPurchaseHistory(); };
 
 // ============================================
 // 📈 DASHBOARD
@@ -2877,8 +3113,15 @@ window.toggleReportDatePicker = function() {
 function loadDailyReport() {
   const date = document.getElementById('dailyReportDate')?.value || todayStr();
   const branch = document.getElementById('dailyReportBranch')?.value || 'all';
-  let sales = allSales.filter(s => s.date === date); let quick = allQuickSales.filter(q => q.date === date); let exp = allExpenses.filter(e => e.date === date);
+  const payType = document.getElementById('dailyReportType')?.value || 'all';
+  
+  let sales = allSales.filter(s => s.date === date); 
+  let quick = allQuickSales.filter(q => q.date === date); 
+  let exp = allExpenses.filter(e => e.date === date);
+  
   if (branch !== 'all') { sales = sales.filter(s => s.branch === branch); quick = quick.filter(q => q.branch === branch); exp = exp.filter(e => e.branch === branch); }
+  if (payType !== 'all') { sales = sales.filter(s => s.paymentMethod === payType); quick = []; } // Quick sales are always cash for now
+  
   const rev = sales.reduce((s, x) => s + (x.paidAmount !== undefined ? x.paidAmount : x.total), 0) + quick.reduce((s, q) => s + q.amount, 0);
   const expenses = exp.reduce((s, e) => s + e.amount, 0);
   document.getElementById('dailyRev').textContent = money(rev); document.getElementById('dailyExp').textContent = money(expenses); document.getElementById('dailyProfit').textContent = money(rev - expenses);
@@ -2893,9 +3136,16 @@ function loadDailyReport() {
 function loadMonthlyReport() {
   const month = document.getElementById('monthlyReportMonth')?.value || thisMonthStr();
   const branch = document.getElementById('monthlyReportBranch')?.value || 'all';
-  let sales = allSales.filter(s => s.date.startsWith(month)); let quick = allQuickSales.filter(q => q.date.startsWith(month));
-  let exp = allExpenses.filter(e => e.date.startsWith(month)); let fixed = allFixed.filter(f => f.month === month);
+  const payType = document.getElementById('monthlyReportType')?.value || 'all';
+  
+  let sales = allSales.filter(s => s.date.startsWith(month)); 
+  let quick = allQuickSales.filter(q => q.date.startsWith(month));
+  let exp = allExpenses.filter(e => e.date.startsWith(month)); 
+  let fixed = allFixed.filter(f => f.month === month);
+  
   if (branch !== 'all') { sales = sales.filter(s => s.branch === branch); quick = quick.filter(q => q.branch === branch); exp = exp.filter(e => e.branch === branch); fixed = fixed.filter(f => f.branch === branch); }
+  if (payType !== 'all') { sales = sales.filter(s => s.paymentMethod === payType); quick = []; }
+  
   const rev = sales.reduce((s, x) => s + (x.paidAmount !== undefined ? x.paidAmount : x.total), 0) + quick.reduce((s, q) => s + q.amount, 0);
   const expenses = exp.reduce((s, e) => s + e.amount, 0) + fixed.reduce((s, f) => s + f.amount, 0);
   document.getElementById('monthlyRev').textContent = money(rev); document.getElementById('monthlyExp').textContent = money(expenses); document.getElementById('monthlyProfit').textContent = money(rev - expenses);
