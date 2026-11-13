@@ -5,119 +5,350 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Super Admin - HaniTech</title>
 <style>
-  :root { --primary: #1a365d; --accent: #d4af37; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --danger: #ef4444; --success: #10b981; }
+  :root { 
+    --primary: #1a365d; 
+    --primary-light: #2c5282;
+    --accent: #d4af37; 
+    --bg: #f8fafc; 
+    --card: #ffffff; 
+    --text: #1e293b; 
+    --muted: #64748b; 
+    --border: #e2e8f0; 
+    --danger: #ef4444; 
+    --success: #10b981;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+  }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); padding: 20px; }
   
-  #loginScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #0f172a, #1a365d); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-  .login-box { background: var(--card); padding: 30px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-  .login-box h1 { text-align: center; color: var(--primary); margin-bottom: 20px; }
-  input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; font-size: 14px; outline: none; }
-  button { width: 100%; padding: 14px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; font-size: 15px; }
-  button:hover { opacity: 0.9; }
+  /* LOGIN */
+  #loginScreen { 
+    position: fixed; inset: 0; 
+    background: linear-gradient(135deg, #0f172a, #1a365d); 
+    display: flex; align-items: center; justify-content: center; 
+    z-index: 1000; padding: 20px;
+  }
+  .login-box { 
+    background: var(--card); padding: 40px 30px; border-radius: 16px; 
+    width: 100%; max-width: 400px; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border-top: 4px solid var(--accent);
+  }
+  .login-box h1 { 
+    text-align: center; color: var(--primary); 
+    margin-bottom: 24px; font-size: 24px;
+  }
   
-  #app { display: none; max-width: 1000px; margin: 0 auto; }
-  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-  .header h1 { font-size: 24px; color: var(--primary); }
-  .btn-logout { width: auto; padding: 8px 16px; background: var(--danger); font-size: 13px; }
+  input, select, textarea { 
+    width: 100%; padding: 12px; 
+    border: 1.5px solid var(--border); border-radius: 8px; 
+    margin-bottom: 15px; font-size: 14px; 
+    outline: none; font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  input:focus, select:focus { 
+    border-color: var(--primary); 
+    background: var(--card);
+    box-shadow: 0 0 0 3px rgba(26,54,93,0.1);
+  }
   
-  .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--border); }
-  .card h2 { font-size: 16px; margin-bottom: 15px; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 8px; display: inline-block; }
+  button { 
+    width: 100%; padding: 13px; border: none; border-radius: 8px; 
+    background: var(--primary); color: white; 
+    font-weight: bold; cursor: pointer; font-size: 14px;
+    transition: all 0.2s;
+  }
+  button:hover { opacity: 0.9; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  
+  /* APP */
+  #app { display: none; max-width: 1100px; margin: 0 auto; }
+  
+  .header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 20px; padding: 16px 20px;
+    background: var(--card); border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .header h1 { font-size: 22px; color: var(--primary); }
+  .btn-logout { 
+    width: auto; padding: 8px 20px; 
+    background: var(--danger); font-size: 13px;
+  }
+  
+  /* CARDS */
+  .card { 
+    background: var(--card); border-radius: 12px; 
+    padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    margin-bottom: 20px; border: 1px solid var(--border); 
+  }
+  .card h2 { 
+    font-size: 16px; margin-bottom: 20px; color: var(--primary); 
+    border-bottom: 2px solid var(--accent); 
+    padding-bottom: 8px; display: inline-block; 
+  }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  @media (max-width: 640px) { 
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 12px; }
+  }
   
-  .tenant-item { border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 10px; background: var(--bg); }
-  .tenant-item h3 { font-size: 16px; color: var(--primary); margin-bottom: 5px; }
-  .tenant-item p { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-  .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; color: white; margin-left: 5px; }
+  label { 
+    font-size: 12px; font-weight: 700; 
+    color: var(--muted); margin-bottom: 4px; 
+    display: block;
+  }
+  
+  /* TENANT ITEMS */
+  .tenant-item { 
+    border: 1px solid var(--border); border-radius: 10px; 
+    padding: 16px; margin-bottom: 12px; 
+    background: var(--bg);
+    transition: all 0.2s;
+  }
+  .tenant-item:hover { 
+    border-color: var(--primary); 
+    box-shadow: 0 2px 8px rgba(26,54,93,0.08);
+  }
+  .tenant-item h3 { 
+    font-size: 15px; color: var(--primary); 
+    margin-bottom: 6px; 
+    display: flex; align-items: center; 
+    gap: 6px; flex-wrap: wrap;
+  }
+  .tenant-item p { 
+    font-size: 12px; color: var(--muted); 
+    margin-bottom: 10px; 
+  }
+  
+  .badge { 
+    display: inline-block; padding: 3px 8px; 
+    border-radius: 12px; font-size: 10px; 
+    font-weight: bold; color: white; 
+  }
   .bg-success { background: var(--success); }
   .bg-danger { background: var(--danger); }
+  .bg-warning { background: var(--warning); }
+  .bg-info { background: var(--info); }
+  
+  .action-btns {
+    display: flex; gap: 6px; 
+    flex-wrap: wrap; margin-top: 10px;
+  }
+  .action-btns button {
+    width: auto; padding: 6px 12px; 
+    font-size: 12px; margin: 0;
+  }
+  
+  /* FILTERS */
+  .filters { 
+    display: grid; 
+    grid-template-columns: 2fr 1fr 1fr; 
+    gap: 10px; margin-bottom: 16px; 
+  }
+  @media (max-width: 640px) {
+    .filters { grid-template-columns: 1fr; }
+  }
+  
+  /* STATUS */
+  #createStatus { 
+    text-align: center; margin-top: 12px; 
+    font-size: 13px; font-weight: bold; 
+    padding: 10px; border-radius: 8px; 
+    display: none;
+  }
+  #createStatus.show { display: block; }
+  #createStatus.success { 
+    background: rgba(16,185,129,0.1); 
+    color: var(--success); 
+  }
+  #createStatus.error { 
+    background: rgba(239,68,68,0.1); 
+    color: var(--danger); 
+  }
+  #createStatus.loading { 
+    background: rgba(245,158,11,0.1); 
+    color: var(--warning); 
+  }
+  
+  /* STATS */
+  .stats-grid {
+    display: grid; 
+    grid-template-columns: repeat(4, 1fr); 
+    gap: 12px; margin-bottom: 20px;
+  }
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .stat-card {
+    background: var(--card); 
+    border: 1px solid var(--border); 
+    border-radius: 10px; padding: 16px; 
+    text-align: center;
+  }
+  .stat-card .stat-label {
+    font-size: 11px; color: var(--muted); 
+    text-transform: uppercase; 
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .stat-card .stat-value {
+    font-size: 22px; font-weight: 800; 
+    color: var(--primary);
+  }
+  
+  .empty-state {
+    text-align: center; padding: 40px 20px; 
+    color: var(--muted);
+  }
+  .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
 </style>
 </head>
 <body>
 
-<!-- Login -->
+<!-- ═══════════════════════════════════════════
+     LOGIN
+     ═══════════════════════════════════════════ -->
 <div id="loginScreen">
   <div class="login-box">
     <h1>👑 Super Admin</h1>
-    <div id="error" style="color:red; font-size:13px; margin-bottom:10px; text-align:center;"></div>
+    <div id="error" style="color:red; font-size:13px; margin-bottom:10px; text-align:center; min-height:20px;"></div>
     <input type="email" id="email" placeholder="admin@hanitech.com">
     <input type="password" id="password" placeholder="Password">
-    <button onclick="login()">Sign In</button>
+    <button onclick="login()">🔓 Sign In</button>
   </div>
 </div>
 
-<!-- App -->
+<!-- ═══════════════════════════════════════════
+     MAIN APP
+     ═══════════════════════════════════════════ -->
 <div id="app">
   <div class="header">
     <h1>👑 Admin Dashboard</h1>
-    <button class="btn-logout" onclick="logout()">Logout</button>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
   </div>
 
+  <!-- Stats Overview -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Create Tenant -->
   <div class="card">
     <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant)</h2>
+    
     <div class="grid">
       <div>
-        <label style="font-size:12px; font-weight:bold;">የንግድ ስም</label>
+        <label>የንግድ ስም *</label>
         <input type="text" id="newName" placeholder="e.g. ABC Hotel">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:bold;">ዘርፍ (Business Type)</label>
+        <label>ዘርፍ (Business Type) *</label>
         <select id="newBizType">
+          <option value="laundry">🧺 Laundry</option>
           <option value="hotel">🏨 Hotel</option>
           <option value="restaurant">🍽️ Restaurant / Cafe</option>
-          <option value="supermarket">🛒 Mini Supermarket</option>
-          <option value="laundry">🧺 Laundry</option>
-          <option value="drinks_distributor">🍾 Drinks Distributor</option>
-          <option value="retail">🏪 Retail Shop</option>
+          <option value="supermarket">🛒 Supermarket</option>
           <option value="bakery">🍞 Bakery</option>
+          <option value="retail">🏪 Retail Shop</option>
+          <option value="drinks">🍾 Drinks Distributor</option>
+          <option value="pension">🏠 Pension</option>
         </select>
       </div>
       <div>
-        <label style="font-size:12px; font-weight:bold;">ፕላን (Plan)</label>
+        <label>ፕላን (Plan)</label>
         <select id="newPlan">
           <option value="basic">🟢 Basic</option>
           <option value="pro">🔵 Pro</option>
         </select>
       </div>
-            <div>
-        <label style="font-size:12px; font-weight:bold;">ማብቂያ ቀን (Expiry Date)</label>
+      <div>
+        <label>ማብቂያ ቀን (Expiry Date) *</label>
         <input type="date" id="newExpiry">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:bold;">💳 Credit Tab ይኑረው? (ለBasicም ቢሆን)</label>
+        <label>💳 Credit Tab ይኑረው? (ለBasicም)</label>
         <select id="newHasCredit">
           <option value="false">❌ አይኑረው (Pro ብቻ)</option>
-          <option value="true">✅ ይኑረው (Basic ላይም)</option>
+          <option value="true">✅ ይኑረው</option>
         </select>
       </div>
+      <div>
+        <label>📦 Low Stock Threshold</label>
+        <input type="number" id="newLowStock" value="10">
+      </div>
     </div>
-    <hr style="margin: 15px 0; border: 0; border-top: 1px dashed #ccc;">
+    
+    <hr style="margin: 15px 0; border: 0; border-top: 1px dashed var(--border);">
+    
     <div class="grid">
       <div>
-        <label style="font-size:12px; font-weight:bold;">Owner Email</label>
+        <label>Owner Email *</label>
         <input type="email" id="newOwnerEmail" placeholder="owner@abc.com">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:bold;">Temp Password</label>
+        <label>Temp Password *</label>
         <input type="text" id="newPassword" value="123456">
       </div>
     </div>
-    <button onclick="createTenant()" style="background: var(--success);">Create Tenant & User</button>
-    <div id="createStatus" style="text-align:center; margin-top:10px; font-size:13px; font-weight:bold;"></div>
+    
+    <button onclick="createTenant()" style="background: var(--success);">
+      ✨ Create Tenant & User
+    </button>
+    <div id="createStatus"></div>
   </div>
 
+  <!-- Password Requests -->
+  <div class="card">
+    <h2>🔑 Password Reset Requests</h2>
+    <div id="passwordRequestsList">
+      <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
+    </div>
+  </div>
+
+  <!-- Tenant List -->
   <div class="card">
     <h2>📋 የተፈጠሩ ተጠቃሚዎች</h2>
+    
+    <div class="filters">
+      <input type="text" id="searchTenant" placeholder="🔍 Search tenant..." 
+             oninput="loadTenants()" style="margin-bottom:0;">
+      <select id="filterPlan" onchange="loadTenants()" style="margin-bottom:0;">
+        <option value="all">All Plans</option>
+        <option value="basic">Basic Only</option>
+        <option value="pro">Pro Only</option>
+      </select>
+      <select id="filterBizType" onchange="loadTenants()" style="margin-bottom:0;">
+        <option value="all">All Types</option>
+        <option value="laundry">🧺 Laundry</option>
+        <option value="hotel">🏨 Hotel</option>
+        <option value="restaurant">🍽️ Restaurant</option>
+        <option value="supermarket">🛒 Supermarket</option>
+        <option value="bakery">🍞 Bakery</option>
+        <option value="retail">🏪 Retail</option>
+        <option value="drinks">🍾 Drinks</option>
+        <option value="pension">🏠 Pension</option>
+      </select>
+    </div>
+    
     <div id="tenantList"></div>
   </div>
 </div>
 
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { 
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, 
+  createUserWithEmailAndPassword, sendPasswordResetEmail 
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { 
+  getFirestore, collection, addDoc, getDocs, query, where, 
+  doc, setDoc, serverTimestamp, getDoc, updateDoc, deleteDoc 
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
-// 🔴 የ index.html ፕሮጀክትህ በትክክል መሆኑን አረጋግጥ
+// ═══════════════════════════════════════════
+// 🔥 FIREBASE
+// ═══════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyDcA1t2fOA98U9KsngvDEih6TmEZb1-v0E",
   authDomain: "hotel-tracker-c3571.firebaseapp.com",
@@ -130,18 +361,47 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const SUPER_ADMIN = "admin@hanitech.com"; // የአድሚን ኢሜል
+const SUPER_ADMIN = "admin@hanitech.com";
 
+// ═══════════════════════════════════════════
+// 🛠️ UTILITIES
+// ═══════════════════════════════════════════
+function esc(s) { 
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); 
+}
+function escJs(s) { 
+  return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); 
+}
+
+const BIZ_ICONS = {
+  hotel: '🏨', restaurant: '🍽️', supermarket: '🛒',
+  bakery: '🍞', retail: '🏪', drinks: '🍾',
+  drinks_distributor: '🍾', laundry: '🧺', pension: '🏠'
+};
+
+// ═══════════════════════════════════════════
+// 🔐 AUTH
+// ═══════════════════════════════════════════
 window.login = async function() {
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value;
-  document.getElementById('error').innerText = '';
-  if (email !== SUPER_ADMIN) {
-    document.getElementById('error').innerText = "❌ እርስዎ አድሚን አይደሉም!";
+  const errEl = document.getElementById('error');
+  errEl.innerText = '';
+  
+  if (!email || !pass) {
+    errEl.innerText = '⚠️ Email እና Password ያስፈልጋሉ';
     return;
   }
-  try { await signInWithEmailAndPassword(auth, email, pass); } 
-  catch(e) { document.getElementById('error').innerText = "❌ Email ወይም Password ስህተት"; }
+  if (email !== SUPER_ADMIN) {
+    errEl.innerText = '❌ እርስዎ አድሚን አይደሉም!';
+    return;
+  }
+  
+  try { 
+    await signInWithEmailAndPassword(auth, email, pass); 
+  } catch(e) { 
+    errEl.innerText = '❌ Email ወይም Password ስህተት'; 
+  }
 };
 
 window.logout = function() { signOut(auth); };
@@ -151,76 +411,431 @@ onAuthStateChanged(auth, (user) => {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadTenants();
+    loadPasswordRequests();
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
   }
 });
 
+// ═══════════════════════════════════════════
+// 📊 STATS
+// ═══════════════════════════════════════════
+async function loadStats(tenants) {
+  const statsGrid = document.getElementById('statsGrid');
+  const today = new Date(); today.setHours(0,0,0,0);
+  
+  let total = tenants.length;
+  let proCount = 0;
+  let expiredCount = 0;
+  let suspendedCount = 0;
+  
+  tenants.forEach(t => {
+    if (t.plan === 'pro') proCount++;
+    if (t.isSuspended) suspendedCount++;
+    if (t.expiryDate) {
+      const expDate = new Date(t.expiryDate);
+      expDate.setHours(0,0,0,0);
+      if (expDate < today) expiredCount++;
+    }
+  });
+  
+  statsGrid.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Tenants</div>
+      <div class="stat-value">${total}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pro Plan</div>
+      <div class="stat-value" style="color:var(--success);">${proCount}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Expired</div>
+      <div class="stat-value" style="color:var(--danger);">${expiredCount}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Suspended</div>
+      <div class="stat-value" style="color:var(--warning);">${suspendedCount}</div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// ➕ CREATE TENANT
+// ═══════════════════════════════════════════
 window.createTenant = async function() {
-  const name = document.getElementById('newName').value;
+  const name = document.getElementById('newName').value.trim();
   const bizType = document.getElementById('newBizType').value;
-    const plan = document.getElementById('newPlan').value;
+  const plan = document.getElementById('newPlan').value;
   const expiry = document.getElementById('newExpiry').value;
   const hasCredit = document.getElementById('newHasCredit').value === 'true';
-  const ownerEmail = document.getElementById('newOwnerEmail').value;
+  const lowStock = parseInt(document.getElementById('newLowStock').value) || 10;
+  const ownerEmail = document.getElementById('newOwnerEmail').value.trim();
   const password = document.getElementById('newPassword').value;
   const status = document.getElementById('createStatus');
-
-  if(!name || !expiry || !ownerEmail || !password) { alert("ሁሉንም ሙላ!"); return; }
-  status.innerText = "⏳ በመፍጠር ላይ..."; status.style.color = "orange";
-
+  
+  if (!name || !expiry || !ownerEmail || !password) {
+    status.className = 'show error';
+    status.innerText = '⚠️ ሁሉንም መስኮች ሙላ!';
+    return;
+  }
+  
+  if (password.length < 6) {
+    status.className = 'show error';
+    status.innerText = '⚠️ ፓስወርድ ቢያንስ 6 ፊደላት መሆን አለበት';
+    return;
+  }
+  
+  status.className = 'show loading';
+  status.innerText = '⏳ በመፍጠር ላይ...';
+  
   try {
-    // 1. Create Tenant Doc
-    const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString().slice(-4);
-        await setDoc(doc(db, 'tenants', tenantId), {
-      name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
-      isSuspended: false, createdAt: serverTimestamp(),
-      lowStockThreshold: 10, currency: 'ETB', language: 'am'
+    // 1. Unique tenant ID
+    const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) + '_' + 
+                     Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    
+    // 2. Create Tenant Doc
+    await setDoc(doc(db, 'tenants', tenantId), {
+      name, 
+      businessType: bizType, 
+      plan, 
+      expiryDate: expiry, 
+      hasCredit,
+      isSuspended: false, 
+      createdAt: serverTimestamp(),
+      lowStockThreshold: lowStock, 
+      currency: 'ETB', 
+      language: 'am',
+      darkMode: false
     });
-
-    // 2. Create Auth User
+    
+    // 3. Create Auth User (secondary app)
     const secondaryApp = initializeApp(firebaseConfig, 'Sec-' + Date.now());
     const secAuth = getAuth(secondaryApp);
     const cred = await createUserWithEmailAndPassword(secAuth, ownerEmail, password);
     const uid = cred.user.uid;
-    await deleteApp(secondaryApp); // Logout secondary
-
-    // 3. Create User Doc (with UID as ID)
+    await signOut(secAuth);
+    await deleteApp(secondaryApp);
+    
+    // 4. Create User Doc
     await setDoc(doc(db, 'users', uid), {
-      email: ownerEmail, role: 'owner', tenantId: tenantId,
-      isTempPassword: true, createdAt: serverTimestamp()
+      email: ownerEmail, 
+      role: 'owner', 
+      tenantId: tenantId,
+      isTempPassword: true, 
+      createdAt: serverTimestamp()
     });
-
-    // 4. Create Default Branch
+    
+    // 5. Default Branch
     await setDoc(doc(db, 'branches', tenantId + '_Main'), {
-      name: 'Main', tenantId: tenantId
+      name: 'Main', 
+      tenantId: tenantId
     });
-
-    status.innerText = "✅ በተሳካ ሁኔታ ተፈጥሯል! (ID: " + tenantId + ")";
-    status.style.color = "var(--success)";
+    
+    status.className = 'show success';
+    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId}</small>`;
+    
+    // Reset form
+    document.getElementById('newName').value = '';
+    document.getElementById('newOwnerEmail').value = '';
+    document.getElementById('newExpiry').value = '';
+    document.getElementById('newPassword').value = '123456';
+    
     loadTenants();
+    
+    setTimeout(() => { status.className = ''; }, 5000);
+    
   } catch(e) {
-    status.innerText = "❌ ስህተት: " + e.message;
-    status.style.color = "red";
+    status.className = 'show error';
+    let msg = e.message;
+    if (e.code === 'auth/email-already-in-use') msg = 'ይህ Email አስቀድሞ ተመዝግቧል';
+    status.innerText = '❌ ስህተት: ' + msg;
   }
 };
 
+// ═══════════════════════════════════════════
+// 📋 TENANTS
+// ═══════════════════════════════════════════
 async function loadTenants() {
+  const search = (document.getElementById('searchTenant')?.value || '').toLowerCase();
+  const filterPlan = document.getElementById('filterPlan')?.value || 'all';
+  const filterBizType = document.getElementById('filterBizType')?.value || 'all';
+  
   const snap = await getDocs(collection(db, 'tenants'));
+  const allTenants = [];
+  snap.forEach(d => allTenants.push({ id: d.id, ...d.data() }));
+  
+  loadStats(allTenants);
+  
   const list = document.getElementById('tenantList');
   list.innerHTML = '';
-  snap.forEach(d => {
-    const t = d.data();
-    const badge = t.plan === 'pro' ? 'bg-success' : 'bg-danger';
-    list.innerHTML += `
-      <div class="tenant-item">
-        <h3>${t.name} <span class="badge ${badge}">${t.plan.toUpperCase()}</span></h3>
-        <p>🏭 ዘርፍ: ${t.businessType} | 📅 Exp: ${t.expiryDate} | 🆔 ID: ${d.id}</p>
+  
+  const today = new Date(); today.setHours(0,0,0,0);
+  let count = 0;
+  
+  allTenants
+    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+    .forEach(t => {
+      if (search && !(t.name || '').toLowerCase().includes(search)) return;
+      if (filterPlan !== 'all' && t.plan !== filterPlan) return;
+      if (filterBizType !== 'all' && t.businessType !== filterBizType) return;
+      
+      count++;
+      
+      const planBadge = t.plan === 'pro' 
+        ? '<span class="badge bg-success">PRO</span>' 
+        : '<span class="badge bg-warning">BASIC</span>';
+      
+      // Expiry status
+      let expiryBadge = '';
+      if (t.expiryDate) {
+        const expDate = new Date(t.expiryDate);
+        expDate.setHours(0,0,0,0);
+        const days = Math.ceil((expDate - today) / (1000*60*60*24));
+        if (days < 0) {
+          expiryBadge = `<span class="badge bg-danger">🚨 ${Math.abs(days)} ቀን አልፏል</span>`;
+        } else if (days <= 5) {
+          expiryBadge = `<span class="badge bg-warning">⏳ ${days} ቀን ቀርቷል</span>`;
+        }
+      }
+      
+      const suspendBadge = t.isSuspended 
+        ? '<span class="badge bg-danger">⏸️ SUSPENDED</span>' 
+        : '';
+      
+      const creditBadge = t.hasCredit 
+        ? '<span class="badge bg-info">💳 CREDIT</span>' 
+        : '';
+      
+      const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
+      
+      list.innerHTML += `
+        <div class="tenant-item">
+          <h3>
+            ${esc(t.name || 'Unnamed')}
+            ${planBadge}
+            ${expiryBadge}
+            ${suspendBadge}
+            ${creditBadge}
+          </h3>
+          <p>
+            ${bizIcon} ${esc(t.businessType || '-')} 
+            | 📅 Exp: ${esc(t.expiryDate || '-')}
+            | 🆔 ${t.id}
+          </p>
+          <div class="action-btns">
+            <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
+            <button onclick="renewTenant('${t.id}')" style="background:var(--info);">🔄 Renew</button>
+            <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
+                    style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
+              ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
+            </button>
+            <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset Pass</button>
+            <button onclick="deleteTenant('${t.id}', '${escJs(t.name || '')}')" 
+                    style="background:var(--danger);">🗑️ Delete</button>
+          </div>
+        </div>
+      `;
+    });
+  
+  if (count === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">📭</div>
+        <div>ምንም ውጤት አልተገኘም</div>
       </div>
     `;
-  });
+  }
 }
+
+// ═══════════════════════════════════════════
+// 🎯 TENANT ACTIONS
+// ═══════════════════════════════════════════
+window.editTenant = async function(id) {
+  try {
+    const tenantDoc = await getDoc(doc(db, 'tenants', id));
+    if (!tenantDoc.exists()) return alert('Tenant አልተገኘም');
+    const t = tenantDoc.data();
+    
+    const newName = prompt('የንግድ ስም:', t.name);
+    if (newName === null) return;
+    
+    const newExpiry = prompt('የማብቂያ ቀን (YYYY-MM-DD):', t.expiryDate);
+    if (newExpiry === null) return;
+    
+    const newPlan = prompt('ፕላን (basic/pro):', t.plan);
+    if (newPlan === null) return;
+    
+    if (!['basic', 'pro'].includes(newPlan)) {
+      return alert('⚠️ ፕላን basic ወይም pro መሆን አለበት');
+    }
+    
+    await updateDoc(doc(db, 'tenants', id), {
+      name: newName,
+      expiryDate: newExpiry,
+      plan: newPlan
+    });
+    
+    alert('✅ ተሻሽሏል');
+    loadTenants();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+window.renewTenant = async function(id) {
+  const newDate = prompt('አዲስ የማብቂያ ቀን (YYYY-MM-DD):', 
+    new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]);
+  if (!newDate) return;
+  
+  try {
+    await updateDoc(doc(db, 'tenants', id), { 
+      expiryDate: newDate, 
+      isSuspended: false 
+    });
+    alert('✅ ተራዝሟል');
+    loadTenants();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+window.toggleSuspend = async function(id, currentStatus) {
+  if (!confirm(currentStatus ? 'ይህን tenant ማንቃት?' : 'ይህን tenant ማገድ?')) return;
+  
+  try {
+    await updateDoc(doc(db, 'tenants', id), { isSuspended: !currentStatus });
+    alert('✅ ተሻሽሏል');
+    loadTenants();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+window.resetUserPassword = async function(tenantId) {
+  try {
+    const usersSnap = await getDocs(query(collection(db, 'users'), 
+      where('tenantId', '==', tenantId), 
+      where('role', '==', 'owner')));
+    
+    if (usersSnap.empty) return alert('❌ Owner አልተገኘም');
+    
+    const ownerEmail = usersSnap.docs[0].data().email;
+    
+    if (!confirm(`የ "${ownerEmail}" ፓስወርድ ሪሴት ኢሜይል ይላክ?`)) return;
+    
+    await sendPasswordResetEmail(auth, ownerEmail);
+    alert(`✅ የሪሴት ኢሜይል ወደ ${ownerEmail} ተልኳል`);
+  } catch(e) { 
+    alert('❌ ስህተት: ' + e.message); 
+  }
+};
+
+window.deleteTenant = async function(id, name) {
+  if (!confirm(`🚨 "${name}" ን በእርግጥ ማጥፋት?\n\nሁሉም ዳታ (products, sales, users) ይጠፋል!`)) return;
+  if (!confirm('የመጨረሻ ማረጋገጫ? ይህ ተመላሽ አይደለም!')) return;
+  
+  try {
+    const collections = [
+      'products', 'sales', 'expenses', 'purchases', 
+      'branches', 'customers', 'categories', 'rooms',
+      'quickSales', 'fixedExpenses', 'creditPayments'
+    ];
+    
+    for (const colName of collections) {
+      const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', id)));
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, colName, d.id));
+      }
+    }
+    
+    // Delete users
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', id)));
+    for (const u of usersSnap.docs) {
+      await deleteDoc(doc(db, 'users', u.id));
+    }
+    
+    // Delete tenant
+    await deleteDoc(doc(db, 'tenants', id));
+    
+    alert('✅ Tenant ተጠፍቷል');
+    loadTenants();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+// ═══════════════════════════════════════════
+// 🔑 PASSWORD REQUESTS
+// ═══════════════════════════════════════════
+async function loadPasswordRequests() {
+  const list = document.getElementById('passwordRequestsList');
+  try {
+    const snap = await getDocs(query(collection(db, 'passwordRequests'), where('status', '==', 'pending')));
+    
+    if (snap.empty) {
+      list.innerHTML = `
+        <div class="empty-state" style="padding:20px;">
+          <div class="emoji" style="font-size:32px;">✅</div>
+          <div style="font-size:13px;">ምንም ጥያቄ የለም</div>
+        </div>
+      `;
+      return;
+    }
+    
+    list.innerHTML = '';
+    snap.forEach(d => {
+      const r = d.data();
+      const date = r.requestedAt ? r.requestedAt.toDate().toLocaleString() : 'Unknown';
+      list.innerHTML += `
+        <div class="tenant-item">
+          <h3>📧 ${esc(r.email)}</h3>
+          <p>📅 ${date} | 🆔 ${d.id}</p>
+          <div class="action-btns">
+            <button onclick="approvePasswordReset('${d.id}', '${escJs(r.email)}')" 
+                    style="background:var(--success);">✅ Approve</button>
+            <button onclick="rejectPasswordReset('${d.id}')" 
+                    style="background:var(--danger);">❌ Reject</button>
+          </div>
+        </div>
+      `;
+    });
+  } catch(e) {
+    list.innerHTML = `<p style="color:var(--danger); font-size:13px;">ስህተት: ${esc(e.message)}</p>`;
+  }
+}
+
+window.approvePasswordReset = async function(reqId, email) {
+  if (!confirm(`የ "${email}" ፓስወርድ ሪሴት ኢሜይል ይላክ?`)) return;
+  
+  try {
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+    if (usersSnap.empty) return alert('❌ ተጠቃሚ አልተገኘም');
+    
+    const userDoc = usersSnap.docs[0];
+    await updateDoc(doc(db, 'users', userDoc.id), { isTempPassword: true });
+    await sendPasswordResetEmail(auth, email);
+    
+    await updateDoc(doc(db, 'passwordRequests', reqId), { 
+      status: 'approved', 
+      approvedAt: serverTimestamp() 
+    });
+    
+    alert(`✅ የሪሴት ኢሜይል ወደ ${email} ተልኳል`);
+    loadPasswordRequests();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+window.rejectPasswordReset = async function(reqId) {
+  if (!confirm('ጥያቄውን ውድቅ ማድረግ?')) return;
+  
+  try {
+    await updateDoc(doc(db, 'passwordRequests', reqId), { 
+      status: 'rejected', 
+      rejectedAt: serverTimestamp() 
+    });
+    alert('✅ ውድቅ ተደርጓል');
+    loadPasswordRequests();
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+// ═══════════════════════════════════════════
+// 🚀 INIT
+// ═══════════════════════════════════════════
+// Set default expiry = 30 days from now
+document.getElementById('newExpiry').value = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
 </script>
 </body>
 </html>
