@@ -121,6 +121,19 @@
 <!-- ═══════════════════════════════════════════
      SCRIPT ENTRY
      ═══════════════════════════════════════════ -->
+     <script>
+  window.addEventListener('error', function(e) {
+    var splash = document.getElementById('splashScreen');
+    if (splash) {
+      splash.innerHTML = '<div style="padding:20px; text-align:center; color:#fff; font-family:sans-serif;">' +
+        '<h2 style="color:#ef4444; margin-bottom:10px;">⚠️ ስህተት ተፈጥሯል</h2>' +
+        '<p style="background:rgba(0,0,0,0.5); padding:10px; border-radius:8px; font-size:12px; word-wrap:break-word;">' + 
+        (e.message || 'Unknown error') + '</p>' +
+        '<p style="font-size:10px; margin-top:10px;">' + (e.filename || '') + ' : ' + (e.lineno || '') + '</p></div>';
+    }
+  });
+</script>
+<script type="module" src="js/core.js"></script>
 <script type="module" src="js/core.js"></script>
 
 </body>
