@@ -76,7 +76,7 @@ body {
   color: #fff;
   transition: opacity 0.5s;
 }
-#splashScreen.fade-out { opacity: 0; pointer-events: none; }
+#splashScreen.fade-out { opacity: 0; pointer-events: none; display: none !important; }
 .splash-logo { font-size: 42px; font-weight: 800; letter-spacing: -1px; display: flex; align-items: center; gap: 12px; }
 .splash-logo .gold { color: var(--accent); }
 .splash-sub { font-size: 13px; margin-top: 10px; color: rgba(255,255,255,0.7); font-weight: 500; letter-spacing: 3px; text-transform: uppercase; }
