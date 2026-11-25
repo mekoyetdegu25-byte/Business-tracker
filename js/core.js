@@ -235,7 +235,7 @@ async function mountModule(module) {
   // 2. የሞባይል የታችኛው ማውጫ (Mobile Bottom Nav) ማዘጋጀት
   // 👇 ከ5 ወደ 6 ተቀይሯል (Settings እንዲካተት)
   const mobileNav = document.getElementById('mobileBottomNav');
-  const mobileItems = (module.navItems || []).slice(0, 6); 
+  const mobileItems = (module.navItems || []).slice(0, 5);
   mobileNav.innerHTML = mobileItems.map(item => `
     <button class="mobile-nav-item ${item.default ? 'active' : ''}" 
             data-tab="${item.id}" 
