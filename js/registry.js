@@ -3,6 +3,7 @@
 // 🍞 የ Bakery ኮድ ከሌላ ፋይል እያመጣን ነው (በቀጣይ ደረጃ እንሰራዋለን)
 import { BakeryModule } from './modules/bakery.js';
 import { LaundryModule } from './modules/laundry.js';
+import { DrinksModule } from './modules/drinks.js';
 
 // ═══════════════════════════════════════════
 // 📦 ሁሉም ዘርፎች እዚህ ይመዘገባሉ
@@ -10,6 +11,7 @@ import { LaundryModule } from './modules/laundry.js';
 export const MODULES = {
   bakery: BakeryModule,
   laundry: LaundryModule,
+  drinks: DrinksModule,
   
   // 🔜 ወደፊት የሚጨመሩ ዘርፎች (አሁን በ Comment ላይ ናቸው)
   // laundry: LaundryModule,
