@@ -6,6 +6,7 @@ import { DrinksModule } from './modules/drinks.js';
 import { HotelModule } from './modules/hotel.js';
 import { PensionModule } from './modules/pension.js';
 import { RestaurantModule } from './modules/restaurant.js';
+import { SupermarketModule } from './modules/supermarket.js';
 
 // ═══════════════════════════════════════════
 // 📦 ሁሉም ዘርፎች እዚህ ይመዘገባሉ
@@ -17,6 +18,7 @@ export const MODULES = {
   hotel: HotelModule,
   pension: PensionModule,
   restaurant: RestaurantModule,
+  supermarket: SupermarketModule,
   // 🔜 ወደፊት የሚጨመሩ ዘርፎች
   // supermarket: SupermarketModule,
   // retail: RetailModule,
