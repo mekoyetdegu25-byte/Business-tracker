@@ -1,953 +1,1295 @@
 // js/modules/bakery.js
+// ═══════════════════════════════════════════════════════════
+// 🍞 HaniTech — Bakery Module
+// ═══════════════════════════════════════════════════════════
 import { db, auth } from '../firebase.js';
-import { 
-  collection, addDoc, getDocs, updateDoc, deleteDoc, doc, 
-  query, where, orderBy, serverTimestamp, getDoc, increment 
+import {
+  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
+  query, where, orderBy, serverTimestamp, writeBatch, increment
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-import { showToast, esc, money, todayStr, thisMonthStr, thisYearStr, state } from '../core.js';
-
-// ═══════════════════════════════════════════
-// 🏗️ BAKERY MODULE DEFINITION
-// ═══════════════════════════════════════════
-export const BakeryModule = {
-  id: 'bakery',
-  name: 'Bakery Manager',
-  icon: '🍞',
-  
-  // Local state to manage UI before syncing with Firestore
-  _state: {
-    items: [],
-    branches: [],
-    settings: {},
-    cart: [],
-    threshold: 10,
-    reportData: null,
-    currentPanel: 'home'
-  },
-
-  // Main initialization called by core.js
-  init: async function(appState) {
-    this._state.tenantId = appState.tenantId;
-    this._state.userEmail = appState.user?.email || 'user@email.com';
-    this._state.role = appState.role || 'owner';
-    
-    // Load initial data from Firestore
-    await this.loadSettings();
-    await this.loadItems();
-    
-    // Build the interface
-    this.buildInterface();
-    
-    // Default to Home view
-    this.navigateTo('home');
-  },
-
-  cleanup: function() {
-    this._state.cart = [];
-    this._state.reportData = null;
-  },
-
-  // ═══════════════════════════════════════════
-  // 🎨 UI CONSTRUCTION (Strictly matching requirements)
-  // ═══════════════════════════════════════════
-  buildInterface: function() {
-    // 1. Build Top Header & Navigation
-    const headerHTML = `
-      <div class="app-header" style="display:flex; flex-direction:column; gap:8px; padding: 10px; background: var(--surface-color);">
-        <!-- Brand Header -->
-        <div class="brand-bar" style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="brand" style="font-weight:bold; font-size:1.2rem; color: var(--primary-color);">
-            🍞 HaniTech <span style="font-size:0.9rem; color: var(--text-muted); font-weight:normal;">| Bakery Manager</span>
-          </div>
-        </div>
-        
-        <!-- User/Business Bar -->
-        <div class="user-bar" style="display:flex; align-items:center; gap:12px; font-size:0.85rem; overflow-x:auto; white-space:nowrap; padding-bottom:5px; border-bottom: 1px solid var(--border-color);">
-          <div class="avatar" style="background: var(--primary-color); color:white; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">U</div>
-          <div><strong>Bakery Business</strong> (${esc(this._state.userEmail)})</div>
-          <select id="hdr-branch-select" class="form-control" style="width:auto; padding:2px 8px; border-radius:4px;">
-            <option value="all">Home ▼</option>
-          </select>
-          <span class="badge" style="background:var(--warning-bg); color:var(--warning-text); padding:2px 8px; border-radius:12px;">👑 Owner</span>
-          <button class="btn-icon" onclick="window.logout()" title="Sign Out" style="background:none; border:none; cursor:pointer; font-size:1.1rem;">🚪</button>
-        </div>
-
-        <!-- Main Navigation Tabs -->
-        <div class="main-nav" style="display:flex; gap:8px; overflow-x:auto; padding-top:5px;">
-          <button class="nav-tab active" onclick="BakeryModule.navigateTo('home', this)" data-nav="home">🏠 Home</button>
-          <button class="nav-tab" onclick="BakeryModule.navigateTo('new-sale', this)" data-nav="new-sale">🛒 New Sale</button>
-          <button class="nav-tab" onclick="BakeryModule.navigateTo('quick-sale', this)" data-nav="quick-sale">⚡ Quick</button>
-          <button class="nav-tab" onclick="BakeryModule.navigateTo('items', this)" data-nav="items">🍞 Items</button>
-          <button class="nav-tab" onclick="BakeryModule.navigateTo('reports', this)" data-nav="reports">📊 Reports</button>
-          <div class="dropdown" style="position:relative;">
-            <button class="nav-tab" onclick="document.getElementById('more-menu').classList.toggle('show')">⚙ More ▼</button>
-            <div id="more-menu" class="dropdown-menu" style="display:none; position:absolute; top:100%; right:0; background:var(--surface-color); border:1px solid var(--border-color); border-radius:6px; z-index:10; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <button class="dropdown-item" onclick="BakeryModule.navigateTo('purchases')" style="display:block; width:100%; text-align:left; padding:8px 16px; border:none; background:none;">📥 Purchases</button>
-              <button class="dropdown-item" onclick="BakeryModule.navigateTo('expenses')" style="display:block; width:100%; text-align:left; padding:8px 16px; border:none; background:none;">💸 Expenses</button>
-              <button class="dropdown-item" onclick="BakeryModule.navigateTo('settings')" style="display:block; width:100%; text-align:left; padding:8px 16px; border:none; background:none;">⚙ Settings</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // 2. Build All Views (Panels)
-    const viewsHTML = `
-      <div id="bk-views-container" style="padding: 15px;">
-        ${this.getHomeView()}
-        ${this.getItemsView()}
-        ${this.getNewSaleView()}
-        ${this.getQuickSaleView()}
-        ${this.getPurchasesView()}
-        ${this.getExpensesView()}
-        ${this.getReportsView()}
-        ${this.getSettingsView()}
-      </div>
-    `;
-
-    // Inject into the main app container (provided by core.js)
-    const appContainer = document.getElementById('modulePanels');
-    if (appContainer) {
-      appContainer.innerHTML = headerHTML + viewsHTML;
-    }
-
-    // Add event listener to close the 'More' dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      const moreMenu = document.getElementById('more-menu');
-      if (moreMenu && !e.target.closest('.dropdown')) {
-        moreMenu.style.display = 'none';
-      }
-    });
-  },
-
-  // ═══════════════════════════════════════════
-  // 📱 VIEW TEMPLATES (Strict Layout)
-  // ═══════════════════════════════════════════
-
-  getHomeView: function() {
-    return `
-      <div id="view-home" class="bk-view hidden">
-        <h3 class="section-title">📅 Today's Summary</h3>
-        <div class="stats-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:20px;">
-          <div class="stat-card" style="padding:15px; background:var(--surface-color); border-radius:8px; text-align:center;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">Sales</div>
-            <div style="font-size:1.2rem; font-weight:bold; color:var(--success-text);" id="bk-dash-sales">0.00</div>
-          </div>
-          <div class="stat-card" style="padding:15px; background:var(--surface-color); border-radius:8px; text-align:center;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">Expenses</div>
-            <div style="font-size:1.2rem; font-weight:bold; color:var(--danger-text);" id="bk-dash-expenses">0.00</div>
-          </div>
-          <div class="stat-card" style="padding:15px; background:var(--surface-color); border-radius:8px; text-align:center;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">Profit</div>
-            <div style="font-size:1.2rem; font-weight:bold; color:var(--primary-color);" id="bk-dash-profit">0.00</div>
-          </div>
-        </div>
-
-        <h3 class="section-title">⚡ Quick Actions</h3>
-        <div class="quick-actions-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;">
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('new-sale')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">🛒 New Sale</button>
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('quick-sale')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">⚡ Quick Sale</button>
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('items')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">🍞 Items (Stock)</button>
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('purchases')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">📥 Purchases</button>
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('expenses')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">💸 Expenses</button>
-          <button class="qa-btn" onclick="BakeryModule.navigateTo('reports')" style="padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-color); cursor:pointer;">📊 Reports</button>
-        </div>
-      </div>
-    `;
-  },
-
-  getItemsView: function() {
-    return `
-      <div id="view-items" class="bk-view hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-          <h3 class="section-title" style="margin:0;">🍞 Bakery Items</h3>
-          <button class="btn btn-primary" onclick="document.getElementById('modal-add-item').style.display='flex'">➕ Add Item</button>
-        </div>
-        
-        <div class="stats-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-          <div class="stat-card" style="padding:15px; background:var(--surface-color); border-radius:8px;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">Total Quantity</div>
-            <div style="font-size:1.2rem; font-weight:bold;" id="bk-item-total-qty">0</div>
-          </div>
-          <div class="stat-card" style="padding:15px; background:var(--surface-color); border-radius:8px;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">Stock Value (ETB)</div>
-            <div style="font-size:1.2rem; font-weight:bold;" id="bk-item-total-val">0.00</div>
-          </div>
-        </div>
-
-        <div class="table-responsive" style="overflow-x:auto;">
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:1px solid var(--border-color); text-align:left;">
-              <th style="padding:10px;">Item</th><th style="padding:10px;">Category</th><th style="padding:10px;">Price (ETB)</th><th style="padding:10px;">Stock</th><th style="padding:10px;">Actions</th>
-            </tr></thead>
-            <tbody id="bk-items-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Add Item Modal -->
-      <div id="modal-add-item" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center;">
-        <div class="modal-content" style="background:var(--surface-color); padding:20px; border-radius:8px; width:90%; max-width:400px;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3 style="margin:0;">➕ Add Item</h3>
-            <button onclick="document.getElementById('modal-add-item').style.display='none'" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">×</button>
-          </div>
-          <form id="form-add-item" onsubmit="BakeryModule.saveNewItem(event)">
-            <div class="form-group" style="margin-bottom:10px;"><label>🏢 Branch *</label><select id="ai-branch" class="form-control" style="width:100%;" required></select></div>
-            <div class="form-group" style="margin-bottom:10px;"><label>📁 Category *</label><input type="text" id="ai-category" class="form-control" style="width:100%;" required placeholder="e.g. Bread"></div>
-            <div class="form-group" style="margin-bottom:10px;"><label>🍞 Item Name *</label><input type="text" id="ai-name" class="form-control" style="width:100%;" required></div>
-            <div class="form-group" style="margin-bottom:10px;"><label>💰 Price (ETB) *</label><input type="number" step="0.01" id="ai-price" class="form-control" style="width:100%;" required></div>
-            <div class="form-group" style="margin-bottom:15px;"><label>📦 Initial Stock (Qty) *</label><input type="number" id="ai-stock" class="form-control" style="width:100%;" required></div>
-            <button type="submit" class="btn btn-primary" style="width:100%;">💾 Save</button>
-          </form>
-        </div>
-      </div>
-    `;
-  },
-
-  getNewSaleView: function() {
-    return `
-      <div id="view-new-sale" class="bk-view hidden">
-        <h3 class="section-title">🛒 New Sale</h3>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-          <div class="form-group"><label>🏢 Branch *</label><select id="ns-branch" class="form-control" style="width:100%;"></select></div>
-          <div class="form-group"><label>📅 Date *</label><input type="date" id="ns-date" class="form-control" style="width:100%;" value="${todayStr()}"></div>
-        </div>
-
-        <div style="background:var(--surface-color); padding:10px; border-radius:8px; margin-bottom:15px;">
-          <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div style="flex:1;"><label>Select Item</label><select id="ns-item-select" class="form-control" style="width:100%;"></select></div>
-            <div style="width:80px;"><label>Qty</label><input type="number" id="ns-item-qty" class="form-control" value="1" min="1" style="width:100%;"></div>
-            <button class="btn btn-secondary" onclick="BakeryModule.addToCart()">Add</button>
-          </div>
-        </div>
-
-        <div class="table-responsive" style="overflow-x:auto; margin-bottom:15px;">
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:1px solid var(--border-color); text-align:left;">
-              <th style="padding:10px;">Item</th><th style="padding:10px;">Price</th><th style="padding:10px;">Qty</th><th style="padding:10px;">Total</th><th style="padding:10px;">Action</th>
-            </tr></thead>
-            <tbody id="ns-cart-tbody"></tbody>
-          </table>
-        </div>
-
-        <div style="background:var(--surface-color); padding:15px; border-radius:8px;">
-          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:10px;">
-            <span>Total:</span><span id="ns-total">0.00 ETB</span>
-          </div>
-          
-          <div class="form-group" style="margin-bottom:10px;">
-            <label>💳 Payment Type</label>
-            <div style="display:flex; gap:10px;">
-              <label><input type="radio" name="ns-payment" value="cash" checked> 💵 Cash</label>
-              <label><input type="radio" name="ns-payment" value="transfer"> 🏦 Transfer</label>
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom:10px;">
-            <label>💰 Paid Amount</label>
-            <input type="number" step="0.01" id="ns-paid" class="form-control" style="width:100%;" oninput="BakeryModule.updateUnpaid()">
-          </div>
-
-          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--danger-text); margin-bottom:15px;">
-            <span>📝 Unpaid:</span><span id="ns-unpaid">0.00 ETB</span>
-          </div>
-
-          <div style="display:flex; gap:10px;">
-            <button class="btn btn-primary" style="flex:1;" onclick="BakeryModule.completeSale()">💸 Complete Sale</button>
-            <button class="btn btn-secondary" onclick="BakeryModule.clearCart()">🗑 Clear</button>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
-  getQuickSaleView: function() {
-    return `
-      <div id="view-quick-sale" class="bk-view hidden">
-        <h3 class="section-title">⚡ Quick Sale (Direct Income)</h3>
-        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:15px;">💡 ያለ ምርት ምርጫ በቀጥታ ጠቅላላ ገቢ ለመመዝገብ።</p>
-        
-        <form id="form-quick-sale" onsubmit="BakeryModule.saveQuickSale(event)" style="background:var(--surface-color); padding:15px; border-radius:8px;">
-          <div class="form-group" style="margin-bottom:10px;"><label>📅 Date</label><input type="date" id="qs-date" class="form-control" style="width:100%;" value="${todayStr()}" required></div>
-          <div class="form-group" style="margin-bottom:10px;"><label>📁 Category</label><input type="text" id="qs-category" class="form-control" style="width:100%;" placeholder="e.g. Direct Bread Sale" required></div>
-          <div class="form-group" style="margin-bottom:10px;"><label>🏢 Branch</label><select id="qs-branch" class="form-control" style="width:100%;"></select></div>
-          <div class="form-group" style="margin-bottom:15px;"><label>💰 Amount (ETB)</label><input type="number" step="0.01" id="qs-amount" class="form-control" style="width:100%;" required></div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">+ Add Income</button>
-        </form>
-      </div>
-    `;
-  },
-
-  getPurchasesView: function() {
-    return `
-      <div id="view-purchases" class="bk-view hidden">
-        <h3 class="section-title">📥 Purchases (Stock In)</h3>
-        
-        <form id="form-purchase" onsubmit="BakeryModule.savePurchase(event)" style="background:var(--surface-color); padding:15px; border-radius:8px; margin-bottom:15px;">
-          <div class="form-group" style="margin-bottom:10px;"><label>🍞 Item *</label><select id="p-item" class="form-control" style="width:100%;" required></select></div>
-          <div class="form-group" style="margin-bottom:10px;"><label>📅 Date *</label><input type="date" id="p-date" class="form-control" style="width:100%;" value="${todayStr()}" required></div>
-          <div class="form-group" style="margin-bottom:10px;"><label>📦 Quantity Added *</label><input type="number" id="p-qty" class="form-control" style="width:100%;" required></div>
-          <div class="form-group" style="margin-bottom:15px;"><label>💰 Cost per Item (ETB) *</label><input type="number" step="0.01" id="p-cost" class="form-control" style="width:100%;" required></div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">💾 Save Purchase</button>
-        </form>
-
-        <h4 class="section-title">📋 Recent Purchases</h4>
-        <div class="table-responsive" style="overflow-x:auto;">
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:1px solid var(--border-color); text-align:left;">
-              <th style="padding:10px;">Date</th><th style="padding:10px;">Item</th><th style="padding:10px;">Qty</th><th style="padding:10px;">Total Cost</th>
-            </tr></thead>
-            <tbody id="purchases-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  },
-
-  getExpensesView: function() {
-    return `
-      <div id="view-expenses" class="bk-view hidden">
-        <h3 class="section-title">💸 Expenses</h3>
-        
-        <h4 class="section-title">➕ Add Expense</h4>
-        <form id="form-expense" onsubmit="BakeryModule.saveExpense(event)" style="background:var(--surface-color); padding:15px; border-radius:8px; margin-bottom:15px;">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
-            <div class="form-group"><label>🏢 Branch *</label><select id="e-branch" class="form-control" style="width:100%;" required></select></div>
-            <div class="form-group"><label>📁 Category *</label><input type="text" id="e-category" class="form-control" style="width:100%;" required></div>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
-            <div class="form-group"><label>💰 Amount (ETB) *</label><input type="number" step="0.01" id="e-amount" class="form-control" style="width:100%;" required></div>
-            <div class="form-group"><label>📅 Date *</label><input type="date" id="e-date" class="form-control" style="width:100%;" value="${todayStr()}" required></div>
-          </div>
-          <div class="form-group" style="margin-bottom:15px;"><label>📝 Note</label><input type="text" id="e-note" class="form-control" style="width:100%;"></div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">💾 Save Expense</button>
-        </form>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h4 class="section-title" style="margin:0;">📋 Recent Expenses</h4>
-          <div style="display:flex; gap:5px;">
-            <button class="btn btn-sm btn-outline" onclick="BakeryModule.loadExpenses('recent')">Recent</button>
-            <button class="btn btn-sm btn-outline" onclick="BakeryModule.loadExpenses('date')">Date</button>
-            <button class="btn btn-sm btn-outline" onclick="BakeryModule.loadExpenses('month')">Month</button>
-            <button class="btn btn-sm btn-outline" onclick="BakeryModule.loadExpenses('all')">All</button>
-          </div>
-        </div>
-
-        <div class="stats-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px; text-align:center;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">This Month</div>
-            <div style="font-weight:bold;" id="exp-sum-month">0.00</div>
-          </div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px; text-align:center;">
-            <div style="font-size:0.8rem; color:var(--text-muted);">All Time</div>
-            <div style="font-weight:bold;" id="exp-sum-all">0.00</div>
-          </div>
-        </div>
-
-        <div class="table-responsive" style="overflow-x:auto;">
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:1px solid var(--border-color); text-align:left;">
-              <th style="padding:10px;">Date</th><th style="padding:10px;">Branch</th><th style="padding:10px;">Category</th><th style="padding:10px;">Amount</th>
-            </tr></thead>
-            <tbody id="expenses-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  },
-
-  getReportsView: function() {
-    return `
-      <div id="view-reports" class="bk-view hidden">
-        <h3 class="section-title">📊 Reports</h3>
-        
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-          <button class="btn btn-primary" onclick="BakeryModule.loadReportData('daily')">📅 Daily</button>
-          <button class="btn btn-secondary" onclick="BakeryModule.loadReportData('monthly')">📆 Monthly</button>
-          <button class="btn btn-secondary" onclick="BakeryModule.loadReportData('yearly')">📊 Yearly</button>
-        </div>
-
-        <div class="form-group" style="margin-bottom:15px;">
-          <label>🏢 Branch Filter</label>
-          <select id="rep-branch" class="form-control" style="width:100%;" onchange="BakeryModule.loadReportData()">
-            <option value="all">📊 All Branches</option>
-          </select>
-        </div>
-
-        <div class="stats-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:15px;">
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">Revenue</div><div style="font-weight:bold;" id="rep-revenue">0.00</div></div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">Expenses</div><div style="font-weight:bold; color:var(--danger-text);" id="rep-expenses">0.00</div></div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">Profit</div><div style="font-weight:bold; color:var(--success-text);" id="rep-profit">0.00</div></div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">Unpaid</div><div style="font-weight:bold;" id="rep-unpaid">0.00</div></div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">💵 Cash</div><div style="font-weight:bold;" id="rep-cash">0.00</div></div>
-          <div class="stat-card" style="padding:10px; background:var(--surface-color); border-radius:8px;"><div style="font-size:0.8rem;">🏦 Transfer</div><div style="font-weight:bold;" id="rep-transfer">0.00</div></div>
-        </div>
-
-        <h4 class="section-title">🏆 Top Selling Items</h4>
-        <div class="table-responsive" style="overflow-x:auto; margin-bottom:15px;">
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:1px solid var(--border-color); text-align:left;">
-              <th style="padding:10px;">#</th><th style="padding:10px;">Item</th><th style="padding:10px;">Qty</th><th style="padding:10px;">Revenue</th>
-            </tr></thead>
-            <tbody id="rep-top-items"></tbody>
-          </table>
-        </div>
-
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-secondary" style="flex:1;" onclick="BakeryModule.exportReportCSV()">📥 CSV</button>
-          <button class="btn btn-secondary" style="flex:1;" onclick="window.print()">🖨 Print</button>
-        </div>
-      </div>
-    `;
-  },
-
-  getSettingsView: function() {
-    return `
-      <div id="view-settings" class="bk-view hidden">
-        <h3 class="section-title">⚙ Settings</h3>
-        
-        <div style="background:var(--surface-color); padding:15px; border-radius:8px; margin-bottom:15px;">
-          <form id="form-settings" onsubmit="BakeryModule.saveSettings(event)">
-            <div class="form-group" style="margin-bottom:10px;"><label>🏢 Business Name</label><input type="text" id="set-name" class="form-control" style="width:100%;"></div>
-            <div class="form-group" style="margin-bottom:10px;"><label>📞 Phone</label><input type="text" id="set-phone" class="form-control" style="width:100%;"></div>
-            <div class="form-group" style="margin-bottom:15px;"><label>📦 Low Stock Threshold</label><input type="number" id="set-threshold" class="form-control" style="width:100%;" value="10"></div>
-            <button type="submit" class="btn btn-primary" style="width:100%;">💾 Save Settings</button>
-          </form>
-        </div>
-
-        <div style="background:var(--surface-color); padding:15px; border-radius:8px; margin-bottom:15px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h4 style="margin:0;">🏢 Branches PRO</h4>
-            <button class="btn btn-sm btn-secondary" onclick="BakeryModule.addBranch()">➕ Add</button>
-          </div>
-          <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <input type="text" id="new-branch-name" class="form-control" style="flex:1;" placeholder="Branch Name">
-          </div>
-          <ul id="branches-list" style="list-style:none; padding:0; margin:0;"></ul>
-        </div>
-
-        <div style="background:var(--surface-color); padding:15px; border-radius:8px; margin-bottom:15px;">
-          <h4 style="margin:0 0 10px 0;">🎨 Theme</h4>
-          <div style="display:flex; gap:10px;">
-            <button class="btn btn-secondary" style="flex:1;" onclick="document.body.classList.remove('dark-mode')">☀ Light</button>
-            <button class="btn btn-secondary" style="flex:1;" onclick="document.body.classList.add('dark-mode')">🌙 Dark</button>
-          </div>
-        </div>
-
-        <div style="background:var(--surface-color); padding:15px; border-radius:8px;">
-          <h4 style="margin:0 0 10px 0;">🚪 Account</h4>
-          <button class="btn btn-danger" style="width:100%;" onclick="window.logout()">Sign Out</button>
-        </div>
-      </div>
-    `;
-  },
-
-  // ═══════════════════════════════════════════
-  // 🧭 NAVIGATION & ROUTING
-  // ═══════════════════════════════════════════
-  navigateTo: function(panelId, btnEl = null) {
-    // 1. Hide all views
-    document.querySelectorAll('.bk-view').forEach(v => v.classList.add('hidden'));
-    
-    // 2. Show target view
-    const targetView = document.getElementById(`view-${panelId}`);
-    if (targetView) targetView.classList.remove('hidden');
-
-    // 3. Update nav tab styling
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    if (btnEl) btnEl.classList.add('active');
-    else {
-      const match = document.querySelector(`.nav-tab[data-nav="${panelId}"]`);
-      if (match) match.classList.add('active');
-    }
-
-    // Close 'More' dropdown if it's open
-    const moreMenu = document.getElementById('more-menu');
-    if (moreMenu) moreMenu.style.display = 'none';
-
-    // 4. Load specific data based on view
-    this._state.currentPanel = panelId;
-    switch(panelId) {
-      case 'home': this.loadDashboardStats(); break;
-      case 'items': this.renderItems(); break;
-      case 'new-sale': this.renderSalesUI(); break;
-      case 'purchases': this.renderPurchasesUI(); break;
-      case 'expenses': this.renderExpensesUI(); break;
-      case 'reports': this.loadReportData(); break;
-      case 'settings': this.renderSettingsUI(); break;
-    }
-  },
-
-  // ═══════════════════════════════════════════
-  // 💾 FIRESTORE & DATA LOGIC
-  // ═══════════════════════════════════════════
-
-  loadSettings: async function() {
-    try {
-      const docRef = doc(db, 'tenants', this._state.tenantId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        this._state.settings = data;
-        this._state.branches = data.branches || ['Main Branch'];
-        this._state.threshold = data.lowStockThreshold || 10;
-        this.populateBranches();
-      } else {
-        // Default branch if none exists
-        this._state.branches = ['Main Branch'];
-      }
-    } catch (e) { console.error("Error loading settings:", e); }
-  },
-
-  loadItems: async function() {
-    try {
-      const q = query(collection(db, 'items'), where('tenantId', '==', this._state.tenantId));
-      const snapshot = await getDocs(q);
-      this._state.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch (e) { console.error("Error loading items:", e); }
-  },
-
-  populateBranches: function() {
-    const options = this._state.branches.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
-    
-    // Header branch dropdown
-    const hdr = document.getElementById('hdr-branch-select');
-    if (hdr) hdr.innerHTML = `<option value="all">Home ▼</option>` + options;
-
-    // Form dropdowns
-    ['ai-branch', 'ns-branch', 'qs-branch', 'p-branch', 'e-branch'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = options;
-    });
-
-    // Report filter
-    const rep = document.getElementById('rep-branch');
-    if (rep) rep.innerHTML = `<option value="all">📊 All Branches</option>` + options;
-  },
-
-  loadDashboardStats: async function() {
-    const today = todayStr();
-    try {
-      // Sales
-      const qSales = query(collection(db, 'sales'), where('tenantId', '==', this._state.tenantId), where('date', '==', today));
-      const snapSales = await getDocs(qSales);
-      let totalSales = 0;
-      snapSales.forEach(d => { totalSales += d.data().total || 0; });
-
-      // Expenses
-      const qExp = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId), where('date', '==', today));
-      const snapExp = await getDocs(qExp);
-      let totalExp = 0;
-      snapExp.forEach(d => { totalExp += d.data().amount || 0; });
-
-      document.getElementById('bk-dash-sales').textContent = money(totalSales);
-      document.getElementById('bk-dash-expenses').textContent = money(totalExp);
-      document.getElementById('bk-dash-profit').textContent = money(totalSales - totalExp);
-    } catch(e) { console.error(e); }
-  },
-
-  renderItems: async function() {
-    await this.loadItems();
-    const tbody = document.getElementById('bk-items-tbody');
-    if (!tbody) return;
-
-    let totalQty = 0, totalVal = 0;
-    tbody.innerHTML = this._state.items.map(item => {
-      totalQty += item.stock || 0;
-      totalVal += (item.stock || 0) * (item.price || 0);
-      const isLow = item.stock <= this._state.threshold;
-      return `
-        <tr style="border-bottom:1px solid var(--border-color);">
-          <td style="padding:10px;">${esc(item.name)} ${isLow ? '<span style="font-size:0.7rem; color:white; background:var(--danger-text); padding:2px 5px; border-radius:4px;">Low</span>' : ''}</td>
-          <td style="padding:10px;">${esc(item.category)}</td>
-          <td style="padding:10px;">${money(item.price)}</td>
-          <td style="padding:10px;">${item.stock}</td>
-          <td style="padding:10px;"><button class="btn btn-sm btn-danger" onclick="BakeryModule.deleteItem('${item.id}')">Delete</button></td>
-        </tr>
-      `;
-    }).join('');
-
-    document.getElementById('bk-item-total-qty').textContent = totalQty;
-    document.getElementById('bk-item-total-val').textContent = money(totalVal);
-  },
-
-  renderSalesUI: function() {
-    const select = document.getElementById('ns-item-select');
-    if (!select) return;
-    select.innerHTML = this._state.items.map(i => `<option value="${i.id}">${esc(i.name)} - ${money(i.price)} ETB (Stock: ${i.stock})</option>`).join('');
-    this.renderCart();
-  },
-
-  renderCart: function() {
-    const tbody = document.getElementById('ns-cart-tbody');
-    if (!tbody) return;
-    let total = 0;
-    tbody.innerHTML = this._state.cart.map((item, index) => {
-      const lineTotal = item.price * item.qty;
-      total += lineTotal;
-      return `
-        <tr style="border-bottom:1px solid var(--border-color);">
-          <td style="padding:10px;">${esc(item.name)}</td>
-          <td style="padding:10px;">${money(item.price)}</td>
-          <td style="padding:10px;">${item.qty}</td>
-          <td style="padding:10px;">${money(lineTotal)}</td>
-          <td style="padding:10px;"><button class="btn btn-sm btn-danger" onclick="BakeryModule.removeFromCart(${index})">Remove</button></td>
-        </tr>
-      `;
-    }).join('');
-    document.getElementById('ns-total').textContent = money(total) + ' ETB';
-    this.updateUnpaid();
-  },
-
-  updateUnpaid: function() {
-    const total = this._state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const paid = parseFloat(document.getElementById('ns-paid').value) || 0;
-    document.getElementById('ns-unpaid').textContent = money(Math.max(0, total - paid)) + ' ETB';
-  },
-
-  renderPurchasesUI: async function() {
-    const select = document.getElementById('p-item');
-    if (select) select.innerHTML = this._state.items.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('');
-
-    const q = query(collection(db, 'purchases'), where('tenantId', '==', this._state.tenantId), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-    const tbody = document.getElementById('purchases-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = snapshot.docs.slice(0, 10).map(d => {
-      const p = d.data();
-      return `<tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">${p.date}</td><td style="padding:10px;">${esc(p.itemName)}</td><td style="padding:10px;">${p.qty}</td><td style="padding:10px;">${money(p.qty * p.cost)} ETB</td></tr>`;
-    }).join('');
-  },
-
-  renderExpensesUI: async function() {
-    await this.loadExpenses('recent');
-    await this.updateExpenseSummaries();
-  },
-
-  loadExpenses: async function(filterType) {
-    let q = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId), orderBy('date', 'desc'));
-    
-    // Filter logic
-    if (filterType === 'date') {
-      const d = prompt("Enter Date (YYYY-MM-DD):", todayStr());
-      if (!d) return;
-      q = query(q, where('date', '==', d));
-    } else if (filterType === 'month') {
-      q = query(q, where('date', '>=', thisMonthStr() + '-01'));
-    }
-
-    const snap = await getDocs(q);
-    const tbody = document.getElementById('expenses-tbody');
-    if (!tbody) return;
-    
-    let docs = snap.docs;
-    if (filterType === 'recent') docs = docs.slice(0, 10);
-    
-    tbody.innerHTML = docs.map(d => {
-      const e = d.data();
-      return `<tr style="border-bottom:1px solid var(--border-color);"><td style="padding:10px;">${e.date}</td><td style="padding:10px;">${esc(e.branch)}</td><td style="padding:10px;">${esc(e.category)}</td><td style="padding:10px;">${money(e.amount)} ETB</td></tr>`;
-    }).join('');
-  },
-
-  updateExpenseSummaries: async function() {
-    const qAll = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId));
-    const snap = await getDocs(qAll);
-    let all = 0, month = 0;
-    const cm = thisMonthStr();
-    snap.forEach(d => {
-      const e = d.data();
-      all += e.amount || 0;
-      if (e.date.startsWith(cm)) month += e.amount || 0;
-    });
-    document.getElementById('exp-sum-month').textContent = money(month);
-    document.getElementById('exp-sum-all').textContent = money(all);
-  },
-
-  renderSettingsUI: function() {
-    document.getElementById('set-name').value = this._state.settings.name || '';
-    document.getElementById('set-phone').value = this._state.settings.phone || '';
-    document.getElementById('set-threshold').value = this._state.threshold;
-    
-    const list = document.getElementById('branches-list');
-    if (list) {
-      list.innerHTML = this._state.branches.map(b => `<li style="padding:5px; border-bottom:1px solid var(--border-color);">${esc(b)}</li>`).join('');
-    }
-  },
-
-  // ═══════════════════════════════════════════
-  // ⚡ ACTIONS & CRUD
-  // ═══════════════════════════════════════════
-
-  saveNewItem: async function(e) {
-    e.preventDefault();
-    const newItem = {
-      tenantId: this._state.tenantId,
-      branch: document.getElementById('ai-branch').value,
-      category: document.getElementById('ai-category').value,
-      name: document.getElementById('ai-name').value,
-      price: parseFloat(document.getElementById('ai-price').value),
-      stock: parseInt(document.getElementById('ai-stock').value),
-      createdAt: serverTimestamp()
-    };
-    try {
-      await addDoc(collection(db, 'items'), newItem);
-      showToast('Item saved successfully');
-      document.getElementById('modal-add-item').style.display = 'none';
-      document.getElementById('form-add-item').reset();
-      this.renderItems();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  deleteItem: async function(id) {
-    if(!confirm('Delete this item?')) return;
-    try {
-      await deleteDoc(doc(db, 'items', id));
-      showToast('Item deleted');
-      this.renderItems();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  addToCart: function() {
-    const itemId = document.getElementById('ns-item-select').value;
-    const qty = parseInt(document.getElementById('ns-item-qty').value);
-    const item = this._state.items.find(i => i.id === itemId);
-    if (!item || qty <= 0) return;
-    if (item.stock < qty) return showToast('Not enough stock!', 'error');
-
-    const existing = this._state.cart.find(c => c.id === itemId);
-    if (existing) existing.qty += qty;
-    else this._state.cart.push({ id: item.id, name: item.name, price: item.price, qty: qty });
-    this.renderCart();
-  },
-
-  removeFromCart: function(index) {
-    this._state.cart.splice(index, 1);
-    this.renderCart();
-  },
-
-  clearCart: function() {
-    this._state.cart = [];
-    this.renderCart();
-    document.getElementById('ns-paid').value = '';
-    this.updateUnpaid();
-  },
-
-  completeSale: async function() {
-    if (this._state.cart.length === 0) return showToast('Cart is empty', 'error');
-    const total = this._state.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-    const paid = parseFloat(document.getElementById('ns-paid').value) || 0;
-    const paymentType = document.querySelector('input[name="ns-payment"]:checked').value;
-
-    const saleData = {
-      tenantId: this._state.tenantId,
-      date: document.getElementById('ns-date').value,
-      branch: document.getElementById('ns-branch').value,
-      paymentType: paymentType,
-      items: this._state.cart,
-      total: total,
-      paid: paid,
-      unpaid: total - paid,
-      createdAt: serverTimestamp()
-    };
-
-    try {
-      await addDoc(collection(db, 'sales'), saleData);
-      for (let item of this._state.cart) {
-        await updateDoc(doc(db, 'items', item.id), { stock: increment(-item.qty) });
-      }
-      showToast('Sale completed!');
-      this.clearCart();
-      await this.loadItems();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  saveQuickSale: async function(e) {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'sales'), {
-        tenantId: this._state.tenantId,
-        date: document.getElementById('qs-date').value,
-        category: document.getElementById('qs-category').value,
-        branch: document.getElementById('qs-branch').value,
-        total: parseFloat(document.getElementById('qs-amount').value),
-        isQuick: true,
-        createdAt: serverTimestamp()
-      });
-      showToast('Income recorded!');
-      e.target.reset();
-      document.getElementById('qs-date').value = todayStr();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  savePurchase: async function(e) {
-    e.preventDefault();
-    const itemId = document.getElementById('p-item').value;
-    const qty = parseInt(document.getElementById('p-qty').value);
-    const cost = parseFloat(document.getElementById('p-cost').value);
-    const itemName = this._state.items.find(i => i.id === itemId)?.name || 'Unknown';
-
-    try {
-      await addDoc(collection(db, 'purchases'), {
-        tenantId: this._state.tenantId,
-        itemId, itemName, qty, cost,
-        date: document.getElementById('p-date').value,
-        createdAt: serverTimestamp()
-      });
-      await updateDoc(doc(db, 'items', itemId), { stock: increment(qty) });
-      showToast('Purchase recorded!');
-      e.target.reset();
-      document.getElementById('p-date').value = todayStr();
-      await this.loadItems();
-      this.renderPurchasesUI();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  saveExpense: async function(e) {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'expenses'), {
-        tenantId: this._state.tenantId,
-        branch: document.getElementById('e-branch').value,
-        category: document.getElementById('e-category').value,
-        amount: parseFloat(document.getElementById('e-amount').value),
-        date: document.getElementById('e-date').value,
-        note: document.getElementById('e-note').value,
-        createdAt: serverTimestamp()
-      });
-      showToast('Expense saved!');
-      e.target.reset();
-      document.getElementById('e-date').value = todayStr();
-      this.renderExpensesUI();
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  saveSettings: async function(e) {
-    e.preventDefault();
-    try {
-      const name = document.getElementById('set-name').value;
-      const phone = document.getElementById('set-phone').value;
-      const threshold = parseInt(document.getElementById('set-threshold').value);
-      
-      await updateDoc(doc(db, 'tenants', this._state.tenantId), {
-        name, phone, lowStockThreshold: threshold
-      });
-      
-      this._state.settings.name = name;
-      this._state.settings.phone = phone;
-      this._state.threshold = threshold;
-      showToast('Settings saved!');
-      document.getElementById('hdrBusinessName').textContent = name;
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  addBranch: async function() {
-    const input = document.getElementById('new-branch-name');
-    const name = input.value.trim();
-    if (!name) return;
-    const newBranches = [...this._state.branches, name];
-    try {
-      await updateDoc(doc(db, 'tenants', this._state.tenantId), { branches: newBranches });
-      this._state.branches = newBranches;
-      this.populateBranches();
-      this.renderSettingsUI();
-      input.value = '';
-      showToast('Branch added!');
-    } catch (err) { showToast(err.message, 'error'); }
-  },
-
-  // ═══════════════════════════════════════════
-  // 📊 REPORTING
-  // ═══════════════════════════════════════════
-  loadReportData: async function(timeframe = 'daily') {
-    // Update button styles based on timeframe
-    document.querySelectorAll('.btn-secondary, .btn-primary').forEach(b => {
-      if (b.textContent.includes('📅 Daily') || b.textContent.includes('📆 Monthly') || b.textContent.includes('📊 Yearly')) {
-        b.className = 'btn btn-secondary';
-      }
-    });
-    if (timeframe === 'daily') document.querySelector('button[onclick*="daily"]').className = 'btn btn-primary';
-    if (timeframe === 'monthly') document.querySelector('button[onclick*="monthly"]').className = 'btn btn-primary';
-    if (timeframe === 'yearly') document.querySelector('button[onclick*="yearly"]').className = 'btn btn-primary';
-
-    const branch = document.getElementById('rep-branch').value;
-    let dateFilter = '';
-    if (timeframe === 'daily') dateFilter = todayStr();
-    else if (timeframe === 'monthly') dateFilter = thisMonthStr();
-    else if (timeframe === 'yearly') dateFilter = thisYearStr();
-
-    // Fetch Sales
-    let qSales = query(collection(db, 'sales'), where('tenantId', '==', this._state.tenantId));
-    if (branch !== 'all') qSales = query(qSales, where('branch', '==', branch));
-    const snapSales = await getDocs(qSales);
-    const allSales = snapSales.docs.map(d => d.data()).filter(s => s.date.startsWith(dateFilter));
-
-    // Fetch Expenses
-    let qExp = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId));
-    if (branch !== 'all') qExp = query(qExp, where('branch', '==', branch));
-    const snapExp = await getDocs(qExp);
-    const allExp = snapExp.docs.map(d => d.data()).filter(e => e.date.startsWith(dateFilter));
-
-    // Calculate Metrics
-    let rev = 0, unpaid = 0, cash = 0, transfer = 0;
-    const itemMap = {};
-
-    allSales.forEach(s => {
-      rev += s.total || 0;
-      unpaid += s.unpaid || 0;
-      if (s.paymentType === 'cash') cash += s.total || 0;
-      if (s.paymentType === 'transfer') transfer += s.total || 0;
-      
-      if (s.items) {
-        s.items.forEach(it => {
-          if (!itemMap[it.name]) itemMap[it.name] = { qty: 0, rev: 0 };
-          itemMap[it.name].qty += it.qty;
-          itemMap[it.name].rev += (it.price * it.qty);
-        });
-      }
-    });
-
-    let exp = 0;
-    allExp.forEach(e => { exp += e.amount || 0; });
-
-    // Update UI
-    document.getElementById('rep-revenue').textContent = money(rev) + ' ETB';
-    document.getElementById('rep-expenses').textContent = money(exp) + ' ETB';
-    document.getElementById('rep-profit').textContent = money(rev - exp) + ' ETB';
-    document.getElementById('rep-unpaid').textContent = money(unpaid) + ' ETB';
-    document.getElementById('rep-cash').textContent = money(cash) + ' ETB';
-    document.getElementById('rep-transfer').textContent = money(transfer) + ' ETB';
-
-    // Top Items
-    const sorted = Object.entries(itemMap).sort((a, b) => b[1].rev - a[1].rev).slice(0, 5);
-    document.getElementById('rep-top-items').innerHTML = sorted.map(([name, data], idx) => `
-      <tr style="border-bottom:1px solid var(--border-color);">
-        <td style="padding:10px;">${idx + 1}</td>
-        <td style="padding:10px;">${esc(name)}</td>
-        <td style="padding:10px;">${data.qty}</td>
-        <td style="padding:10px;">${money(data.rev)}</td>
-      </tr>
-    `).join('');
-
-    // Save for CSV
-    this._state.reportData = { timeframe, branch, rev, exp, profit: rev - exp, unpaid, cash, transfer, sorted };
-  },
-
-  exportReportCSV: function() {
-    if (!this._state.reportData) return showToast('No data to export', 'warning');
-    const d = this._state.reportData;
-    
-    let csv = "Metric,Value (ETB)\n";
-    csv += `Revenue,${d.rev}\nExpenses,${d.exp}\nProfit,${d.profit}\nUnpaid,${d.unpaid}\nCash,${d.cash}\nTransfer,${d.transfer}\n\n`;
-    csv += "Top Selling Items\n#,Item,Qty,Revenue\n";
-    d.sorted.forEach(([name, data], i) => {
-      csv += `${i+1},${name},${data.qty},${data.rev}\n`;
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Report_${d.timeframe}_${Date.now()}.csv`;
-    link.click();
-  }
+import { esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast, state } from '../core.js';
+
+// ─── የዘርፉ ውስጣዊ ሁኔታ ───
+const B = {
+  items: [],
+  sales: [],
+  purchases: [],
+  expenses: [],
+  categories: [],
+  branches: [],
+  branchFilter: 'all',
+  cart: [],
+  paymentType: 'cash',
+  reportPeriod: 'daily',
+  reportBranch: 'all',
+  expenseFilter: 'recent',
+  loaded: { items: false, sales: false, purchases: false, expenses: false },
 };
+
+const DEFAULT_CATEGORIES = ['ዳቦ', 'ኬክ', 'ብስኩት', 'መጠጥ', 'ሌላ'];
+
+// ═══════════════════════════════════════════════════════
+// 🧩 NAVIGATION + PANELS (ስሞች ከ HTML ጋር ይገጣጠማሉ)
+// ═══════════════════════════════════════════════════════
+const navItems = [
+  { id: 'home',       icon: '🏠', label: 'Home',     default: true },
+  { id: 'newSale',    icon: '🛒', label: 'New Sale' },
+  { id: 'quickSale',  icon: '⚡', label: 'Quick' },
+  { id: 'items',      icon: '🍞', label: 'Items' },
+  { id: 'reports',    icon: '📊', label: 'Reports' },
+  { id: 'more',       icon: '⚙️', label: 'More' },
+];
+
+// የ "More" ማውጫ ውስጥ ያሉት ገጾች
+const moreItems = [
+  { id: 'items',      icon: '🍞', label: 'Items (Stock)' },
+  { id: 'newSale',    icon: '🛒', label: 'New Sale' },
+  { id: 'quickSale',  icon: '⚡', label: 'Quick Sale' },
+  { id: 'purchases',  icon: '📥', label: 'Purchases' },
+  { id: 'expenses',   icon: '💸', label: 'Expenses' },
+  { id: 'reports',    icon: '📊', label: 'Reports' },
+  { id: 'settings',   icon: '⚙️', label: 'Settings' },
+];
+
+// ─── የገጽ HTML (ከ bakery index ጋር ተመሳሳይ) ───
+const panelsHTML = {
+  home: `
+    <div class="card">
+      <div class="card-title">📅 Today's Summary</div>
+      <div class="stat-grid">
+        <div class="summary-box green">
+          <div class="label">Sales</div>
+          <div class="value" id="homeSales">0.00</div>
+        </div>
+        <div class="summary-box red">
+          <div class="label">Expenses</div>
+          <div class="value" id="homeExpenses">0.00</div>
+        </div>
+        <div class="summary-box blue">
+          <div class="label">Profit</div>
+          <div class="value" id="homeProfit">0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚡ Quick Actions</div>
+      <div class="quick-actions-grid">
+        <div class="quick-action" onclick="switchPage('newSale')">
+          <div class="qa-icon">🛒</div><div class="qa-label">New Sale</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('quickSale')">
+          <div class="qa-icon">⚡</div><div class="qa-label">Quick Sale</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('items')">
+          <div class="qa-icon">🍞</div><div class="qa-label">Items (Stock)</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('purchases')">
+          <div class="qa-icon">📥</div><div class="qa-label">Purchases</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('expenses')">
+          <div class="qa-icon">💸</div><div class="qa-label">Expenses</div>
+        </div>
+        <div class="quick-action" onclick="switchPage('reports')">
+          <div class="qa-icon">📊</div><div class="qa-label">Reports</div>
+        </div>
+      </div>
+    </div>
+  `,
+
+  items: `
+    <div class="card">
+      <div class="card-title">
+        <span>🍞 Bakery Items</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddItemModal()">➕ Add Item</button>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="summary-box blue">
+          <div class="label">Total Quantity</div>
+          <div class="value" id="itemsTotalQty">0</div>
+        </div>
+        <div class="summary-box yellow">
+          <div class="label">Stock Value (ETB)</div>
+          <div class="value" id="itemsTotalValue">0.00</div>
+        </div>
+      </div>
+      <div id="itemsList"></div>
+    </div>
+  `,
+
+  newSale: `
+    <div class="card">
+      <div class="card-title">🛒 New Sale</div>
+      <div class="pos-layout">
+        <div class="pos-cart">
+          <div class="pos-cart-header">
+            <div class="form-group">
+              <label class="field-label">🏢 Branch *</label>
+              <select id="saleBranch"></select>
+            </div>
+            <div class="form-group">
+              <label class="field-label">📅 Date *</label>
+              <input type="date" id="saleDate" value="${todayStr()}">
+            </div>
+          </div>
+          <div class="pos-cart-items" id="saleCartItems">
+            <div class="empty-state"><div class="emoji">🛒</div><p>ምርት አልተመረጠም</p></div>
+          </div>
+          <div class="pos-cart-footer">
+            <div class="payment-type-selector">
+              <button class="payment-type-btn active" data-pay="cash" onclick="setPaymentType('cash', this)">💵 Cash</button>
+              <button class="payment-type-btn" data-pay="transfer" onclick="setPaymentType('transfer', this)">🏦 Transfer</button>
+            </div>
+            <div class="summary-box blue" style="margin:12px 0 0;">
+              <div class="label">Total</div>
+              <div class="value" id="saleTotal">0.00 ETB</div>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+              <label class="field-label">💰 Paid Amount</label>
+              <input type="number" id="salePaid" value="0" min="0" step="0.01" oninput="renderSaleTotal()">
+            </div>
+            <div class="summary-box red" style="margin:0;">
+              <div class="label">📝 Unpaid</div>
+              <div class="value" id="saleUnpaid">0.00 ETB</div>
+            </div>
+            <button class="btn btn-success" onclick="completeSale()">💸 Complete Sale</button>
+            <button class="btn btn-outline" onclick="clearCart()">🗑️ Clear</button>
+          </div>
+        </div>
+        <div class="pos-products">
+          <div class="pos-products-header">
+            <input type="text" id="saleSearch" placeholder="🔍 ምርት ፈልግ..." oninput="renderSaleProducts()">
+          </div>
+          <div class="pos-products-grid" id="saleProducts"></div>
+        </div>
+      </div>
+    </div>
+  `,
+
+  quickSale: `
+    <div class="card">
+      <div class="card-title">⚡ Quick Sale (Direct Income)</div>
+      <div class="empty-state" style="padding:0 0 16px;">
+        <p>💡 ያለ ምርት ምርጫ በቀጥታ ጠቅላላ ገቢ ለመመዝገብ።</p>
+      </div>
+      <div class="form-group">
+        <label class="field-label">📅 Date</label>
+        <input type="date" id="qsDate" value="${todayStr()}">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📁 Category</label>
+        <select id="qsCategory"></select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">🏢 Branch</label>
+        <select id="qsBranch"></select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">💰 Amount (ETB)</label>
+        <input type="number" id="qsAmount" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <button class="btn btn-success" onclick="saveQuickSale()">+ Add Income</button>
+    </div>
+  `,
+
+  purchases: `
+    <div class="card">
+      <div class="card-title">📥 Purchases (Stock In)</div>
+      <div class="form-group">
+        <label class="field-label">🍞 Item *</label>
+        <select id="purItem"></select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">📅 Date *</label>
+        <input type="date" id="purDate" value="${todayStr()}">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📦 Quantity Added *</label>
+        <input type="number" id="purQty" min="1" step="1" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="field-label">💰 Cost per Item (ETB)</label>
+        <input type="number" id="purCost" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <button class="btn btn-primary" onclick="savePurchase()">💾 Save Purchase</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Recent Purchases</div>
+      <div id="purchasesList"></div>
+    </div>
+  `,
+
+  expenses: `
+    <div class="card">
+      <div class="card-title">➕ Add Expense</div>
+      <div class="form-group">
+        <label class="field-label">🏢 Branch *</label>
+        <select id="expBranch"></select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">📁 Category *</label>
+        <select id="expCategory"></select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">💰 Amount (ETB) *</label>
+        <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📅 Date *</label>
+        <input type="date" id="expDate" value="${todayStr()}">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📝 Note</label>
+        <textarea id="expNote" rows="2" placeholder="..."></textarea>
+      </div>
+      <button class="btn btn-danger" onclick="saveExpense()">💾 Save Expense</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Recent Expenses</div>
+      <div class="date-filter-chips">
+        <button class="date-chip active" data-f="recent" onclick="setExpenseFilter('recent', this)">Recent</button>
+        <button class="date-chip" data-f="date" onclick="setExpenseFilter('date', this)">Date</button>
+        <button class="date-chip" data-f="month" onclick="setExpenseFilter('month', this)">Month</button>
+        <button class="date-chip" data-f="all" onclick="setExpenseFilter('all', this)">All</button>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="summary-box yellow">
+          <div class="label">This Month</div>
+          <div class="value" id="expMonthTotal">0.00</div>
+        </div>
+        <div class="summary-box red">
+          <div class="label">All Time</div>
+          <div class="value" id="expAllTotal">0.00</div>
+        </div>
+      </div>
+      <div id="expensesList"></div>
+    </div>
+  `,
+
+  reports: `
+    <div class="card">
+      <div class="card-title">📊 Reports</div>
+      <div class="report-type-tabs">
+        <button class="report-type-tab active" data-p="daily" onclick="setReportPeriod('daily', this)">📅 Daily</button>
+        <button class="report-type-tab" data-p="monthly" onclick="setReportPeriod('monthly', this)">📆 Monthly</button>
+        <button class="report-type-tab" data-p="yearly" onclick="setReportPeriod('yearly', this)">📊 Yearly</button>
+      </div>
+      <div class="form-group">
+        <label class="field-label">🏢 Branch Filter</label>
+        <select id="repBranch" onchange="setReportBranch(this.value)"></select>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="summary-box green">
+          <div class="label">Revenue</div>
+          <div class="value" id="repRevenue">0.00</div>
+        </div>
+        <div class="summary-box red">
+          <div class="label">Expenses</div>
+          <div class="value" id="repExpenses">0.00</div>
+        </div>
+        <div class="summary-box blue">
+          <div class="label">Profit</div>
+          <div class="value" id="repProfit">0.00</div>
+        </div>
+        <div class="summary-box yellow">
+          <div class="label">Unpaid</div>
+          <div class="value" id="repUnpaid">0.00</div>
+        </div>
+        <div class="payment-breakdown-item cash">
+          <div class="label">💵 Cash</div>
+          <div class="value" id="repCash">0.00</div>
+        </div>
+        <div class="payment-breakdown-item transfer">
+          <div class="label">🏦 Transfer</div>
+          <div class="value" id="repTransfer">0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏆 Top Selling Items</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);text-align:left;">
+              <th style="padding:8px;">#</th>
+              <th style="padding:8px;">Item</th>
+              <th style="padding:8px;">Qty</th>
+              <th style="padding:8px;">Revenue</th>
+            </tr>
+          </thead>
+          <tbody id="repTopItems"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-outline" onclick="exportCSV()">📥 CSV</button>
+        <button class="btn btn-outline" onclick="printReport()">🖨️ Print</button>
+      </div>
+    </div>
+  `,
+
+  settings: `
+    <div class="card">
+      <div class="card-title">🏢 Business Info</div>
+      <div class="form-group">
+        <label class="field-label">🏢 Business Name</label>
+        <input type="text" id="setName" placeholder="Business Name">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📞 Phone</label>
+        <input type="text" id="setPhone" placeholder="09...">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📦 Low Stock Threshold</label>
+        <input type="number" id="setLowStock" min="1" step="1" value="10">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <span>🏢 Branches <span class="role-badge">PRO</span></span>
+        <button class="btn btn-primary btn-sm" onclick="addBranch()">➕ Add</button>
+      </div>
+      <div id="branchesList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎨 Theme</div>
+      <div class="payment-type-selector">
+        <button class="payment-type-btn" onclick="setTheme('light', this)">☀️ Light</button>
+        <button class="payment-type-btn" onclick="setTheme('dark', this)">🌙 Dark</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚪 Account</div>
+      <button class="btn btn-outline" onclick="logout()">Sign Out</button>
+    </div>
+  `,
+};
+
+// ═══════════════════════════════════════════════════════
+// 🚀 MODULE INIT
+// ═══════════════════════════════════════════════════════
+async function init(appState) {
+  // የገፆችን HTML ማስገባት
+  const host = document.getElementById('modulePanels');
+  if (host) {
+    host.innerHTML = Object.keys(panelsHTML)
+      .map(id => `<div class="panel" id="${id}">${panelsHTML[id]}</div>`)
+      .join('');
+  }
+
+  // "More" ገጾችን ማከል (ካልተጨመሩ)
+  ensureMorePanels();
+
+  // የጎን ማውጫ እና የሞባይል ማውጫ ማዘጋጀት
+  buildSidebar();
+  buildMobileNav();
+
+  // የቅርንጫፎችን እና ምድቦችን መጫን
+  await ensureBranchSelects();
+  await ensureCategorySelects();
+
+  // የመነሻ ገጽ
+  switchPage('home');
+  await refreshHome();
+}
+
+function ensureMorePanels() {
+  const host = document.getElementById('modulePanels');
+  if (!host) return;
+  ['purchases', 'expenses', 'settings'].forEach(id => {
+    if (!document.getElementById(id)) {
+      const div = document.createElement('div');
+      div.className = 'panel';
+      div.id = id;
+      div.innerHTML = panelsHTML[id] || '';
+      host.appendChild(div);
+    }
+  });
+}
+
+function buildSidebar() {
+  const sidebar = document.getElementById('sidebarNav');
+  if (!sidebar) return;
+  const all = mergeNav(navItems, moreItems);
+  sidebar.innerHTML = all.map(item => `
+    <div class="menu-header ${item.default ? 'active' : ''}"
+         data-tab="${item.id}" onclick="switchPage('${item.id}', this)">
+      <div class="m-left"><i>${item.icon}</i> <span>${esc(item.label)}</span></div>
+    </div>
+  `).join('');
+}
+
+function buildMobileNav() {
+  const mobileNav = document.getElementById('mobileBottomNav');
+  if (!mobileNav) return;
+  mobileNav.innerHTML = navItems.map(item => `
+    <button class="mobile-nav-item ${item.default ? 'active' : ''}"
+            data-tab="${item.id}" onclick="mobileNavClick('${item.id}', this)">
+      <span class="nav-icon">${item.icon}</span><span>${esc(item.label)}</span>
+    </button>
+  `).join('');
+}
+
+// ሁለቱን ዝርዝሮች በአንድ ላይ ማዋሃድ (ድግግሞሽ ሳይኖር)
+function mergeNav(primary, extra) {
+  const seen = new Set();
+  const out = [];
+  [...primary, ...extra].forEach(item => {
+    if (!seen.has(item.id)) { seen.add(item.id); out.push(item); }
+  });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+// 📊 DATA LOADERS
+// ═══════════════════════════════════════════════════════
+function tenantId() { return state.tenantId; }
+
+function col(name) {
+  return collection(db, 'tenants', tenantId(), name);
+}
+
+async function loadItems(force = false) {
+  if (B.loaded.items && !force) return B.items;
+  const snap = await getDocs(query(col('items'), orderBy('name')));
+  B.items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  B.loaded.items = true;
+  return B.items;
+}
+
+async function loadSales(force = false) {
+  if (B.loaded.sales && !force) return B.sales;
+  const snap = await getDocs(query(col('sales'), orderBy('date', 'desc')));
+  B.sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  B.loaded.sales = true;
+  return B.sales;
+}
+
+async function loadPurchases(force = false) {
+  if (B.loaded.purchases && !force) return B.purchases;
+  const snap = await getDocs(query(col('purchases'), orderBy('date', 'desc')));
+  B.purchases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  B.loaded.purchases = true;
+  return B.purchases;
+}
+
+async function loadExpenses(force = false) {
+  if (B.loaded.expenses && !force) return B.expenses;
+  const snap = await getDocs(query(col('expenses'), orderBy('date', 'desc')));
+  B.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  B.loaded.expenses = true;
+  return B.expenses;
+}
+
+// ─── ቅርንጫፎች → selects ───
+async function ensureBranchSelects() {
+  B.branches = state.tenantData?.branches || [];
+  if (!B.branches.length) B.branches = [{ id: 'main', name: 'Main Branch' }];
+
+  const html = B.branches.map(b =>
+    `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
+
+  ['saleBranch', 'qsBranch', 'expBranch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.options.length) el.innerHTML = html;
+  });
+
+  const rep = document.getElementById('repBranch');
+  if (rep && !rep.options.length) {
+    rep.innerHTML = '<option value="all">📊 All Branches</option>' + html;
+  }
+}
+
+// ─── ምድቦች → selects ───
+async function ensureCategorySelects() {
+  B.categories = state.tenantData?.categories?.length
+    ? state.tenantData.categories : DEFAULT_CATEGORIES;
+
+  const html = B.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  ['qsCategory', 'expCategory'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.options.length) el.innerHTML = html;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// 🏠 HOME
+// ═══════════════════════════════════════════════════════
+async function refreshHome() {
+  const today = todayStr();
+  await Promise.all([loadSales(true), loadExpenses(true)]);
+
+  const sales = B.sales.filter(s => s.date === today && s.type !== 'expense');
+  const exps  = B.expenses.filter(e => e.date === today);
+
+  const sTotal = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const eTotal = exps.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+
+  setText('homeSales', money(sTotal));
+  setText('homeExpenses', money(eTotal));
+  setText('homeProfit', money(sTotal - eTotal));
+}
+
+// ═══════════════════════════════════════════════════════
+// 🍞 ITEMS
+// ═══════════════════════════════════════════════════════
+async function renderItems() {
+  await loadItems(true);
+  const list = document.getElementById('itemsList');
+  if (!list) return;
+
+  const totalQty = B.items.reduce((a, i) => a + (Number(i.stock) || 0), 0);
+  const totalVal = B.items.reduce((a, i) => a + (Number(i.stock) || 0) * (Number(i.price) || 0), 0);
+  setText('itemsTotalQty', totalQty.toLocaleString('en-US'));
+  setText('itemsTotalValue', money(totalVal));
+
+  if (!B.items.length) {
+    list.innerHTML = `<div class="empty-state"><div class="emoji">🍞</div><p>እቃ አልተጨመረም</p></div>`;
+    return;
+  }
+
+  // በምድብ መከፋፈል (collapsible)
+  const byCat = {};
+  B.items.forEach(i => {
+    const c = i.category || 'ሌላ';
+    (byCat[c] = byCat[c] || []).push(i);
+  });
+
+  list.innerHTML = Object.keys(byCat).map((cat, idx) => {
+    const items = byCat[cat];
+    const catQty = items.reduce((a, i) => a + (Number(i.stock) || 0), 0);
+    return `
+      <div class="category-collapsible ${idx === 0 ? 'open' : ''}">
+        <div class="category-header" onclick="toggleCategory(this)">
+          <div class="category-header-left">
+            <span class="category-arrow">▶</span>
+            <span class="category-name">${esc(cat)}</span>
+            <span class="category-count">${items.length}</span>
+          </div>
+          <span class="category-total">${catQty} qty</span>
+        </div>
+        <div class="category-body">
+          ${items.map(i => itemRowHTML(i)).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function itemRowHTML(i) {
+  const low = Number(i.stock) <= (state.lowStockThreshold || B.lowStockThreshold || 10);
+  return `
+    <div class="item-row">
+      <div class="item-row-name">
+        ${esc(i.name)}
+        <div style="font-size:11px;color:var(--text-muted);">
+          ${low ? '⚠️ ' : ''}${Number(i.stock) || 0} in stock
+        </div>
+      </div>
+      <div class="item-row-price">${money(i.price)} ETB</div>
+      <button class="btn btn-outline btn-sm" onclick="deleteItem('${escJs(i.id)}')">🗑️</button>
+    </div>
+  `;
+}
+
+// ─── Add Item Modal ───
+function openAddItemModal() {
+  let modal = document.getElementById('addItemModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'addItemModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>➕ Add Item</h3>
+          <button class="modal-close" onclick="closeAddItemModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="field-label">🏢 Branch *</label>
+            <select id="newItemBranch"></select>
+          </div>
+          <div class="form-group">
+            <label class="field-label">📁 Category *</label>
+            <select id="newItemCategory"></select>
+          </div>
+          <div class="form-group">
+            <label class="field-label">🍞 Item Name *</label>
+            <input type="text" id="newItemName" placeholder="...">
+          </div>
+          <div class="form-group">
+            <label class="field-label">💰 Price (ETB) *</label>
+            <input type="number" id="newItemPrice" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="field-label">📦 Initial Stock (Qty) *</label>
+            <input type="number" id="newItemStock" min="0" step="1" placeholder="0">
+          </div>
+          <button class="btn btn-primary" onclick="saveItem()">💾 Save</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const bHtml = B.branches.map(b =>
+      `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
+    document.getElementById('newItemBranch').innerHTML = bHtml;
+    document.getElementById('newItemCategory').innerHTML =
+      B.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+  modal.classList.add('open');
+}
+
+function closeAddItemModal() {
+  document.getElementById('addItemModal')?.classList.remove('open');
+}
+
+async function saveItem() {
+  const name = document.getElementById('newItemName').value.trim();
+  const price = Number(document.getElementById('newItemPrice').value) || 0;
+  const stock = Number(document.getElementById('newItemStock').value) || 0;
+  const category = document.getElementById('newItemCategory').value;
+  const branch = document.getElementById('newItemBranch').value;
+
+  if (!name) return showToast('የእቃ ስም ያስፈልጋል', 'error');
+  if (price <= 0) return showToast('ትክክለኛ ዋጋ አስገባ', 'error');
+
+  try {
+    await addDoc(col('items'), {
+      name, price, stock, category, branch,
+      createdBy: auth.currentUser?.uid || null,
+      createdAt: serverTimestamp(),
+    });
+    closeAddItemModal();
+    showToast('እቃ ተጨምሯል ✅');
+    await renderItems();
+    await refreshSaleProducts();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function deleteItem(id) {
+  if (!confirm('ይህን እቃ ማጥፋት ትፈልጋለህ?')) return;
+  try {
+    await deleteDoc(doc(db, 'tenants', tenantId(), 'items', id));
+    showToast('ተጠፍቷል 🗑️');
+    await renderItems();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+function toggleCategory(el) {
+  el.parentElement.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// 🛒 NEW SALE
+// ═══════════════════════════════════════════════════════
+async function refreshSaleProducts() {
+  await loadItems();
+  renderSaleProducts();
+}
+
+function renderSaleProducts() {
+  const host = document.getElementById('saleProducts');
+  if (!host) return;
+  const q = (document.getElementById('saleSearch')?.value || '').toLowerCase();
+
+  const filtered = B.items.filter(i =>
+    !q || (i.name || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
+
+  if (!filtered.length) {
+    host.innerHTML = `<div class="empty-state"><div class="emoji">🍞</div><p>ምርት አልተገኘም</p></div>`;
+    return;
+  }
+
+  host.innerHTML = filtered.map(i => `
+    <div class="product-card" onclick="addToCart('${escJs(i.id)}')">
+      <div class="p-name">${esc(i.name)}</div>
+      <div class="p-price">${money(i.price)} ETB</div>
+    </div>
+  `).join('');
+}
+
+function addToCart(itemId) {
+  const item = B.items.find(i => i.id === itemId);
+  if (!item) return;
+
+  const existing = B.cart.find(c => c.itemId === itemId);
+  if (existing) {
+    if (existing.qty + 1 > (Number(item.stock) || 0)) {
+      return showToast('ክምችት አልበቃም', 'warning');
+    }
+    existing.qty += 1;
+  } else {
+    if ((Number(item.stock) || 0) < 1) return showToast('ክምችት አልበቃም', 'warning');
+    B.cart.push({ itemId, name: item.name, price: Number(item.price) || 0, qty: 1 });
+  }
+  renderCart();
+}
+
+function changeCartQty(itemId, delta) {
+  const line = B.cart.find(c => c.itemId === itemId);
+  if (!line) return;
+  const item = B.items.find(i => i.id === itemId);
+  const max = Number(item?.stock) || 0;
+
+  line.qty += delta;
+  if (line.qty <= 0) {
+    B.cart = B.cart.filter(c => c.itemId !== itemId);
+  } else if (line.qty > max) {
+    line.qty = max;
+    showToast('ከክምችት በላይ አይቻልም', 'warning');
+  }
+  renderCart();
+}
+
+function renderCart() {
+  const host = document.getElementById('saleCartItems');
+  if (!host) return;
+
+  if (!B.cart.length) {
+    host.innerHTML = `<div class="empty-state"><div class="emoji">🛒</div><p>ምርት አልተመረጠም</p></div>`;
+    renderSaleTotal();
+    return;
+  }
+
+  host.innerHTML = B.cart.map(c => `
+    <div class="cart-item">
+      <div class="ci-info">
+        <div class="ci-name">${esc(c.name)}</div>
+        <div class="ci-price">${money(c.price)} ETB</div>
+      </div>
+      <div class="ci-qty">
+        <button onclick="changeCartQty('${escJs(c.itemId)}', -1)">−</button>
+        <span>${c.qty}</span>
+        <button onclick="changeCartQty('${escJs(c.itemId)}', 1)">+</button>
+      </div>
+      <div class="ci-total">${money(c.price * c.qty)}</div>
+      <span class="ci-del" onclick="removeFromCart('${escJs(c.itemId)}')">×</span>
+    </div>
+  `).join('');
+  renderSaleTotal();
+}
+
+function removeFromCart(itemId) {
+  B.cart = B.cart.filter(c => c.itemId !== itemId);
+  renderCart();
+}
+
+function setPaymentType(type, btn) {
+  B.paymentType = type;
+  document.querySelectorAll('.payment-type-btn[data-pay]').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+}
+
+function cartTotal() {
+  return B.cart.reduce((a, c) => a + c.price * c.qty, 0);
+}
+
+function renderSaleTotal() {
+  const total = cartTotal();
+  const paid = Number(document.getElementById('salePaid')?.value) || 0;
+  setText('saleTotal', `${money(total)} ETB`);
+  setText('saleUnpaid', `${money(Math.max(0, total - paid))} ETB`);
+}
+
+function clearCart() {
+  B.cart = [];
+  const paid = document.getElementById('salePaid');
+  if (paid) paid.value = '0';
+  renderCart();
+}
+
+async function completeSale() {
+  if (!B.cart.length) return showToast('ጋሪ ባዶ ነው', 'warning');
+
+  const total = cartTotal();
+  const paid = Number(document.getElementById('salePaid')?.value) || 0;
+  const date = document.getElementById('saleDate')?.value || todayStr();
+  const branch = document.getElementById('saleBranch')?.value || 'main';
+
+  if (paid > total) return showToast('የተከፈለው ከጠቅላላ በላይ ነው', 'error');
+
+  const btn = event?.target;
+  if (btn) btn.disabled = true;
+
+  try {
+    const batch = writeBatch(db);
+
+    // 1. ሽያጭ መመዝገብ
+    const saleRef = doc(col('sales'));
+    batch.set(saleRef, {
+      date, branch,
+      items: B.cart.map(c => ({ itemId: c.itemId, name: c.name, price: c.price, qty: c.qty })),
+      total, paid,
+      unpaid: Math.max(0, total - paid),
+      paymentType: B.paymentType,
+      type: 'sale',
+      soldBy: auth.currentUser?.uid || null,
+      createdAt: serverTimestamp(),
+    });
+
+    // 2. ክምችት መቀነስ
+    B.cart.forEach(c => {
+      batch.update(doc(db, 'tenants', tenantId(), 'items', c.itemId), {
+        stock: increment(-c.qty),
+      });
+    });
+
+    await batch.commit();
+
+    showToast('ሽያጭ ተመዝግቧል ✅');
+    clearCart();
+    await loadItems(true);
+    await renderItemsIfVisible();
+    await refreshHome();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ⚡ QUICK SALE
+// ═══════════════════════════════════════════════════════
+async function saveQuickSale() {
+  const amount = Number(document.getElementById('qsAmount')?.value) || 0;
+  const date = document.getElementById('qsDate')?.value || todayStr();
+  const category = document.getElementById('qsCategory')?.value || 'ሌላ';
+  const branch = document.getElementById('qsBranch')?.value || 'main';
+
+  if (amount <= 0) return showToast('ትክክለኛ መጠን አስገባ', 'error');
+
+  try {
+    await addDoc(col('sales'), {
+      date, branch, category,
+      items: [],
+      total: amount, paid: amount, unpaid: 0,
+      paymentType: 'cash',
+      type: 'quick',
+      soldBy: auth.currentUser?.uid || null,
+      createdAt: serverTimestamp(),
+    });
+    document.getElementById('qsAmount').value = '';
+    showToast('ገቢ ተመዝግቧል ✅');
+    await refreshHome();
+    await refreshReports();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 📥 PURCHASES
+// ═══════════════════════════════════════════════════════
+async function refreshPurchaseSelect() {
+  await loadItems();
+  const sel = document.getElementById('purItem');
+  if (!sel) return;
+  if (!B.items.length) {
+    sel.innerHTML = '<option value="">— እቃ የለም —</option>';
+    return;
+  }
+  sel.innerHTML = B.items.map(i =>
+    `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
+}
+
+async function savePurchase() {
+  const itemId = document.getElementById('purItem')?.value;
+  const qty = Number(document.getElementById('purQty')?.value) || 0;
+  const cost = Number(document.getElementById('purCost')?.value) || 0;
+  const date = document.getElementById('purDate')?.value || todayStr();
+
+  if (!itemId) return showToast('እቃ ምረጥ', 'error');
+  if (qty <= 0) return showToast('ትክክለኛ ብዛት አስገባ', 'error');
+
+  const item = B.items.find(i => i.id === itemId);
+
+  try {
+    const batch = writeBatch(db);
+
+    batch.set(doc(col('purchases')), {
+      date, itemId,
+      itemName: item?.name || '',
+      qty, cost: cost * qty, unitCost: cost,
+      createdBy: auth.currentUser?.uid || null,
+      createdAt: serverTimestamp(),
+    });
+
+    batch.update(doc(db, 'tenants', tenantId(), 'items', itemId), {
+      stock: increment(qty),
+    });
+
+    await batch.commit();
+
+    showToast('ግዢ ተመዝግቧል ✅');
+    document.getElementById('purQty').value = '';
+    document.getElementById('purCost').value = '';
+    await loadItems(true);
+    await loadPurchases(true);
+    await renderPurchases();
+    await refreshHome();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function renderPurchases() {
+  await loadPurchases(true);
+  const host = document.getElementById('purchasesList');
+  if (!host) return;
+
+  const recent = B.purchases.slice(0, 15);
+  if (!recent.length) {
+    host.innerHTML = `<div class="empty-state"><div class="emoji">📥</div><p>ግዢ አልተመዘገበም</p></div>`;
+    return;
+  }
+
+  host.innerHTML = recent.map(p => `
+    <div class="item-row">
+      <div class="item-row-name">
+        ${esc(p.itemName || '—')}
+        <div style="font-size:11px;color:var(--text-muted);">${esc(p.date)} • ${p.qty} qty</div>
+      </div>
+      <div class="item-row-price">${money(p.cost)} ETB</div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// 💸 EXPENSES
+// ═══════════════════════════════════════════════════════
+async function saveExpense() {
+  const amount = Number(document.getElementById('expAmount')?.value) || 0;
+  const date = document.getElementById('expDate')?.value || todayStr();
+  const branch = document.getElementById('expBranch')?.value || 'main';
+  const category = document.getElementById('expCategory')?.value || 'ሌላ';
+  const note = document.getElementById('expNote')?.value.trim() || '';
+
+  if (amount <= 0) return showToast('ትክክለኛ መጠን አስገባ', 'error');
+
+  try {
+    await addDoc(col('expenses'), {
+      amount, date, branch, category, note,
+      createdBy: auth.currentUser?.uid || null,
+      createdAt: serverTimestamp(),
+    });
+    document.getElementById('expAmount').value = '';
+    document.getElementById('expNote').value = '';
+    showToast('ወጪ ተመዝግቧል ✅');
+    await loadExpenses(true);
+    await renderExpenses();
+    await refreshHome();
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+function setExpenseFilter(f, btn) {
+  B.expenseFilter = f;
+  document.querySelectorAll('.date-chip[data-f]').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+  renderExpenses();
+}
+
+async function renderExpenses() {
+  await loadExpenses(true);
+  const host = document.getElementById('expensesList');
+  if (!host) return;
+
+  const today = todayStr();
+  const month = thisMonthStr();
+
+  let list = B.expenses;
+  if (B.expenseFilter === 'recent') list = B.expenses.slice(0, 15);
+  else if (B.expenseFilter === 'date') list = B.expenses.filter(e => e.date === today);
+  else if (B.expenseFilter === 'month') list = B.expenses.filter(e => (e.date || '').startsWith(month));
+
+  const monthTotal = B.expenses
+    .filter(e => (e.date || '').startsWith(month))
+    .reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  const allTotal = B.expenses.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+
+  setText('expMonthTotal', money(monthTotal));
+  setText('expAllTotal', money(allTotal));
+
+  if (!list.length) {
+    host.innerHTML = `<div class="empty-state"><div class="emoji">💸</div><p>ወጪ አልተመዘገበም</p></div>`;
+    return;
+  }
+
+  host.innerHTML = list.map(e => `
+    <div class="item-row">
+      <div class="item-row-name">
+        ${esc(e.category || '—')}
+        <div style="font-size:11px;color:var(--text-muted);">${esc(e.date)}${e.note ? ' • ' + esc(e.note) : ''}</div>
+      </div>
+      <div class="item-row-price" style="color:var(--danger);">${money(e.amount)} ETB</div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// 📊 REPORTS
+// ═══════════════════════════════════════════════════════
+function setReportPeriod(p, btn) {
+  B.reportPeriod = p;
+  document.querySelectorAll('.report-type-tab[data-p]').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+  refreshReports();
+}
+
+function setReportBranch(v) {
+  B.reportBranch = v;
+  refreshReports();
+}
+
+function periodMatch(dateStr) {
+  if (!dateStr) return false;
+  if (B.reportPeriod === 'daily') return dateStr === todayStr();
+  if (B.reportPeriod === 'monthly') return dateStr.startsWith(thisMonthStr());
+  return dateStr.startsWith(thisYearStr());
+}
+
+function branchMatch(rec) {
+  if (B.reportBranch === 'all') return true;
+  return rec.branch === B.reportBranch;
+}
+
+async function refreshReports() {
+  await Promise.all([loadSales(true), loadExpenses(true)]);
+
+  const sales = B.sales.filter(s => periodMatch(s.date) && branchMatch(s));
+  const exps = B.expenses.filter(e => periodMatch(e.date) && branchMatch(e));
+
+  const revenue = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const expense = exps.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  const unpaid = sales.reduce((a, s) => a + (Number(s.unpaid) || 0), 0);
+  const cash = sales.filter(s => s.paymentType === 'cash')
+    .reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const transfer = sales.filter(s => s.paymentType === 'transfer')
+    .reduce((a, s) => a + (Number(s.total) || 0), 0);
+
+  setText('repRevenue', money(revenue));
+  setText('repExpenses', money(expense));
+  setText('repProfit', money(revenue - expense));
+  setText('repUnpaid', money(unpaid));
+  setText('repCash', money(cash));
+  setText('repTransfer', money(transfer));
+
+  // Top selling items
+  const map = {};
+  sales.forEach(s => (s.items || []).forEach(it => {
+    const key = it.itemId || it.name;
+    if (!map[key]) map[key] = { name: it.name, qty: 0, revenue: 0 };
+    map[key].qty += Number(it.qty) || 0;
+    map[key].revenue += (Number(it.qty) || 0) * (Number(it.price) || 0);
+  }));
+
+  const top = Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  const tbody = document.getElementById('repTopItems');
+  if (tbody) {
+    tbody.innerHTML = top.length
+      ? top.map((t, i) => `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;">${i + 1}</td>
+            <td style="padding:8px;">${esc(t.name)}</td>
+            <td style="padding:8px;">${t.qty}</td>
+            <td style="padding:8px;">${money(t.revenue)}</td>
+          </tr>`).join('')
+      : `<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);">መረጃ የለም</td></tr>`;
+  }
+}
+
+function exportCSV() {
+  const rows = [['#', 'Item', 'Qty', 'Revenue']];
+  document.querySelectorAll('#repTopItems tr').forEach(tr => {
+    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
+    if (cells.length) rows.push(cells);
+  });
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `report_${B.reportPeriod}_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV ተዘጋጅቷል 📥');
+}
+
+function printReport() {
+  window.print();
+}
+
+// ═══════════════════════════════════════════════════════
+// ⚙️ SETTINGS
+// ═══════════════════════════════════════════════════════
+async function renderSettings() {
+  const t = state.tenantData || {};
+  const nameEl = document.getElementById('setName');
+  const phoneEl = document.getElementById('setPhone');
+  const lowEl = document.getElementById('setLowStock');
+  if (nameEl) nameEl.value = t.name || '';
+  if (phoneEl) phoneEl.value = t.phone || '';
+  if (lowEl) lowEl.value = t.lowStockThreshold || 10;
+
+  const host = document.getElementById('branchesList');
+  if (host) {
+    host.innerHTML = B.branches.length
+      ? B.branches.map(b => `
+          <div class="item-row">
+            <div class="item-row-name">${esc(b.name)}</div>
+            ${B.branches.length > 1
+              ? `<button class="btn btn-outline btn-sm" onclick="deleteBranch('${escJs(b.id || b.name)}')">🗑️</button>` : ''}
+          </div>`).join('')
+      : `<div class="empty-state"><p>ቅርንጫፍ የለም</p></div>`;
+  }
+}
+
+async function saveSettings() {
+  const name = document.getElementById('setName')?.value.trim() || '';
+  const phone = document.getElementById('setPhone')?.value.trim() || '';
+  const lowStockThreshold = Number(document.getElementById('setLowStock')?.value) || 10;
+
+  try {
+    await updateDoc(doc(db, 'tenants', tenantId()), { name, phone, lowStockThreshold });
+    state.tenantData = { ...(state.tenantData || {}), name, phone, lowStockThreshold };
+    state.lowStockThreshold = lowStockThreshold;
+    const hdr = document.getElementById('hdrBusinessName');
+    if (hdr && name) hdr.textContent = name;
+    showToast('ቅንብሮች ተቀምጠዋል ✅');
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function addBranch() {
+  const name = prompt('የቅርንጫፍ ስም:');
+  if (!name) return;
+  const branches = [...(state.tenantData?.branches || [])];
+  branches.push({ id: 'br_' + Date.now(), name: name.trim() });
+
+  try {
+    await updateDoc(doc(db, 'tenants', tenantId()), { branches });
+    state.tenantData = { ...(state.tenantData || {}), branches };
+    B.branches = branches;
+    // selects እንደገና መሙላት
+    ['saleBranch', 'qsBranch', 'expBranch', 'repBranch'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    await ensureBranchSelects();
+    await renderSettings();
+    showToast('ቅርንጫፍ ተጨምሯል ✅');
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function deleteBranch(id) {
+  if (!confirm('ቅርንጫፍ ማጥፋት ትፈልጋለህ?')) return;
+  const branches = (state.tenantData?.branches || []).filter(b => (b.id || b.name) !== id);
+  try {
+    await updateDoc(doc(db, 'tenants', tenantId()), { branches });
+    state.tenantData = { ...(state.tenantData || {}), branches };
+    B.branches = branches;
+    ['saleBranch', 'qsBranch', 'expBranch', 'repBranch'].forEach(k => {
+      const el = document.getElementById(k);
+      if (el) el.innerHTML = '';
+    });
+    await ensureBranchSelects();
+    await renderSettings();
+    showToast('ተጠፍቷል 🗑️');
+  } catch (e) {
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function setTheme(mode, btn) {
+  document.querySelectorAll('.payment-type-btn').forEach(b => {
+    if (b.textContent.includes('Light') || b.textContent.includes('Dark')) {
+      b.classList.remove('active');
+    }
+  });
+  btn?.classList.add('active');
+
+  if (mode === 'dark') document.body.classList.add('dark-mode');
+  else document.body.classList.remove('dark-mode');
+
+  try {
+    await updateDoc(doc(db, 'tenants', tenantId()), { darkMode: mode === 'dark' });
+  } catch (e) { console.error('theme save failed', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🧭 PAGE HOOK (ከ core.js ይጠራል)
+// ═══════════════════════════════════════════════════════
+async function onPageChange(panelId) {
+  try {
+    switch (panelId) {
+      case 'home':      await refreshHome(); break;
+      case 'items':     await renderItems(); break;
+      case 'newSale':   await refreshSaleProducts(); break;
+      case 'quickSale': await ensureCategorySelects(); await ensureBranchSelects(); break;
+      case 'purchases': await refreshPurchaseSelect(); await renderPurchases(); break;
+      case 'expenses':  await ensureCategorySelects(); await ensureBranchSelects(); await renderExpenses(); break;
+      case 'reports':   await ensureBranchSelects(); await refreshReports(); break;
+      case 'settings':  await renderSettings(); break;
+      default: break;
+    }
+  } catch (e) {
+    console.error('[bakery] page change error:', e);
+    showToast('ስህተት: ' + e.message, 'error');
+  }
+}
+
+async function renderItemsIfVisible() {
+  if (document.getElementById('items')?.classList.contains('active')) {
+    await renderItems();
+  }
+  if (document.getElementById('newSale')?.classList.contains('active')) {
+    await refreshSaleProducts();
+  }
+}
+
+// ─── helper ───
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ─── cleanup (ሲወጣ ይጠራል) ───
+function cleanup() {
+  B.cart = [];
+  B.items = []; B.sales = []; B.purchases = []; B.expenses = [];
+  B.loaded = { items: false, sales: false, purchases: false, expenses: false };
+}
+
+// ═══════════════════════════════════════════════════════
+// 📦 EXPORT
+// ═══════════════════════════════════════════════════════
+export const BakeryModule = {
+  name: 'Bakery',
+  icon: '🍞',
+  navItems,
+  panels: Object.keys(panelsHTML).map(id => ({ id, html: panelsHTML[id] })),
+  init,
+  onPageChange,
+  cleanup,
+};
+
+// ─── globals (inline onclick ከ HTML ጋር) ───
+Object.assign(window, {
+  openAddItemModal, closeAddItemModal, saveItem, deleteItem, toggleCategory,
+  addToCart, changeCartQty, removeFromCart, setPaymentType, renderSaleTotal,
+  clearCart, completeSale, saveQuickSale, savePurchase, saveExpense,
+  setExpenseFilter, setReportPeriod, setReportBranch, exportCSV, printReport,
+  saveSettings, addBranch, deleteBranch, setTheme,
+});
