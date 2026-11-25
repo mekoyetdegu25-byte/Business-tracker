@@ -956,3 +956,57 @@ window.__laundryToggleDark = function() {
   else document.body.classList.remove('dark-mode');
   updateDoc(doc(db, 'tenants', state.tenantId), { darkMode: isDark }).catch(() => {});
 };
+// ═══════════════════════════════════════════
+// 🆕 የጎደሉ ተግባራት (Missing Functions)
+// ═══════════════════════════════════════════
+
+// 1. Branch Dropdowns Update
+window.__laundryUpdateBranchDropdowns = function() {
+  const hasBranches = state.plan === 'pro' && allBranches.length > 0;
+  
+  const posSec = document.getElementById('posBranchSection');
+  const posSel = document.getElementById('orderBranch');
+  if (posSec) posSec.style.display = hasBranches ? 'block' : 'none';
+  if (hasBranches && posSel) posSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+
+  const expSec = document.getElementById('expBranchSection');
+  const expSel = document.getElementById('expBranch');
+  if (expSec) expSec.style.display = hasBranches ? 'block' : 'none';
+  if (hasBranches && expSel) expSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+};
+
+// 2. Mobile Home Update
+window.__laundryUpdateMobileHome = function() {
+  const today = todayStr();
+  const todaySales = allSales.filter(s => s.date === today).reduce((s, o) => s + (o.paidAmount || 0), 0);
+  const todayExpenses = allExpenses.filter(e => e.date === today).reduce((s, e) => s + e.amount, 0);
+  const todayProfit = todaySales - todayExpenses;
+  
+  const el1 = document.getElementById('mobTodaySales');
+  const el2 = document.getElementById('mobTodayExpenses');
+  const el3 = document.getElementById('mobTodayProfit');
+  if (el1) el1.textContent = money(todaySales);
+  if (el2) el2.textContent = money(todayExpenses);
+  if (el3) el3.textContent = money(todayProfit);
+};
+
+// 3. Customer Datalist Update
+window.__laundryUpdateCustomerDatalist = function() {
+  const dl = document.getElementById('customerList');
+  if (dl) dl.innerHTML = allCustomers.map(c => `<option value="${esc(c.name)}">`).join('');
+};
+
+// 4. Categories Update
+window.__laundryUpdateCategories = function() {
+  const cats = [...new Set(allServices.map(s => s.category).filter(Boolean))];
+  const dl = document.getElementById('serviceCategoryList');
+  if (dl) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+};
+
+// 5. Dummy Export & Print (ለጊዜው)
+window.__laundryExportCSV = function() {
+  showToast('CSV Export በቀጣይ ይጨመራል', 'info');
+};
+window.__laundryPrintReport = function() {
+  showToast('Print በቀጣይ ይጨመራል', 'info');
+};
