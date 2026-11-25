@@ -1,6 +1,6 @@
 // js/modules/hotel.js
 import { db } from '../firebase.js';
-import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { collection, addDoc, query, where, serverTimestamp, doc, updateDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { state, esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast } from '../core.js';
 
 // ═══════════════════════════════════════════
@@ -22,6 +22,69 @@ let expenseDateFilter = 'recent';
 let reportType = 'daily';
 
 let unsubBranches = null, unsubRooms = null, unsubItems = null, unsubSales = null, unsubExpenses = null;
+
+const ROOM_MODAL_ID = 'roomModal';
+const ITEM_MODAL_ID = 'itemModal';
+
+const HOTEL_MODALS_HTML = `
+<div class="modal-overlay" id="${ROOM_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="roomModalTitle">➕ Add Room</h3>
+      <button class="modal-close" onclick="window.closeRoomModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="roomBranchSection" style="display:none;">
+        <label class="field-label" style="margin-top:0;">🏢 Branch *</label>
+        <select id="roomBranch"></select>
+      </div>
+      <label class="field-label" style="margin-top:0;">📁 Category *</label>
+      <input list="roomCategoryList" id="roomCategory" placeholder="e.g. Standard, VIP">
+      <datalist id="roomCategoryList">
+        <option value="Standard">
+        <option value="VIP">
+        <option value="Deluxe">
+        <option value="Suite">
+      </datalist>
+      <label class="field-label">🛏️ Room Name / Number *</label>
+      <input type="text" id="roomName" placeholder="e.g. Room 101">
+      <label class="field-label">💰 Price per Night (ETB) *</label>
+      <input type="number" id="roomPrice" placeholder="0.00" step="any">
+      <button class="btn btn-success" onclick="window.saveRoom()" id="saveRoomBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="${ITEM_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="itemModalTitle">➕ Add Menu Item</h3>
+      <button class="modal-close" onclick="window.closeItemModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="itemBranchSection" style="display:none;">
+        <label class="field-label" style="margin-top:0;">🏢 Branch *</label>
+        <select id="itemBranch"></select>
+      </div>
+      <label class="field-label" style="margin-top:0;">📁 Category *</label>
+      <input list="menuCategoryList" id="itemCategory" placeholder="e.g. ምሳ, ቁርስ, መጠጥ">
+      <datalist id="menuCategoryList">
+        <option value="ቁርስ">
+        <option value="ምሳ">
+        <option value="እራት">
+        <option value="መጠጥ">
+      </datalist>
+      <label class="field-label">🍽️ Item Name *</label>
+      <input type="text" id="itemName" placeholder="e.g. ክትፎ">
+      <label class="field-label">🏷️ Variant / Size (Optional)</label>
+      <input type="text" id="itemVariant" placeholder="e.g. ፍርፍር, Large, Small">
+      <label class="field-label">💰 Price (ETB) *</label>
+      <input type="number" id="itemPrice" placeholder="0.00" step="any">
+      <button class="btn btn-success" onclick="window.saveItem()" id="saveItemBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+`;
 
 // ═══════════════════════════════════════════
 // 🧩 MODULE DEFINITION
@@ -63,7 +126,7 @@ export const HotelModule = {
     { id: 'panelRooms', html: `
       <div class="card">
         <div class="card-title"><span>🛏️ Rooms</span><button class="btn btn-primary btn-sm" onclick="window.openRoomModal()">➕ Add Room</button></div>
-        <div class="filter-bar"><input type="text" id="searchRoom" placeholder="🔍 Search room..." oninput="window.roomPage=1; window.renderRoomsList()"></div>
+        <div class="filter-bar"><input type="text" id="searchRoom" placeholder="🔍 Search room..." oninput="window.htRoomSearch()"></div>
         <div id="roomsListContainer"></div>
         <div class="pagination-controls" id="roomsPagination"></div>
       </div>
@@ -71,7 +134,7 @@ export const HotelModule = {
     { id: 'panel1', html: `
       <div class="card">
         <div class="card-title"><span>🍽️ Menu</span><button class="btn btn-primary btn-sm" onclick="window.openItemModal()">➕ Add Menu Item</button></div>
-        <div class="filter-bar"><input type="text" id="searchService" placeholder="🔍 Search menu..." oninput="window.servicePage=1; window.renderServiceList()"></div>
+        <div class="filter-bar"><input type="text" id="searchService" placeholder="🔍 Search menu..." oninput="window.htServiceSearch()"></div>
         <div id="serviceListContainer"></div>
         <div class="pagination-controls" id="servicePagination"></div>
       </div>
@@ -209,7 +272,13 @@ export const HotelModule = {
   // 🚀 INIT
   // ═══════════════════════════════════════════
   init: async (appState) => {
-    // Global functions ማዘጋጀት
+    const modalHost = document.getElementById('globalModalContainer');
+    if (modalHost) {
+      if (!document.getElementById(ROOM_MODAL_ID) || !document.getElementById(ITEM_MODAL_ID)) {
+        modalHost.insertAdjacentHTML('beforeend', HOTEL_MODALS_HTML);
+      }
+    }
+
     window.renderRoomsList = renderRoomsList;
     window.renderServiceList = renderServiceList;
     window.renderPOSProducts = renderPOSProducts;
@@ -240,11 +309,9 @@ export const HotelModule = {
     window.addBranch = addBranch;
     window.deleteBranch = deleteBranch;
 
-    // State ማስተካከል
-    window.roomPage = roomPage;
-    window.servicePage = servicePage;
+    window.htRoomSearch = () => { roomPage = 1; renderRoomsList(); };
+    window.htServiceSearch = () => { servicePage = 1; renderServiceList(); };
 
-    // Default Dates
     const today = todayStr();
     if (document.getElementById('saleDate')) document.getElementById('saleDate').value = today;
     if (document.getElementById('expDate')) document.getElementById('expDate').value = today;
@@ -255,6 +322,7 @@ export const HotelModule = {
     if (document.getElementById('expenseFilterDate')) document.getElementById('expenseFilterDate').value = today;
     if (document.getElementById('expenseFilterMonth')) document.getElementById('expenseFilterMonth').value = thisMonthStr();
 
+    loadSettings();
     await loadAllData(appState);
   },
 
@@ -265,6 +333,7 @@ export const HotelModule = {
     if (panelId === 'panel4') renderExpenses();
     if (panelId === 'panel6') renderReports();
     if (panelId === 'panelMobileHome') updateMobileHome();
+    if (panelId === 'panel8') loadSettings();
   },
 
   cleanup: () => {
@@ -273,7 +342,24 @@ export const HotelModule = {
     if (unsubItems) unsubItems();
     if (unsubSales) unsubSales();
     if (unsubExpenses) unsubExpenses();
-    const fnNames = ['renderRoomsList','renderServiceList','renderPOSProducts','addToCart','updateCartQty','removeFromCart','clearCart','updateUnpaidDisplay','completeSale','openRoomModal','closeRoomModal','saveRoom','deleteRoom','toggleRoomCategory','openItemModal','closeItemModal','saveItem','deleteItem','toggleServiceCategory','addQuickSale','addExpense','setExpenseDateFilter','renderExpenses','deleteExpense','setReportType','renderReports','saveSettings','addBranch','deleteBranch'];
+    unsubBranches = unsubRooms = unsubItems = unsubSales = unsubExpenses = null;
+
+    document.getElementById(ROOM_MODAL_ID)?.remove();
+    document.getElementById(ITEM_MODAL_ID)?.remove();
+
+    allBranches = []; allRooms = []; allItems = []; allSales = []; allExpenses = []; cart = [];
+    editingRoomId = null; editingItemId = null;
+    roomPage = 1; servicePage = 1;
+    openCategories = new Set(); expenseDateFilter = 'recent'; reportType = 'daily';
+
+    const fnNames = [
+      'renderRoomsList', 'renderServiceList', 'renderPOSProducts', 'addToCart', 'updateCartQty',
+      'removeFromCart', 'clearCart', 'updateUnpaidDisplay', 'completeSale', 'openRoomModal',
+      'closeRoomModal', 'saveRoom', 'deleteRoom', 'toggleRoomCategory', 'openItemModal',
+      'closeItemModal', 'saveItem', 'deleteItem', 'toggleServiceCategory', 'addQuickSale',
+      'addExpense', 'setExpenseDateFilter', 'renderExpenses', 'deleteExpense', 'setReportType',
+      'renderReports', 'saveSettings', 'addBranch', 'deleteBranch', 'htRoomSearch', 'htServiceSearch'
+    ];
     fnNames.forEach(fn => delete window[fn]);
   }
 };
@@ -282,27 +368,28 @@ export const HotelModule = {
 // 📥 DATA LOADING
 // ═══════════════════════════════════════════
 async function loadAllData(appState) {
-  if (!appState.tenantId) return;
+  const tenantId = appState?.tenantId || state.tenantId;
+  if (!tenantId) return;
 
-  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', tenantId)), snap => {
     allBranches = []; snap.forEach(d => allBranches.push({ id: d.id, ...d.data() }));
-    renderBranchSettings(appState);
-    updateBranchDropdowns(appState);
+    renderBranchSettings();
+    updateBranchDropdowns();
   });
-  unsubRooms = onSnapshot(query(collection(db, 'rooms'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubRooms = onSnapshot(query(collection(db, 'rooms'), where('tenantId', '==', tenantId)), snap => {
     allRooms = []; snap.forEach(d => allRooms.push({ id: d.id, ...d.data() }));
-    renderRoomsList(); renderPOSProducts();
+    renderRoomsList(); renderPOSProducts(); updateRoomCategories();
   });
-  unsubItems = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubItems = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', tenantId)), snap => {
     allItems = []; snap.forEach(d => allItems.push({ id: d.id, ...d.data() }));
-    renderServiceList(); renderPOSProducts();
+    renderServiceList(); renderPOSProducts(); updateMenuCategories();
   });
-  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', tenantId)), snap => {
     allSales = []; snap.forEach(d => allSales.push({ id: d.id, ...d.data() }));
     allSales.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderReports(); updateMobileHome();
   });
-  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', tenantId)), snap => {
     allExpenses = []; snap.forEach(d => allExpenses.push({ id: d.id, ...d.data() }));
     renderExpenses(); renderReports(); updateMobileHome();
   });
@@ -321,10 +408,22 @@ function updateMobileHome() {
   const el3 = document.getElementById('mobTodayProfit'); if (el3) el3.textContent = money(todayProfit);
 }
 
-function renderBranchSettings(appState) {
+function updateRoomCategories() {
+  const cats = [...new Set(allRooms.map(r => r.category).filter(Boolean))];
+  const dl = document.getElementById('roomCategoryList');
+  if (dl && cats.length > 0) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+}
+
+function updateMenuCategories() {
+  const cats = [...new Set(allItems.map(i => i.category).filter(Boolean))];
+  const dl = document.getElementById('menuCategoryList');
+  if (dl && cats.length > 0) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+}
+
+function renderBranchSettings() {
   const card = document.getElementById('branchSettingsCard');
   if (!card) return;
-  if (appState.plan !== 'pro') { card.style.display = 'none'; return; }
+  if (state.plan !== 'pro') { card.style.display = 'none'; return; }
   card.style.display = 'block';
   const list = document.getElementById('branchesList');
   if (!list) return;
@@ -337,32 +436,49 @@ function renderBranchSettings(appState) {
   `).join('');
 }
 
-function updateBranchDropdowns(appState) {
-  const hasBranches = appState.plan === 'pro' && allBranches.length > 0;
+function updateBranchDropdowns() {
+  const hasBranches = state.plan === 'pro' && allBranches.length > 0;
   const options = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
   const sections = ['posBranchSection', 'expBranchSection', 'roomBranchSection', 'itemBranchSection', 'quickBranchSection'];
   sections.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasBranches ? 'block' : 'none'; });
   const selects = ['saleBranch', 'expBranch', 'roomBranch', 'itemBranch', 'quickBranch'];
-  selects.forEach(id => { const el = document.getElementById(id); if (el && hasBranches) el.innerHTML = options; });
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && hasBranches) {
+      const currentVal = el.value;
+      el.innerHTML = options;
+      if (currentVal) el.value = currentVal;
+    }
+  });
   ['reportBranch'].forEach(id => {
     const sel = document.getElementById(id);
-    if (sel) { sel.style.display = hasBranches ? 'block' : 'none'; if (hasBranches) { const currentVal = sel.value; sel.innerHTML = '<option value="all">📊 All Branches</option>' + options; if (currentVal) sel.value = currentVal; } }
+    if (sel) {
+      sel.style.display = hasBranches ? 'block' : 'none';
+      if (hasBranches) {
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="all">📊 All Branches</option>' + options;
+        if (currentVal) sel.value = currentVal;
+      }
+    }
   });
 }
 
 async function addBranch() {
-  const appState = state;
-  if (appState.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
+  if (state.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
   const name = document.getElementById('newBranchName').value.trim();
   if (!name) return showToast('የቅርንጫፍ ስም ያስፈልጋል', 'error');
   if (allBranches.find(b => b.name.toLowerCase() === name.toLowerCase())) return showToast('ይህ ቅርንጫፍ አስቀድሞ አለ', 'error');
-  try { await addDoc(collection(db, 'branches'), { tenantId: appState.tenantId, name, createdAt: serverTimestamp() }); document.getElementById('newBranchName').value = ''; showToast('✅ ቅርንጫፍ ተጨምሯል'); } catch(e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
+  try {
+    await addDoc(collection(db, 'branches'), { tenantId: state.tenantId, name, createdAt: serverTimestamp() });
+    document.getElementById('newBranchName').value = '';
+    showToast('✅ ቅርንጫፍ ተጨምሯል');
+  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteBranch(id, name) {
   if (name === 'Main') return showToast('Main ማጥፋት አይቻልም', 'error');
   if (!confirm(`"${name}" ቅርንጫፍን ማጥፋት?`)) return;
-  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch(e) { showToast('❌ ስህተት', 'error'); }
+  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 // ═══════════════════════════════════════════
@@ -370,6 +486,7 @@ async function deleteBranch(id, name) {
 // ═══════════════════════════════════════════
 function openRoomModal(id = null) {
   editingRoomId = id;
+  updateRoomCategories();
   if (id) {
     const r = allRooms.find(x => x.id === id);
     if (!r) return;
@@ -377,7 +494,9 @@ function openRoomModal(id = null) {
     document.getElementById('roomCategory').value = r.category || '';
     document.getElementById('roomName').value = r.name || '';
     document.getElementById('roomPrice').value = r.price || '';
-    if(state.plan === 'pro' && r.branch) document.getElementById('roomBranch').value = r.branch;
+    if (state.plan === 'pro' && r.branch && document.getElementById('roomBranch')) {
+      document.getElementById('roomBranch').value = r.branch;
+    }
     document.getElementById('saveRoomBtn').textContent = '💾 Update';
   } else {
     document.getElementById('roomModalTitle').textContent = '➕ Add Room';
@@ -386,23 +505,30 @@ function openRoomModal(id = null) {
     document.getElementById('roomPrice').value = '';
     document.getElementById('saveRoomBtn').textContent = '💾 Save';
   }
-  document.getElementById('roomModal').classList.add('open');
+  document.getElementById(ROOM_MODAL_ID)?.classList.add('open');
 }
 
-function closeRoomModal() { document.getElementById('roomModal').classList.remove('open'); editingRoomId = null; }
+function closeRoomModal() {
+  document.getElementById(ROOM_MODAL_ID)?.classList.remove('open');
+  editingRoomId = null;
+}
 
 async function saveRoom() {
-  const appState = state;
   const category = document.getElementById('roomCategory').value.trim();
   const name = document.getElementById('roomName').value.trim();
   const price = parseFloat(document.getElementById('roomPrice').value);
-  const branch = appState.plan === 'pro' ? document.getElementById('roomBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('roomBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (!name) return showToast('Room Name ያስፈልጋል', 'error');
   if (isNaN(price) || price <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   try {
-    if (editingRoomId) { await updateDoc(doc(db, 'rooms', editingRoomId), { category, name, price, branch }); showToast('✅ ተሻሽሏል'); }
-    else { await addDoc(collection(db, 'rooms'), { tenantId: appState.tenantId, category, name, price, branch, createdAt: serverTimestamp() }); showToast('✅ ተጨምሯል'); }
+    if (editingRoomId) {
+      await updateDoc(doc(db, 'rooms', editingRoomId), { category, name, price, branch });
+      showToast('✅ ተሻሽሏል');
+    } else {
+      await addDoc(collection(db, 'rooms'), { tenantId: state.tenantId, category, name, price, branch, createdAt: serverTimestamp() });
+      showToast('✅ ተጨምሯል');
+    }
     closeRoomModal();
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
@@ -426,21 +552,21 @@ function renderRoomsList() {
   if (search) filtered = filtered.filter(r => (r.name || '').toLowerCase().includes(search) || (r.category || '').toLowerCase().includes(search));
   if (filtered.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><div style="font-size:48px; margin-bottom:12px;">🛏️</div><div style="font-weight:600;">ምንም ክፍል የለም</div></div>`;
-    renderPagination('roomsPagination', 0, window.roomPage, roomPerPage, (p) => { window.roomPage = p; renderRoomsList(); }, (pp) => { roomPerPage = pp; window.roomPage = 1; renderRoomsList(); });
+    renderPagination('roomsPagination', 0, roomPage, roomPerPage, (p) => { roomPage = p; renderRoomsList(); }, (pp) => { roomPerPage = pp; roomPage = 1; renderRoomsList(); });
     return;
   }
   const totalPages = Math.ceil(filtered.length / roomPerPage);
-  if (window.roomPage > totalPages) window.roomPage = totalPages;
-  const start = (window.roomPage - 1) * roomPerPage;
+  if (roomPage > totalPages) roomPage = totalPages;
+  const start = (roomPage - 1) * roomPerPage;
   const paginated = filtered.slice(start, start + roomPerPage);
   const grouped = {};
   paginated.forEach(r => { const cat = r.category || 'Other'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(r); });
   container.innerHTML = Object.keys(grouped).sort().map(cat => {
-    const items = grouped[cat].sort((a,b) => a.name.localeCompare(b.name));
+    const items = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
     const isOpen = openCategories.has('room_' + cat) || (search && search.length > 0);
     return `<div class="category-collapsible ${isOpen ? 'open' : ''}"><div class="category-header" onclick="window.toggleRoomCategory('${escJs(cat)}')"><div class="category-header-left"><span class="category-arrow">▶</span><span class="category-name">📁 ${esc(cat)}</span><span class="category-count">${items.length}</span></div></div><div class="category-body">${items.map(r => `<div class="item-row"><div class="item-row-name">🛏️ ${esc(r.name)}</div><div class="item-row-price">${money(r.price)} ETB <small style="font-size:11px; opacity:0.7;">/night</small></div><div style="display:flex; gap:4px;"><button class="action-btn btn-edit" onclick="window.openRoomModal('${r.id}')" style="background:rgba(59,130,246,0.1); color:var(--info); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">✏️</button><button class="action-btn btn-delete" onclick="window.deleteRoom('${r.id}')" style="background:rgba(239,68,68,0.1); color:var(--danger); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">🗑️</button></div></div>`).join('')}</div></div>`;
   }).join('');
-  renderPagination('roomsPagination', filtered.length, window.roomPage, roomPerPage, (p) => { window.roomPage = p; renderRoomsList(); }, (pp) => { roomPerPage = pp; window.roomPage = 1; renderRoomsList(); });
+  renderPagination('roomsPagination', filtered.length, roomPage, roomPerPage, (p) => { roomPage = p; renderRoomsList(); }, (pp) => { roomPerPage = pp; roomPage = 1; renderRoomsList(); });
 }
 
 // ═══════════════════════════════════════════
@@ -448,6 +574,7 @@ function renderRoomsList() {
 // ═══════════════════════════════════════════
 function openItemModal(id = null) {
   editingItemId = id;
+  updateMenuCategories();
   if (id) {
     const i = allItems.find(x => x.id === id);
     if (!i) return;
@@ -456,7 +583,9 @@ function openItemModal(id = null) {
     document.getElementById('itemName').value = i.name || '';
     document.getElementById('itemVariant').value = i.variant || '';
     document.getElementById('itemPrice').value = i.price || '';
-    if(state.plan === 'pro' && i.branch) document.getElementById('itemBranch').value = i.branch;
+    if (state.plan === 'pro' && i.branch && document.getElementById('itemBranch')) {
+      document.getElementById('itemBranch').value = i.branch;
+    }
     document.getElementById('saveItemBtn').textContent = '💾 Update';
   } else {
     document.getElementById('itemModalTitle').textContent = '➕ Add Menu Item';
@@ -466,24 +595,31 @@ function openItemModal(id = null) {
     document.getElementById('itemPrice').value = '';
     document.getElementById('saveItemBtn').textContent = '💾 Save';
   }
-  document.getElementById('itemModal').classList.add('open');
+  document.getElementById(ITEM_MODAL_ID)?.classList.add('open');
 }
 
-function closeItemModal() { document.getElementById('itemModal').classList.remove('open'); editingItemId = null; }
+function closeItemModal() {
+  document.getElementById(ITEM_MODAL_ID)?.classList.remove('open');
+  editingItemId = null;
+}
 
 async function saveItem() {
-  const appState = state;
   const category = document.getElementById('itemCategory').value.trim();
   const name = document.getElementById('itemName').value.trim();
   const variant = document.getElementById('itemVariant').value.trim();
   const price = parseFloat(document.getElementById('itemPrice').value);
-  const branch = appState.plan === 'pro' ? document.getElementById('itemBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('itemBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (!name) return showToast('Item Name ያስፈልጋል', 'error');
   if (isNaN(price) || price <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   try {
-    if (editingItemId) { await updateDoc(doc(db, 'products', editingItemId), { category, name, variant, price, branch }); showToast('✅ ተሻሽሏል'); }
-    else { await addDoc(collection(db, 'products'), { tenantId: appState.tenantId, category, name, variant, price, branch, createdAt: serverTimestamp() }); showToast('✅ ተጨምሯል'); }
+    if (editingItemId) {
+      await updateDoc(doc(db, 'products', editingItemId), { category, name, variant, price, branch });
+      showToast('✅ ተሻሽሏል');
+    } else {
+      await addDoc(collection(db, 'products'), { tenantId: state.tenantId, category, name, variant, price, branch, createdAt: serverTimestamp() });
+      showToast('✅ ተጨምሯል');
+    }
     closeItemModal();
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
@@ -507,21 +643,21 @@ function renderServiceList() {
   if (search) filtered = filtered.filter(i => (i.name || '').toLowerCase().includes(search) || (i.category || '').toLowerCase().includes(search) || (i.variant || '').toLowerCase().includes(search));
   if (filtered.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><div style="font-size:48px; margin-bottom:12px;">🍽️</div><div style="font-weight:600;">ምንም ምግብ የለም</div></div>`;
-    renderPagination('servicePagination', 0, window.servicePage, servicePerPage, (p) => { window.servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; window.servicePage = 1; renderServiceList(); });
+    renderPagination('servicePagination', 0, servicePage, servicePerPage, (p) => { servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; servicePage = 1; renderServiceList(); });
     return;
   }
   const totalPages = Math.ceil(filtered.length / servicePerPage);
-  if (window.servicePage > totalPages) window.servicePage = totalPages;
-  const start = (window.servicePage - 1) * servicePerPage;
+  if (servicePage > totalPages) servicePage = totalPages;
+  const start = (servicePage - 1) * servicePerPage;
   const paginated = filtered.slice(start, start + servicePerPage);
   const grouped = {};
   paginated.forEach(i => { const cat = i.category || 'Other'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(i); });
   container.innerHTML = Object.keys(grouped).sort().map(cat => {
-    const items = grouped[cat].sort((a,b) => a.name.localeCompare(b.name));
+    const items = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
     const isOpen = openCategories.has('menu_' + cat) || (search && search.length > 0);
     return `<div class="category-collapsible ${isOpen ? 'open' : ''}"><div class="category-header" onclick="window.toggleServiceCategory('${escJs(cat)}')"><div class="category-header-left"><span class="category-arrow">▶</span><span class="category-name">📁 ${esc(cat)}</span><span class="category-count">${items.length}</span></div></div><div class="category-body">${items.map(i => `<div class="item-row"><div class="item-row-name">🍽️ ${esc(i.name)} ${i.variant ? `<span style="font-size:11px; color:var(--primary); background:rgba(26,54,93,0.1); padding:2px 6px; border-radius:4px; margin-left:4px;">${esc(i.variant)}</span>` : ''}</div><div class="item-row-price">${money(i.price)} ETB</div><div style="display:flex; gap:4px;"><button class="action-btn btn-edit" onclick="window.openItemModal('${i.id}')" style="background:rgba(59,130,246,0.1); color:var(--info); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">✏️</button><button class="action-btn btn-delete" onclick="window.deleteItem('${i.id}')" style="background:rgba(239,68,68,0.1); color:var(--danger); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">🗑️</button></div></div>`).join('')}</div></div>`;
   }).join('');
-  renderPagination('servicePagination', filtered.length, window.servicePage, servicePerPage, (p) => { window.servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; window.servicePage = 1; renderServiceList(); });
+  renderPagination('servicePagination', filtered.length, servicePage, servicePerPage, (p) => { servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; servicePage = 1; renderServiceList(); });
 }
 
 // ═══════════════════════════════════════════
@@ -540,7 +676,7 @@ function renderPOSProducts() {
     listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">ምንም ነገር የለም</div>';
     return;
   }
-  listEl.innerHTML = combined.sort((a,b) => a.name.localeCompare(b.name)).map(s => `
+  listEl.innerHTML = combined.sort((a, b) => a.name.localeCompare(b.name)).map(s => `
     <div class="product-card" onclick="window.addToCart('${s.type}', '${s.id}')">
       <div><div class="p-name">${s.type === 'room' ? '🛏️' : '🍽️'} ${esc(s.name)} ${s.variant ? `<span style="font-size:10px; background:var(--bg); padding:1px 4px; border-radius:4px; border:1px solid var(--border); color:var(--text-muted);">${esc(s.variant)}</span>` : ''}</div><div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${esc(s.category || '')}</div></div>
       <div class="p-price">${money(s.price)} ETB</div>
@@ -598,18 +734,17 @@ function updateUnpaidDisplay() {
 }
 
 async function completeSale() {
-  const appState = state;
   const date = document.getElementById('saleDate').value;
   const paid = parseFloat(document.getElementById('salePaid').value) || 0;
   const paymentType = document.getElementById('salePaymentType').value;
-  const branch = appState.plan === 'pro' ? document.getElementById('saleBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('saleBranch')?.value || 'Main') : 'Main';
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (cart.length === 0) return showToast('Cart ባዶ ነው', 'error');
   const total = cart.reduce((s, c) => s + (c.price * c.qty), 0);
   if (paid > total) return showToast('የተከፈለው ከጠቅላላ መብለጥ አይችልም', 'error');
   try {
     const items = cart.map(c => ({ id: c.id, type: c.type, name: c.name, price: c.price, qty: c.qty, total: c.price * c.qty }));
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, date, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, date, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, createdAt: serverTimestamp() });
     showToast('✅ Sale ተመዝግቧል');
     cart = []; renderCart();
     document.getElementById('salePaid').value = '';
@@ -620,15 +755,14 @@ async function completeSale() {
 // ⚡ QUICK SALE
 // ═══════════════════════════════════════════
 async function addQuickSale() {
-  const appState = state;
   const date = document.getElementById('quickDate').value;
   const category = document.getElementById('quickCategory').value.trim() || 'Quick Sale';
   const amount = parseFloat(document.getElementById('quickAmount').value);
-  const branch = appState.plan === 'pro' ? document.getElementById('quickBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('quickBranch')?.value || 'Main') : 'Main';
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው መጠን ያስፈልጋል', 'error');
   try {
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, isQuickSale: true, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, isQuickSale: true, createdAt: serverTimestamp() });
     showToast('✅ Quick Sale ተመዝግቧል');
     document.getElementById('quickAmount').value = '';
     document.getElementById('quickCategory').value = '';
@@ -639,17 +773,16 @@ async function addQuickSale() {
 // 💸 EXPENSES
 // ═══════════════════════════════════════════
 async function addExpense() {
-  const appState = state;
   const category = document.getElementById('expCategory').value.trim();
   const amount = parseFloat(document.getElementById('expAmount').value);
   const date = document.getElementById('expDate').value;
   const note = document.getElementById('expNote').value.trim();
-  const branch = appState.plan === 'pro' ? document.getElementById('expBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('expBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   try {
-    await addDoc(collection(db, 'expenses'), { tenantId: appState.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'expenses'), { tenantId: state.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
     document.getElementById('expCategory').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
@@ -719,7 +852,6 @@ function setReportType(type, btn) {
 }
 
 function renderReports() {
-  const appState = state;
   if (!document.getElementById('repRevenue')) return;
   const dateInput = document.getElementById('reportDate');
   const monthInput = document.getElementById('reportMonth');
@@ -728,7 +860,7 @@ function renderReports() {
   if (dateInput.style.display !== 'none') { prefix = dateInput.value || todayStr(); label = `Daily (${prefix})`; }
   else if (monthInput.style.display !== 'none') { prefix = monthInput.value || thisMonthStr(); label = `Monthly (${prefix})`; }
   else { prefix = yearInput.value || thisYearStr(); label = `Yearly (${prefix})`; }
-  const branchFilter = appState.plan === 'pro' ? (document.getElementById('reportBranch')?.value || 'all') : 'all';
+  const branchFilter = state.plan === 'pro' ? (document.getElementById('reportBranch')?.value || 'all') : 'all';
   let periodSales = allSales.filter(o => (o.date || '').startsWith(prefix));
   let periodExpenses = allExpenses.filter(e => (e.date || '').startsWith(prefix));
   if (branchFilter !== 'all') {
@@ -762,23 +894,26 @@ function renderReports() {
 // ⚙️ SETTINGS
 // ═══════════════════════════════════════════
 async function saveSettings() {
-  const appState = state;
   const name = document.getElementById('settingBizName').value.trim();
   const phone = document.getElementById('settingBizPhone').value.trim();
   try {
-    await updateDoc(doc(db, 'tenants', appState.tenantId), { name, phone });
-    document.getElementById('hdrBusinessName').textContent = name;
+    await updateDoc(doc(db, 'tenants', state.tenantId), { name, phone });
+    const hdr = document.getElementById('hdrBusinessName');
+    if (hdr && name) hdr.textContent = name;
     showToast('✅ ተቀምጧል');
   } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 function loadSettings() {
+  if (!state.tenantId) return;
   try {
     getDoc(doc(db, 'tenants', state.tenantId)).then(snap => {
       if (snap.exists()) {
         const d = snap.data();
-        document.getElementById('settingBizName').value = d.name || '';
-        document.getElementById('settingBizPhone').value = d.phone || '';
+        const nameEl = document.getElementById('settingBizName');
+        const phoneEl = document.getElementById('settingBizPhone');
+        if (nameEl) nameEl.value = d.name || '';
+        if (phoneEl) phoneEl.value = d.phone || '';
       }
     });
   } catch (e) { console.warn(e); }
