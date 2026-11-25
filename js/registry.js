@@ -1,11 +1,11 @@
 // js/registry.js
 
-// 🍞 የ Bakery ኮድ ከሌላ ፋይል እያመጣን ነው (በቀጣይ ደረጃ እንሰራዋለን)
 import { BakeryModule } from './modules/bakery.js';
 import { LaundryModule } from './modules/laundry.js';
 import { DrinksModule } from './modules/drinks.js';
 import { HotelModule } from './modules/hotel.js';
 import { PensionModule } from './modules/pension.js';
+import { RestaurantModule } from './modules/restaurant.js';
 
 // ═══════════════════════════════════════════
 // 📦 ሁሉም ዘርፎች እዚህ ይመዘገባሉ
@@ -16,14 +16,10 @@ export const MODULES = {
   drinks: DrinksModule,
   hotel: HotelModule,
   pension: PensionModule,
-  // 🔜 ወደፊት የሚጨመሩ ዘርፎች (አሁን በ Comment ላይ ናቸው)
-  // laundry: LaundryModule,
-  // hotel: HotelModule,
-  // restaurant: RestaurantModule,
+  restaurant: RestaurantModule,
+  // 🔜 ወደፊት የሚጨመሩ ዘርፎች
   // supermarket: SupermarketModule,
   // retail: RetailModule,
-  // drinks: DrinksModule,
-  // pension: PensionModule
 };
 
 // ═══════════════════════════════════════════
