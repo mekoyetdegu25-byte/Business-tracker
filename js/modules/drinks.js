@@ -1,6 +1,6 @@
 // js/modules/drinks.js
 import { db } from '../firebase.js';
-import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { collection, addDoc, query, where, serverTimestamp, doc, updateDoc, setDoc, deleteDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { state, esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast } from '../core.js';
 
 // ═══════════════════════════════════════════
@@ -14,7 +14,6 @@ let allPurchases = [];
 let allCustomers = [];
 let cart = [];
 let editingItemId = null;
-let editingCustomerName = null;
 let currentCustomerName = null;
 
 let servicePage = 1, customersPage = 1;
@@ -24,6 +23,57 @@ let expenseDateFilter = 'recent';
 let reportType = 'daily';
 
 let unsubBranches = null, unsubItems = null, unsubSales = null, unsubExpenses = null, unsubPurchases = null, unsubCustomers = null;
+
+const ITEM_MODAL_ID = 'itemModal';
+const PROFILE_MODAL_ID = 'customerProfileModal';
+
+const DRINKS_MODALS_HTML = `
+<div class="modal-overlay" id="${ITEM_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="itemModalTitle">➕ Add Drink</h3>
+      <button class="modal-close" onclick="window.closeItemModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="itemBranchSection" style="display:none;">
+        <label class="field-label" style="margin-top:0;">🏢 Branch *</label>
+        <select id="itemBranch"></select>
+      </div>
+      <label class="field-label" style="margin-top:0;">📁 Category *</label>
+      <input list="drinkCategoryList" id="itemCategory" placeholder="e.g. ቢራ, ሶዳ, ውሃ">
+      <datalist id="drinkCategoryList">
+        <option value="ቢራ">
+        <option value="ሶዳ">
+        <option value="ውሃ">
+        <option value="መጠጥ">
+      </datalist>
+      <label class="field-label">🍾 Drink Name *</label>
+      <input type="text" id="itemName" placeholder="e.g. ቅዱስ ጊዮርጊስ">
+      <label class="field-label">🏷️ Variant / Size (Optional)</label>
+      <input type="text" id="itemVariant" placeholder="e.g. 330ml, 500ml, 1L">
+      <label class="field-label">📦 Units per Crate (Pieces)</label>
+      <input type="number" id="itemUnitsPerCrate" placeholder="24" value="24" min="1">
+      <label class="field-label">💰 Piece Price (ETB) *</label>
+      <input type="number" id="itemPrice" placeholder="0.00" step="any">
+      <label class="field-label">📦 Crate Price (ETB) *</label>
+      <input type="number" id="itemCratePrice" placeholder="0.00" step="any">
+      <label class="field-label">📊 Initial Stock (Crates)</label>
+      <input type="number" id="itemStock" placeholder="0" step="any">
+      <button class="btn btn-success" onclick="window.saveItem()" id="saveItemBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="${PROFILE_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>👤 Customer Profile</h3>
+      <button class="modal-close" onclick="window.closeCustomerProfile()">×</button>
+    </div>
+    <div class="modal-body" id="customerProfileBody"></div>
+  </div>
+</div>
+`;
 
 // ═══════════════════════════════════════════
 // 🧩 MODULE DEFINITION
@@ -78,7 +128,7 @@ export const DrinksModule = {
       <div class="card">
         <div class="card-title"><span>🍾 Drinks</span><button class="btn btn-primary btn-sm" onclick="window.openItemModal()">➕ Add Drink</button></div>
         <div class="filter-bar">
-          <input type="text" id="searchService" placeholder="🔍 Search drink..." oninput="window.servicePage=1; window.renderServiceList()">
+          <input type="text" id="searchService" placeholder="🔍 Search drink..." oninput="window.drServiceSearch()">
           <select id="drinksBranchFilter" onchange="window.filterDrinksByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select>
         </div>
         <div id="serviceListContainer"></div>
@@ -137,7 +187,7 @@ export const DrinksModule = {
       <div class="card">
         <div class="card-title"><span>👥 Customers</span></div>
         <div class="filter-bar">
-          <input type="text" id="searchCustomers" placeholder="🔍 Search customer..." oninput="window.customersPage=1; window.renderCustomersList()">
+          <input type="text" id="searchCustomers" placeholder="🔍 Search customer..." oninput="window.drCustomersSearch()">
           <select id="customerBranchFilter" onchange="window.filterCustomersByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select>
         </div>
         <div id="customersListContainer"></div>
@@ -256,7 +306,13 @@ export const DrinksModule = {
   // 🚀 INIT
   // ═══════════════════════════════════════════
   init: async (appState) => {
-    // Global functions ማዘጋጀት
+    const modalHost = document.getElementById('globalModalContainer');
+    if (modalHost) {
+      if (!document.getElementById(ITEM_MODAL_ID) || !document.getElementById(PROFILE_MODAL_ID)) {
+        modalHost.insertAdjacentHTML('beforeend', DRINKS_MODALS_HTML);
+      }
+    }
+
     window.renderLowStockList = renderLowStockList;
     window.renderServiceList = renderServiceList;
     window.renderPOSProducts = renderPOSProducts;
@@ -277,6 +333,8 @@ export const DrinksModule = {
     window.savePurchase = savePurchase;
     window.renderCustomersList = renderCustomersList;
     window.showCustomerProfile = showCustomerProfile;
+    window.closeCustomerProfile = closeCustomerProfile;
+    window.recordPayment = recordPayment;
     window.addQuickSale = addQuickSale;
     window.addExpense = addExpense;
     window.setExpenseDateFilter = setExpenseDateFilter;
@@ -287,21 +345,20 @@ export const DrinksModule = {
     window.addBranch = addBranch;
     window.deleteBranch = deleteBranch;
 
-    // State ማስተካከል
-    window.servicePage = servicePage;
-    window.customersPage = customersPage;
+    window.drServiceSearch = () => { servicePage = 1; renderServiceList(); };
+    window.drCustomersSearch = () => { customersPage = 1; renderCustomersList(); };
 
-    // Default Dates
     const today = todayStr();
     if (document.getElementById('saleDate')) document.getElementById('saleDate').value = today;
     if (document.getElementById('purchaseDate')) document.getElementById('purchaseDate').value = today;
     if (document.getElementById('expDate')) document.getElementById('expDate').value = today;
+    if (document.getElementById('quickDate')) document.getElementById('quickDate').value = today;
     if (document.getElementById('reportDate')) document.getElementById('reportDate').value = today;
     if (document.getElementById('reportMonth')) document.getElementById('reportMonth').value = thisMonthStr();
     if (document.getElementById('reportYear')) document.getElementById('reportYear').value = thisYearStr();
     if (document.getElementById('expenseFilterDate')) document.getElementById('expenseFilterDate').value = today;
     if (document.getElementById('expenseFilterMonth')) document.getElementById('expenseFilterMonth').value = thisMonthStr();
-    if (document.getElementById('settingLowStock')) document.getElementById('settingLowStock').value = appState.lowStockThreshold;
+    if (document.getElementById('settingLowStock')) document.getElementById('settingLowStock').value = appState?.lowStockThreshold ?? state.lowStockThreshold;
 
     await loadAllData(appState);
   },
@@ -323,7 +380,25 @@ export const DrinksModule = {
     if (unsubExpenses) unsubExpenses();
     if (unsubPurchases) unsubPurchases();
     if (unsubCustomers) unsubCustomers();
-    const fnNames = ['renderLowStockList','renderServiceList','renderPOSProducts','toggleCreditFields','updateUnpaidDisplay','addToCart','updateCartQty','removeFromCart','clearCart','completeSale','openItemModal','closeItemModal','saveItem','deleteItem','toggleServiceCategory','filterDrinksByBranch','filterCustomersByBranch','savePurchase','renderCustomersList','showCustomerProfile','addQuickSale','addExpense','setExpenseDateFilter','renderExpenses','setReportType','renderReports','saveSettings','addBranch','deleteBranch'];
+    unsubBranches = unsubItems = unsubSales = unsubExpenses = unsubPurchases = unsubCustomers = null;
+
+    document.getElementById(ITEM_MODAL_ID)?.remove();
+    document.getElementById(PROFILE_MODAL_ID)?.remove();
+
+    allBranches = []; allItems = []; allSales = []; allExpenses = []; allPurchases = []; allCustomers = []; cart = [];
+    editingItemId = null; currentCustomerName = null;
+    servicePage = 1; customersPage = 1;
+    openCategories = new Set(); expenseDateFilter = 'recent'; reportType = 'daily';
+
+    const fnNames = [
+      'renderLowStockList', 'renderServiceList', 'renderPOSProducts', 'toggleCreditFields',
+      'updateUnpaidDisplay', 'addToCart', 'updateCartQty', 'removeFromCart', 'clearCart',
+      'completeSale', 'openItemModal', 'closeItemModal', 'saveItem', 'deleteItem',
+      'toggleServiceCategory', 'filterDrinksByBranch', 'filterCustomersByBranch', 'savePurchase',
+      'renderCustomersList', 'showCustomerProfile', 'closeCustomerProfile', 'recordPayment',
+      'addQuickSale', 'addExpense', 'setExpenseDateFilter', 'renderExpenses', 'setReportType',
+      'renderReports', 'saveSettings', 'addBranch', 'deleteBranch', 'drServiceSearch', 'drCustomersSearch'
+    ];
     fnNames.forEach(fn => delete window[fn]);
   }
 };
@@ -332,32 +407,33 @@ export const DrinksModule = {
 // 📥 DATA LOADING
 // ═══════════════════════════════════════════
 async function loadAllData(appState) {
-  if (!appState.tenantId) return;
+  const tenantId = appState?.tenantId || state.tenantId;
+  if (!tenantId) return;
 
-  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', tenantId)), snap => {
     allBranches = []; snap.forEach(d => allBranches.push({ id: d.id, ...d.data() }));
-    renderBranchSettings(appState);
-    updateBranchDropdowns(appState);
+    renderBranchSettings();
+    updateBranchDropdowns();
   });
-  unsubItems = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubItems = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', tenantId)), snap => {
     allItems = []; snap.forEach(d => allItems.push({ id: d.id, ...d.data() }));
-    renderServiceList(); renderPOSProducts(); populatePurchaseItems();
+    renderServiceList(); renderPOSProducts(); populatePurchaseItems(); updateDrinkCategories(); updateMobileHome();
   });
-  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', tenantId)), snap => {
     allSales = []; snap.forEach(d => allSales.push({ id: d.id, ...d.data() }));
     allSales.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderReports(); updateMobileHome(); renderCustomersList();
   });
-  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', tenantId)), snap => {
     allExpenses = []; snap.forEach(d => allExpenses.push({ id: d.id, ...d.data() }));
     renderExpenses(); renderReports(); updateMobileHome();
   });
-  unsubPurchases = onSnapshot(query(collection(db, 'purchases'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubPurchases = onSnapshot(query(collection(db, 'purchases'), where('tenantId', '==', tenantId)), snap => {
     allPurchases = []; snap.forEach(d => allPurchases.push({ id: d.id, ...d.data() }));
     allPurchases.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderPurchases();
   });
-  unsubCustomers = onSnapshot(query(collection(db, 'customers'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubCustomers = onSnapshot(query(collection(db, 'customers'), where('tenantId', '==', tenantId)), snap => {
     allCustomers = []; snap.forEach(d => allCustomers.push({ id: d.id, ...d.data() }));
     renderCustomersList(); updateCustomerDatalist();
   });
@@ -376,6 +452,12 @@ function updateMobileHome() {
   const el3 = document.getElementById('mobTodayProfit'); if (el3) el3.textContent = money(todayProfit);
   const lowStockItems = allItems.filter(i => (i.crates || 0) <= state.lowStockThreshold);
   const stockCountEl = document.getElementById('qaStockCount'); if (stockCountEl) stockCountEl.textContent = lowStockItems.length;
+}
+
+function updateDrinkCategories() {
+  const cats = [...new Set(allItems.map(i => i.category).filter(Boolean))];
+  const dl = document.getElementById('drinkCategoryList');
+  if (dl && cats.length > 0) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
 }
 
 function renderLowStockList() {
@@ -401,10 +483,10 @@ function updateCustomerDatalist() {
   if (dl) dl.innerHTML = allCustomers.map(c => `<option value="${esc(c.name)}">`).join('');
 }
 
-function renderBranchSettings(appState) {
+function renderBranchSettings() {
   const card = document.getElementById('branchSettingsCard');
   if (!card) return;
-  if (appState.plan !== 'pro') { card.style.display = 'none'; return; }
+  if (state.plan !== 'pro') { card.style.display = 'none'; return; }
   card.style.display = 'block';
   const list = document.getElementById('branchesList');
   if (!list) return;
@@ -417,42 +499,60 @@ function renderBranchSettings(appState) {
   `).join('');
 }
 
-function updateBranchDropdowns(appState) {
-  const hasBranches = appState.plan === 'pro' && allBranches.length > 0;
+function updateBranchDropdowns() {
+  const hasBranches = state.plan === 'pro' && allBranches.length > 0;
   const options = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
   const sections = ['posBranchSection', 'expBranchSection', 'itemBranchSection', 'quickBranchSection', 'purchaseBranchSection'];
   sections.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasBranches ? 'block' : 'none'; });
   const selects = ['saleBranch', 'expBranch', 'itemBranch', 'quickBranch', 'purchaseBranch'];
-  selects.forEach(id => { const el = document.getElementById(id); if (el && hasBranches) el.innerHTML = options; });
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && hasBranches) {
+      const currentVal = el.value;
+      el.innerHTML = options;
+      if (currentVal) el.value = currentVal;
+    }
+  });
   ['reportBranch', 'drinksBranchFilter', 'customerBranchFilter'].forEach(id => {
     const sel = document.getElementById(id);
-    if (sel) { sel.style.display = hasBranches ? 'block' : 'none'; if (hasBranches) { const currentVal = sel.value; sel.innerHTML = '<option value="all">📊 All Branches</option>' + options; if (currentVal) sel.value = currentVal; } }
+    if (sel) {
+      sel.style.display = hasBranches ? 'block' : 'none';
+      if (hasBranches) {
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="all">📊 All Branches</option>' + options;
+        if (currentVal) sel.value = currentVal;
+      }
+    }
   });
 }
 
 async function addBranch() {
-  const appState = state;
-  if (appState.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
+  if (state.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
   const name = document.getElementById('newBranchName').value.trim();
   if (!name) return showToast('የቅርንጫፍ ስም ያስፈልጋል', 'error');
   if (allBranches.find(b => b.name.toLowerCase() === name.toLowerCase())) return showToast('ይህ ቅርንጫፍ አስቀድሞ አለ', 'error');
-  try { await addDoc(collection(db, 'branches'), { tenantId: appState.tenantId, name, createdAt: serverTimestamp() }); document.getElementById('newBranchName').value = ''; showToast('✅ ቅርንጫፍ ተጨምሯል'); } catch(e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
+  try {
+    await addDoc(collection(db, 'branches'), { tenantId: state.tenantId, name, createdAt: serverTimestamp() });
+    document.getElementById('newBranchName').value = '';
+    showToast('✅ ቅርንጫፍ ተጨምሯል');
+  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteBranch(id, name) {
   if (name === 'Main') return showToast('Main ማጥፋት አይቻልም', 'error');
   if (!confirm(`"${name}" ቅርንጫፍን ማጥፋት?`)) return;
-  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch(e) { showToast('❌ ስህተት', 'error'); }
+  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
-function filterDrinksByBranch() { window.servicePage = 1; renderServiceList(); }
-function filterCustomersByBranch() { window.customersPage = 1; renderCustomersList(); }
+function filterDrinksByBranch() { servicePage = 1; renderServiceList(); }
+function filterCustomersByBranch() { customersPage = 1; renderCustomersList(); }
 
 // ═══════════════════════════════════════════
 // 🍾 DRINKS MANAGEMENT
 // ═══════════════════════════════════════════
 function openItemModal(id = null) {
   editingItemId = id;
+  updateDrinkCategories();
   if (id) {
     const i = allItems.find(x => x.id === id);
     if (!i) return;
@@ -463,42 +563,54 @@ function openItemModal(id = null) {
     document.getElementById('itemUnitsPerCrate').value = i.unitsPerCrate || 24;
     document.getElementById('itemPrice').value = i.price || '';
     document.getElementById('itemCratePrice').value = i.cratePrice || '';
-    document.getElementById('itemStock').value = i.crates || 0;
-    if (state.plan === 'pro' && i.branch) document.getElementById('itemBranch').value = i.branch;
+    document.getElementById('itemStock').value = i.crates ?? 0;
+    if (state.plan === 'pro' && i.branch && document.getElementById('itemBranch')) {
+      document.getElementById('itemBranch').value = i.branch;
+    }
     document.getElementById('saveItemBtn').textContent = '💾 Update';
   } else {
     document.getElementById('itemModalTitle').textContent = '➕ Add Drink';
     document.getElementById('itemCategory').value = '';
     document.getElementById('itemName').value = '';
     document.getElementById('itemVariant').value = '';
-    document.getElementById('itemPrice').value = '';
     document.getElementById('itemUnitsPerCrate').value = '24';
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('itemCratePrice').value = '';
     document.getElementById('itemStock').value = '';
     document.getElementById('saveItemBtn').textContent = '💾 Save';
   }
-  document.getElementById('itemModal').classList.add('open');
+  document.getElementById(ITEM_MODAL_ID)?.classList.add('open');
 }
 
-function closeItemModal() { document.getElementById('itemModal').classList.remove('open'); editingItemId = null; }
+function closeItemModal() {
+  document.getElementById(ITEM_MODAL_ID)?.classList.remove('open');
+  editingItemId = null;
+}
 
 async function saveItem() {
-  const appState = state;
   const category = document.getElementById('itemCategory').value.trim();
   const name = document.getElementById('itemName').value.trim();
   const variant = document.getElementById('itemVariant').value.trim();
   const unitsPerCrate = parseInt(document.getElementById('itemUnitsPerCrate').value) || 24;
   const price = parseFloat(document.getElementById('itemPrice').value);
   const cratePrice = parseFloat(document.getElementById('itemCratePrice').value);
-  const stock = parseInt(document.getElementById('itemStock').value) || 0;
-  const branch = appState.plan === 'pro' ? document.getElementById('itemBranch').value : 'Main';
+  const stock = parseFloat(document.getElementById('itemStock').value) || 0;
+  const branch = state.plan === 'pro' ? (document.getElementById('itemBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (!name) return showToast('Drink Name ያስፈልጋል', 'error');
   if (isNaN(price) || price <= 0) return showToast('የቁራጭ ዋጋ ያስፈልጋል', 'error');
   if (isNaN(cratePrice) || cratePrice <= 0) return showToast('የካርቶን ዋጋ ያስፈልጋል', 'error');
   try {
     const data = { category, name, variant, price, cratePrice, unitsPerCrate, crates: stock, branch };
-    if (editingItemId) { await updateDoc(doc(db, 'products', editingItemId), data); showToast('✅ ተሻሽሏል'); }
-    else { data.tenantId = appState.tenantId; data.createdAt = serverTimestamp(); await addDoc(collection(db, 'products'), data); showToast('✅ ተጨምሯል'); }
+    if (editingItemId) {
+      await updateDoc(doc(db, 'products', editingItemId), data);
+      showToast('✅ ተሻሽሏል');
+    } else {
+      data.tenantId = state.tenantId;
+      data.createdAt = serverTimestamp();
+      await addDoc(collection(db, 'products'), data);
+      showToast('✅ ተጨምሯል');
+    }
     closeItemModal();
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
@@ -536,24 +648,24 @@ function renderServiceList() {
   if (document.getElementById('totalStockValue')) document.getElementById('totalStockValue').textContent = money(totalVal);
   if (filtered.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><div style="font-size:48px; margin-bottom:12px;">🍾</div><div style="font-weight:600;">ምንም መጠጥ የለም</div></div>`;
-    renderPagination('servicePagination', 0, window.servicePage, servicePerPage, (p) => { window.servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; window.servicePage = 1; renderServiceList(); });
+    renderPagination('servicePagination', 0, servicePage, servicePerPage, (p) => { servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; servicePage = 1; renderServiceList(); });
     return;
   }
   const totalPages = Math.ceil(filtered.length / servicePerPage);
-  if (window.servicePage > totalPages) window.servicePage = totalPages;
-  const start = (window.servicePage - 1) * servicePerPage;
+  if (servicePage > totalPages) servicePage = totalPages;
+  const start = (servicePage - 1) * servicePerPage;
   const paginated = filtered.slice(start, start + servicePerPage);
   const grouped = {};
   paginated.forEach(i => { const cat = i.category || 'Other'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(i); });
   container.innerHTML = Object.keys(grouped).sort().map(cat => {
-    const items = grouped[cat].sort((a,b) => a.name.localeCompare(b.name));
+    const items = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
     const isOpen = openCategories.has('drink_' + cat) || (search && search.length > 0);
     return `<div class="category-collapsible ${isOpen ? 'open' : ''}"><div class="category-header" onclick="window.toggleServiceCategory('${escJs(cat)}')"><div class="category-header-left"><span class="category-arrow">▶</span><span class="category-name">📁 ${esc(cat)}</span><span class="category-count">${items.length}</span></div></div><div class="category-body">${items.map(i => {
       const isLow = (i.crates || 0) <= state.lowStockThreshold;
-      return `<div class="item-row"><div class="item-row-name">🍾 ${esc(i.name)} ${i.variant ? `<span style="font-size:11px; color:var(--primary); background:rgba(26,54,93,0.1); padding:2px 6px; border-radius:4px; margin-left:4px;">${esc(i.variant)}</span>` : ''}<div style="font-size:11px; color:${isLow ? 'var(--danger)' : 'var(--success)'}; font-weight:700; margin-top:2px;">${isLow ? '⚠️' : '✅'} Stock: ${i.crates || 0} crates (${(i.crates || 0) * (i.unitsPerCrate || 24)} pcs)</div></div><div class="item-row-price" style="text-align:right;">${money(i.cratePrice)} ETB <small style="font-size:11px; opacity:0.7;">/crate</small><br>${money(i.price)} ETB <small style="font-size:11px; opacity:0.7;">/piece</small></div><div style="display:flex; gap:4px;"><button class="action-btn btn-edit" onclick="window.openItemModal('${i.id}')" style="background:rgba(59,130,246,0.1); color:var(--info); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">✏️</button><button class="action-btn btn-delete" onclick="window.deleteItem('${i.id}')" style="background:rgba(239,68,68,0.1); color:var(--danger); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">🗑️</button></div></div>`;
+      return `<div class="item-row"><div class="item-row-name">🍾 ${esc(i.name)} ${i.variant ? `<span style="font-size:11px; color:var(--primary); background:rgba(26,54,93,0.1); padding:2px 6px; border-radius:4px; margin-left:4px;">${esc(i.variant)}</span>` : ''}<div style="font-size:11px; color:${isLow ? 'var(--danger)' : 'var(--success)'}; font-weight:700; margin-top:2px;">${isLow ? '⚠️' : '✅'} Stock: ${i.crates || 0} crates (${Math.round((i.crates || 0) * (i.unitsPerCrate || 24))} pcs)</div></div><div class="item-row-price" style="text-align:right;">${money(i.cratePrice)} ETB <small style="font-size:11px; opacity:0.7;">/crate</small><br>${money(i.price)} ETB <small style="font-size:11px; opacity:0.7;">/piece</small></div><div style="display:flex; gap:4px;"><button class="action-btn btn-edit" onclick="window.openItemModal('${i.id}')" style="background:rgba(59,130,246,0.1); color:var(--info); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">✏️</button><button class="action-btn btn-delete" onclick="window.deleteItem('${i.id}')" style="background:rgba(239,68,68,0.1); color:var(--danger); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">🗑️</button></div></div>`;
     }).join('')}</div></div>`;
   }).join('');
-  renderPagination('servicePagination', filtered.length, window.servicePage, servicePerPage, (p) => { window.servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; window.servicePage = 1; renderServiceList(); });
+  renderPagination('servicePagination', filtered.length, servicePage, servicePerPage, (p) => { servicePage = p; renderServiceList(); }, (pp) => { servicePerPage = pp; servicePage = 1; renderServiceList(); });
 }
 
 // ═══════════════════════════════════════════
@@ -566,24 +678,23 @@ function populatePurchaseItems() {
 }
 
 async function savePurchase() {
-  const appState = state;
   const itemId = document.getElementById('purchaseItem').value;
   const date = document.getElementById('purchaseDate').value;
-  const qty = parseInt(document.getElementById('purchaseQty').value);
+  const qty = parseFloat(document.getElementById('purchaseQty').value);
   const cost = parseFloat(document.getElementById('purchaseCost').value) || 0;
-  const branch = appState.plan === 'pro' ? document.getElementById('purchaseBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('purchaseBranch')?.value || 'Main') : 'Main';
   if (!itemId) return showToast('መጠጥ ምረጥ', 'error');
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (isNaN(qty) || qty <= 0) return showToast('ትክክል ያለው ብዛት ያስፈልጋል', 'error');
   const item = allItems.find(x => x.id === itemId);
   if (!item) return;
   try {
-    await addDoc(collection(db, 'purchases'), { tenantId: appState.tenantId, itemId, itemName: item.name, date, qty, cost, totalCost: qty * cost, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'purchases'), { tenantId: state.tenantId, itemId, itemName: item.name, date, qty, cost, totalCost: qty * cost, branch, createdAt: serverTimestamp() });
     await updateDoc(doc(db, 'products', itemId), { crates: increment(qty) });
     showToast('✅ Purchase ተመዝግቧል');
     document.getElementById('purchaseQty').value = '';
     document.getElementById('purchaseCost').value = '';
-  } catch(e) { showToast('❌ ስህተት', 'error'); }
+  } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 function renderPurchases() {
@@ -616,7 +727,7 @@ function renderPOSProducts() {
     listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">ምንም መጠጥ የለም (ወይም ስቶክ አልቋል)</div>';
     return;
   }
-  listEl.innerHTML = filtered.sort((a,b) => a.name.localeCompare(b.name)).map(s => `
+  listEl.innerHTML = filtered.sort((a, b) => a.name.localeCompare(b.name)).map(s => `
     <div class="product-card" style="padding:10px;">
       <div><div class="p-name" style="margin-bottom:6px;">🍾 ${esc(s.name)} ${s.variant ? `<span style="font-size:10px; background:var(--bg); padding:1px 4px; border-radius:4px; border:1px solid var(--border); color:var(--text-muted);">${esc(s.variant)}</span>` : ''}</div><div style="font-size:11px; color:var(--text-muted);">Stock: ${s.crates || 0} crates</div></div>
       <div style="display:flex; gap:6px; margin-top:8px;">
@@ -637,7 +748,7 @@ function addToCart(id, sellType = 'piece') {
   if (existing) { existing.qty++; }
   else {
     const displayName = s.name + (s.variant ? ` (${s.variant})` : '') + (isCrate ? ' [Crate]' : ' [Piece]');
-    cart.push({ cartId, id, name: displayName, price: price, qty: 1, sellType, unitsPerCrate: s.unitsPerCrate || 24 });
+    cart.push({ cartId, id, name: displayName, price, qty: 1, sellType, unitsPerCrate: s.unitsPerCrate || 24 });
   }
   renderCart();
 }
@@ -689,10 +800,9 @@ function updateUnpaidDisplay() {
 }
 
 async function completeSale() {
-  const appState = state;
   const date = document.getElementById('saleDate').value;
   const paymentType = document.getElementById('salePaymentType').value;
-  const branch = appState.plan === 'pro' ? document.getElementById('saleBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('saleBranch')?.value || 'Main') : 'Main';
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (cart.length === 0) return showToast('Cart ባዶ ነው', 'error');
   const total = cart.reduce((s, c) => s + (c.price * c.qty), 0);
@@ -707,10 +817,10 @@ async function completeSale() {
   if (paid > total) return showToast('የተከፈለው ከጠቅላላ መብለጥ አይችልም', 'error');
   try {
     if (customer && !allCustomers.find(c => c.name === customer)) {
-      await setDoc(doc(db, 'customers', appState.tenantId + '_' + customer), { name: customer, tenantId: appState.tenantId, createdAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, 'customers', state.tenantId + '_' + customer), { name: customer, tenantId: state.tenantId, createdAt: serverTimestamp() }, { merge: true });
     }
     const items = cart.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty, total: c.price * c.qty, sellType: c.sellType }));
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, date, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, customer, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, date, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, customer, branch, createdAt: serverTimestamp() });
     for (const c of cart) {
       const item = allItems.find(x => x.id === c.id);
       if (item) {
@@ -750,14 +860,14 @@ function renderCustomersList() {
   if (list.length === 0) { el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">👥 ምንም ደንበኛ የለም</div>'; return; }
   list.sort((a, b) => { const sA = getCustomerStats(a.name); const sB = getCustomerStats(b.name); return sB.totalDebt - sA.totalDebt; });
   const totalPages = Math.ceil(list.length / customersPerPage);
-  if (window.customersPage > totalPages) window.customersPage = totalPages;
-  const start = (window.customersPage - 1) * customersPerPage;
+  if (customersPage > totalPages) customersPage = totalPages;
+  const start = (customersPage - 1) * customersPerPage;
   const paginated = list.slice(start, start + customersPerPage);
   el.innerHTML = paginated.map(c => {
     const stats = getCustomerStats(c.name);
     return `<div class="customer-card" onclick="window.showCustomerProfile('${escJs(c.name)}')"><div class="customer-row"><div class="customer-info"><div class="customer-name">👤 ${esc(c.name)}</div><div class="customer-meta">🛒 ${stats.orderCount} sales | 💰 ${money(stats.totalPaid)} paid</div></div>${stats.totalDebt > 0.01 ? `<div class="customer-debt-badge">⚠️ ${money(stats.totalDebt)}</div>` : '<div style="color:var(--success); font-size:20px;">✓</div>'}</div></div>`;
   }).join('');
-  renderPagination('customersPagination', list.length, window.customersPage, customersPerPage, (page) => { window.customersPage = page; renderCustomersList(); }, (perPage) => { customersPerPage = perPage; window.customersPage = 1; renderCustomersList(); });
+  renderPagination('customersPagination', list.length, customersPage, customersPerPage, (page) => { customersPage = page; renderCustomersList(); }, (perPage) => { customersPerPage = perPage; customersPage = 1; renderCustomersList(); });
 }
 
 function showCustomerProfile(name) {
@@ -766,17 +876,25 @@ function showCustomerProfile(name) {
   const custData = allCustomers.find(c => c.name === name) || {};
   const ordersHtml = stats.sales.length === 0
     ? '<p style="text-align:center; color:var(--text-muted); padding:20px;">ምንም ሽያጭ የለም</p>'
-    : [...stats.sales].sort((a,b) => new Date(b.date) - new Date(a.date)).map(o => {
+    : [...stats.sales].sort((a, b) => new Date(b.date) - new Date(a.date)).map(o => {
       const unpaid = (o.unpaidAmount || 0);
       return `<div class="history-item"><div class="history-row"><span class="history-date">📅 ${esc(o.date)}</span><span class="history-amount" style="color:var(--primary);">${money(o.total)} ETB</span></div><div class="history-items">${(o.items || []).map(i => `${esc(i.name)} x${i.qty}`).join(', ')}</div><div class="history-badge"><span style="color:var(--success); font-weight:600;">✅ Paid: ${money(o.paidAmount || 0)}</span>${unpaid > 0.01 ? ` | <span style="color:var(--danger); font-weight:600;">⚠️ Debt: ${money(unpaid)}</span>` : ''}</div></div>`;
     }).join('');
-  document.getElementById('customerProfileBody').innerHTML = `
-    <div class="profile-header"><div class="profile-avatar">👤</div><div class="profile-name">${esc(name)}</div></div>
-    <div class="profile-stats"><div class="profile-stat"><div class="label">Sales</div><div class="value">${stats.orderCount}</div></div><div class="profile-stat paid"><div class="label">Paid</div><div class="value">${money(stats.totalPaid)}</div></div><div class="profile-stat debt"><div class="label">Debt</div><div class="value">${money(stats.totalDebt)}</div></div></div>
-    ${stats.totalDebt > 0.01 ? `<div class="payment-form"><h4>💰 Record Payment</h4><label class="field-label" style="margin-top:0;">Amount (ETB) *</label><input type="number" id="paymentAmount" placeholder="0.00" step="any" max="${stats.totalDebt}"><label class="field-label">Date</label><input type="date" id="paymentDate" value="${todayStr()}"><button class="btn btn-success" onclick="window.recordPayment('${escJs(name)}')" style="margin-top:12px;">💾 Record Payment</button></div>` : ''}
-    <div class="history-section"><h4>📜 Sales History</h4>${ordersHtml}</div>
-  `;
-  document.getElementById('customerProfileModal').classList.add('open');
+  const bodyEl = document.getElementById('customerProfileBody');
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="profile-header"><div class="profile-avatar">👤</div><div class="profile-name">${esc(name)}</div>${custData.phone ? `<div class="profile-phone">📞 ${esc(custData.phone)}</div>` : ''}</div>
+      <div class="profile-stats"><div class="profile-stat"><div class="label">Sales</div><div class="value">${stats.orderCount}</div></div><div class="profile-stat paid"><div class="label">Paid</div><div class="value">${money(stats.totalPaid)}</div></div><div class="profile-stat debt"><div class="label">Debt</div><div class="value">${money(stats.totalDebt)}</div></div></div>
+      ${stats.totalDebt > 0.01 ? `<div class="payment-form"><h4>💰 Record Payment</h4><label class="field-label" style="margin-top:0;">Amount (ETB) *</label><input type="number" id="paymentAmount" placeholder="0.00" step="any" max="${stats.totalDebt}"><label class="field-label">Date</label><input type="date" id="paymentDate" value="${todayStr()}"><button class="btn btn-success" onclick="window.recordPayment('${escJs(name)}')" style="margin-top:12px;">💾 Record Payment</button></div>` : ''}
+      <div class="history-section"><h4>📜 Sales History</h4>${ordersHtml}</div>
+    `;
+  }
+  document.getElementById(PROFILE_MODAL_ID)?.classList.add('open');
+}
+
+function closeCustomerProfile() {
+  document.getElementById(PROFILE_MODAL_ID)?.classList.remove('open');
+  currentCustomerName = null;
 }
 
 function recordPayment(name) {
@@ -797,7 +915,7 @@ function recordPayment(name) {
       }
       await addDoc(collection(db, 'payments'), { tenantId: state.tenantId, customer: name, amount, date, createdAt: serverTimestamp() });
       showToast(`✅ ${money(amount)} ETB ተከፍሏል`);
-      document.getElementById('customerProfileModal').classList.remove('open');
+      closeCustomerProfile();
       setTimeout(() => showCustomerProfile(name), 300);
     } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
   })();
@@ -807,15 +925,14 @@ function recordPayment(name) {
 // ⚡ QUICK SALE
 // ═══════════════════════════════════════════
 async function addQuickSale() {
-  const appState = state;
   const date = document.getElementById('quickDate').value;
   const amount = parseFloat(document.getElementById('quickAmount').value);
   const category = document.getElementById('quickCategory').value.trim() || 'Quick Sale';
-  const branch = appState.plan === 'pro' ? document.getElementById('quickBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('quickBranch')?.value || 'Main') : 'Main';
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው መጠን ያስፈልጋል', 'error');
   try {
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, createdAt: serverTimestamp(), isQuickSale: true });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, createdAt: serverTimestamp(), isQuickSale: true });
     showToast('✅ Quick Sale ተመዝግቧል');
     document.getElementById('quickAmount').value = '';
     document.getElementById('quickCategory').value = '';
@@ -827,17 +944,16 @@ async function addQuickSale() {
 // 💸 EXPENSES
 // ═══════════════════════════════════════════
 async function addExpense() {
-  const appState = state;
   const category = document.getElementById('expCategory').value.trim();
   const amount = parseFloat(document.getElementById('expAmount').value);
   const date = document.getElementById('expDate').value;
   const note = document.getElementById('expNote').value.trim();
-  const branch = appState.plan === 'pro' ? document.getElementById('expBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('expBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   try {
-    await addDoc(collection(db, 'expenses'), { tenantId: appState.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'expenses'), { tenantId: state.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
     document.getElementById('expCategory').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
@@ -896,7 +1012,6 @@ function setReportType(type, btn) {
 }
 
 function renderReports() {
-  const appState = state;
   if (!document.getElementById('repRevenue')) return;
   let filterDate = '';
   if (reportType === 'daily') filterDate = document.getElementById('reportDate').value;
@@ -905,7 +1020,7 @@ function renderReports() {
   const headerEl = document.getElementById('reportHeader');
   if (headerEl) headerEl.textContent = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} (${filterDate})`;
   let branchFilter = 'all';
-  if (appState.plan === 'pro' && document.getElementById('reportBranch')) branchFilter = document.getElementById('reportBranch').value;
+  if (state.plan === 'pro' && document.getElementById('reportBranch')) branchFilter = document.getElementById('reportBranch').value;
   let filteredSales = allSales.filter(s => { if (reportType === 'daily') return s.date === filterDate; return s.date && s.date.startsWith(filterDate); });
   let filteredExpenses = allExpenses.filter(e => { if (reportType === 'daily') return e.date === filterDate; return e.date && e.date.startsWith(filterDate); });
   if (branchFilter !== 'all') { filteredSales = filteredSales.filter(s => s.branch === branchFilter); filteredExpenses = filteredExpenses.filter(e => e.branch === branchFilter); }
@@ -934,12 +1049,16 @@ function renderReports() {
 // ⚙️ SETTINGS
 // ═══════════════════════════════════════════
 async function saveSettings() {
-  const appState = state;
   const name = document.getElementById('settingBizName').value.trim();
   const phone = document.getElementById('settingBizPhone').value.trim();
   const lowStock = parseInt(document.getElementById('settingLowStock').value) || 10;
   try {
-    await updateDoc(doc(db, 'tenants', appState.tenantId), { name, phone, lowStockThreshold: lowStock });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { name, phone, lowStockThreshold: lowStock });
+    state.lowStockThreshold = lowStock;
+    const hdr = document.getElementById('hdrBusinessName');
+    if (hdr && name) hdr.textContent = name;
+    renderServiceList();
+    updateMobileHome();
     showToast('✅ Settings ተቀምጧል');
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
