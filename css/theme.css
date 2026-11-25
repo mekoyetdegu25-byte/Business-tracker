@@ -34,7 +34,7 @@ body.dark-mode {
 }
 
 /* ─── MODULE THEMES (businessType መሰረት) ─── */
-body[data-module="bakery"]      { --primary: #92400e; --primary-light: #b45309; --accent: #f59e0b; }
+body[data-module="bakery"]      { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
 body[data-module="laundry"]     { --primary: #1e40af; --primary-light: #2563eb; --accent: #3b82f6; }
 body[data-module="hotel"]       { --primary: #5b21b6; --primary-light: #7c3aed; --accent: #8b5cf6; }
 body[data-module="restaurant"]  { --primary: #9a3412; --primary-light: #c2410c; --accent: #f97316; }
@@ -809,45 +809,8 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 .payment-type-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ═══════════════════════════════════════════
-   RESPONSIVE — MOBILE
+   🍞 BAKERY MODULE SPECIFIC STYLES
    ═══════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .tabs { display: none !important; }
-  .panels { width: 100% !important; padding: 16px 12px 90px 12px !important; }
-  header { padding: 0 12px !important; height: 56px !important; }
-  .h-title { font-size: 13px !important; max-width: 140px !important; }
-  .h-email { font-size: 10px !important; max-width: 140px !important; }
-  .role-badge { display: none !important; }
-  .h-btn { width: 32px; height: 32px; font-size: 14px; }
-  #mobileHeaderTitle { display: flex; }
-  .mobile-bottom-nav { display: flex !important; }
-  .pos-layout { grid-template-columns: 1fr !important; }
-  .pos-products-grid { max-height: 300px; }
-  .btn { padding: 11px !important; font-size: 13.5px !important; }
-  .modal-content { max-width: 95vw !important; }
-  .summary-box .value { font-size: 20px !important; }
-  .login-box { padding: 30px 20px !important; }
-  .card { padding: 16px !important; }
-  .report-type-tab { min-width: 80px; font-size: 12px; padding: 8px; }
-  .payment-type-btn { padding: 8px; font-size: 12px; }
-  .payment-breakdown { grid-template-columns: 1fr 1fr; padding: 12px; }
-  .payment-breakdown-item .value { font-size: 15px; }
-}
-
-@media (min-width: 769px) {
-  .mobile-bottom-nav, .modern-mobile-menu { display: none !important; }
-  #mobileHeaderTitle { display: none !important; }
-}
-
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-/* ═══════════════════════════════════════════
-   🍞 BAKERY MODULE SPECIFIC STYLES (from original)
-   ═══════════════════════════════════════════ */
-/* MOBILE HOME */
 #panelMobileHome { display: none; }
 @media (max-width: 768px) {
   #panelMobileHome.active { display: block !important; }
@@ -870,11 +833,9 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 .qa-card .qa-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 10px; }
 .qa-card .qa-title { font-size: 12.5px; font-weight: 700; color: var(--text-main); line-height: 1.3; }
 
-/* ITEM LIST */
 .item-category { margin-bottom: 16px; }
 .item-category-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; padding: 8px 12px; background: var(--bg); border-radius: 8px; display: flex; align-items: center; gap: 8px; }
 
-/* CUSTOMER PROFILE MODAL */
 .profile-header { text-align: center; margin-bottom: 20px; }
 .profile-avatar { width: 70px; height: 70px; border-radius: 50%; background: var(--bg); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 10px; }
 .profile-name { font-size: 20px; font-weight: 800; color: var(--text-main); }
@@ -898,8 +859,40 @@ body.dark-mode .mobile-nav-item.active { color: var(--accent); }
 .history-items { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 .history-badge { font-size: 11px; margin-top: 4px; }
 
-/* አንዳንድ ተጨማሪ ማስተካከያዎች */
+/* ═══════════════════════════════════════════
+   RESPONSIVE — MOBILE
+   ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
+  .tabs { display: none !important; }
+  .panels { width: 100% !important; padding: 16px 12px 90px 12px !important; }
+  header { padding: 0 12px !important; height: 56px !important; }
+  .h-title { font-size: 13px !important; max-width: 140px !important; }
+  .h-email { font-size: 10px !important; max-width: 140px !important; }
+  .role-badge { display: none !important; }
+  .h-btn { width: 32px; height: 32px; font-size: 14px; }
+  #mobileHeaderTitle { display: flex; }
+  .mobile-bottom-nav { display: flex !important; }
+  .pos-layout { grid-template-columns: 1fr !important; }
+  .pos-products-grid { max-height: 300px; }
+  .btn { padding: 11px !important; font-size: 13.5px !important; }
+  .modal-content { max-width: 95vw !important; }
+  .summary-box .value { font-size: 20px !important; }
+  .login-box { padding: 30px 20px !important; }
+  .card { padding: 16px !important; }
+  .report-type-tab { min-width: 80px; font-size: 12px; padding: 8px; }
+  .payment-type-btn { padding: 8px; font-size: 12px; }
+  .payment-breakdown { grid-template-columns: 1fr 1fr; padding: 12px; }
+  .payment-breakdown-item .value { font-size: 15px; }
   .profile-stats { grid-template-columns: 1fr 1fr 1fr; }
 }
 
+@media (min-width: 769px) {
+  .mobile-bottom-nav, .modern-mobile-menu { display: none !important; }
+  #mobileHeaderTitle { display: none !important; }
+}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
