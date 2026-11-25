@@ -1,645 +1,782 @@
 // js/modules/bakery.js
-import { db } from '../firebase.js';
+import { db, auth } from '../firebase.js';
 import { 
-  collection, getDocs, query, where, addDoc, updateDoc, doc, 
-  deleteDoc, onSnapshot, serverTimestamp, increment 
+  collection, addDoc, getDocs, updateDoc, deleteDoc, doc, 
+  query, where, orderBy, serverTimestamp, getDoc, increment, Timestamp 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-import { esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast, state } from '../core.js';
+import { showToast, esc, money, todayStr, thisMonthStr, thisYearStr, state } from '../core.js';
 
 // ═══════════════════════════════════════════
-// 🌐 GLOBAL STATE (የባክሪ ዳታ)
-// ═══════════════════════════════════════════
-let allProducts = [];
-let allSales = [];
-let allExpenses = [];
-let cart = [];
-let editingProductId = null;
-let unsubProducts = null, unsubSales = null, unsubExpenses = null;
-
-// ═══════════════════════════════════════════
-// 📦 MODULE DEFINITION
+// 🏗️ MODULE DEFINITION
 // ═══════════════════════════════════════════
 export const BakeryModule = {
-  icon: '🍞',
-  name: 'Bakery',
-  themeColor: '#f59e0b',
-
+  id: 'bakery',
+  name: 'Bakery / ቤት ስራ',
+  icon: '🥖',
   navItems: [
-    { id: 'bakery-dashboard', label: 'Home',       icon: '🏠', default: true },
-    { id: 'bakery-pos',       label: 'New Sale',   icon: '🛒' },
-    { id: 'bakery-items',     label: 'Items',      icon: '🍞' },
-    { id: 'bakery-expenses',  label: 'Expenses',   icon: '💸' },
-    { id: 'bakery-reports',   label: 'Reports',    icon: '📊' },
-    { id: 'bakery-settings',  label: 'Settings',   icon: '⚙️' },
+    { id: 'bk-home', icon: '🏠', label: 'Home', default: true },
+    { id: 'bk-items', icon: '📦', label: 'Items' },
+    { id: 'bk-sales', icon: '🛒', label: 'New Sale' },
+    { id: 'bk-quick-sale', icon: '💵', label: 'Quick Sale' },
+    { id: 'bk-purchases', icon: '📥', label: 'Purchases' },
+    { id: 'bk-expenses', icon: '💸', label: 'Expenses' },
+    { id: 'bk-reports', icon: '📊', label: 'Reports' },
+    { id: 'bk-settings', icon: '⚙️', label: 'Settings' }
   ],
-
-  panels: [
-    // ─── 1. DASHBOARD (Home) ───
-    { id: 'bakery-dashboard', html: `
-      <div class="card">
-        <div class="card-title"><span>📅 Today's Summary</span></div>
-        <div id="bakeryTodaySummary" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;"></div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>⚡ Quick Actions</span></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-primary" style="width:auto; padding:10px 20px;" onclick="switchPage('bakery-pos', null)">🛒 New Sale</button>
-          <button class="btn btn-outline" style="width:auto; padding:10px 20px;" onclick="switchPage('bakery-items', null)">🍞 Items</button>
-        </div>
-      </div>
-    `},
-
-    // ─── 2. POS (New Sale) ───
-    { id: 'bakery-pos', html: `
-      <div class="pos-layout">
-        <!-- CART -->
-        <div class="pos-cart">
-          <div class="pos-cart-header">
-            <label class="field-label" style="margin-top:0;">📅 Date *</label>
-            <input type="date" id="orderDate" style="margin-bottom:8px;">
-            
-            <label class="field-label">💳 Payment Type</label>
-            <select id="orderPaymentType" style="margin-bottom:8px;">
-              <option value="cash">💵 Cash</option>
-              <option value="transfer">🏦 Transfer</option>
-            </select>
-          </div>
-          <div class="pos-cart-items" id="cartList"></div>
-          <div class="pos-cart-footer">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <span style="font-size:14px; font-weight:700;">Total:</span>
-              <span id="cartTotal" style="font-size:20px; font-weight:800; color:var(--primary);">0.00 ETB</span>
-            </div>
-            <label class="field-label" style="margin-top:0;">💰 Paid Amount</label>
-            <input type="number" id="orderPaid" placeholder="0.00" step="any" oninput="window.__bakeryUpdateUnpaid()" style="margin-bottom:12px;">
-            <div style="font-size:13px; color:var(--danger); font-weight:600; margin-bottom:12px;" id="unpaidDisplay">📝 Unpaid: 0.00 ETB</div>
-            <button class="btn btn-success" onclick="window.__bakeryCompleteOrder()">💸 Complete Sale</button>
-            <button class="btn btn-outline" onclick="window.__bakeryClearCart()">🗑️ Clear</button>
-          </div>
-        </div>
-        
-        <!-- PRODUCTS -->
-        <div class="pos-products">
-          <div class="pos-products-header">
-            <input type="text" id="searchProduct" placeholder="🔍 Search item..." oninput="window.__bakeryRenderPOS()" style="padding:12px 16px;">
-          </div>
-          <div class="pos-products-grid" id="sellProductList"></div>
-        </div>
-      </div>
-    `},
-
-    // ─── 3. ITEMS ───
-    { id: 'bakery-items', html: `
-      <div class="card">
-        <div class="card-title">
-          <span>🍞 Bakery Items</span>
-          <button class="btn btn-primary btn-sm" onclick="window.__bakeryOpenItemModal()">➕ Add Item</button>
-        </div>
-        <div class="filter-bar">
-          <input type="text" id="searchService" placeholder="🔍 Search item..." oninput="window.__bakeryRenderItems()">
-        </div>
-        <div id="bakeryItemsList"></div>
-        
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
-          <div class="summary-box blue" style="margin-bottom:0;">
-            <div class="label">Total Quantity</div>
-            <div class="value" id="totalStockQty" style="font-size:20px;">0</div>
-          </div>
-          <div class="summary-box green" style="margin-bottom:0;">
-            <div class="label">Stock Value (ETB)</div>
-            <div class="value" id="totalStockValue" style="font-size:20px;">0.00</div>
-          </div>
-        </div>
-      </div>
-    `},
-
-    // ─── 4. EXPENSES ───
-    { id: 'bakery-expenses', html: `
-      <div class="card">
-        <div class="card-title"><span>💸 Expenses</span></div>
-        <div style="background:var(--bg); padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid var(--border);">
-          <h4 style="font-size:14px; font-weight:700; margin-bottom:12px;">➕ Add Expense</h4>
-          <label class="field-label" style="margin-top:0;">📁 Category *</label>
-          <input list="expenseCategoryList" id="expCategory" placeholder="e.g. 🏠 Rent">
-          <datalist id="expenseCategoryList">
-            <option value="🏠 Rent"><option value="⚡ Electricity"><option value="💧 Water">
-            <option value="🌐 Internet"><option value="👥 Salary"><option value="🚚 Transport"><option value="🌾 Flour">
-          </datalist>
-          <label class="field-label">💰 Amount (ETB) *</label>
-          <input type="number" id="expAmount" placeholder="0.00" step="any">
-          <label class="field-label">📅 Date *</label>
-          <input type="date" id="expDate">
-          <label class="field-label">📝 Note</label>
-          <input type="text" id="expNote" placeholder="Additional details...">
-          <button class="btn btn-danger" onclick="window.__bakeryAddExpense()" style="margin-top:16px;">💾 Save Expense</button>
-        </div>
-        <h4 style="font-size:14px; font-weight:700; margin-bottom:12px;">📋 Recent Expenses</h4>
-        <div id="bakeryExpensesList"></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
-          <div class="summary-box red" style="margin-bottom:0;">
-            <div class="label">This Month</div>
-            <div class="value" id="expMonthTotal" style="font-size:20px;">0.00</div>
-          </div>
-          <div class="summary-box red" style="margin-bottom:0;">
-            <div class="label">All Time</div>
-            <div class="value" id="expAllTotal" style="font-size:20px;">0.00</div>
-          </div>
-        </div>
-      </div>
-    `},
-
-    // ─── 5. REPORTS ───
-    { id: 'bakery-reports', html: `
-      <div class="card">
-        <div class="card-title"><span>📊 Reports</span></div>
-        <div class="report-type-tabs">
-          <button class="report-type-tab active" onclick="window.__bakerySetReportType('daily', this)">📅 Daily</button>
-          <button class="report-type-tab" onclick="window.__bakerySetReportType('monthly', this)">📆 Monthly</button>
-          <button class="report-type-tab" onclick="window.__bakerySetReportType('yearly', this)">📊 Yearly</button>
-        </div>
-        <div id="bakeryReportDateContainer" style="margin-bottom:16px;">
-          <input type="date" id="reportDate" onchange="window.__bakeryRenderReports()">
-          <input type="month" id="reportMonth" onchange="window.__bakeryRenderReports()" style="display:none;">
-          <input type="number" id="reportYear" placeholder="2026" min="2000" max="2100" onchange="window.__bakeryRenderReports()" style="display:none;">
-        </div>
-        
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div class="summary-box green" style="margin-bottom:0;"><div class="label">Revenue</div><div class="value" id="repRevenue" style="font-size:20px;">0.00</div></div>
-          <div class="summary-box red" style="margin-bottom:0;"><div class="label">Expenses</div><div class="value" id="repExpenses" style="font-size:20px;">0.00</div></div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
-          <div class="summary-box blue" style="margin-bottom:0;"><div class="label">Profit</div><div class="value" id="repProfit" style="font-size:20px;">0.00</div></div>
-          <div class="summary-box red" style="margin-bottom:0;"><div class="label">Unpaid</div><div class="value" id="repUnpaid" style="font-size:20px;">0.00</div></div>
-        </div>
-        <div class="payment-breakdown">
-          <div class="payment-breakdown-item cash"><div class="label">💵 Cash</div><div class="value" id="repCash">0.00</div></div>
-          <div class="payment-breakdown-item transfer"><div class="label">🏦 Transfer</div><div class="value" id="repTransfer">0.00</div></div>
-        </div>
-      </div>
-    `},
-
-    // ─── 6. SETTINGS ───
-    { id: 'bakery-settings', html: `
-      <div class="card">
-        <div class="card-title"><span>⚙️ Settings</span></div>
-        <label class="field-label" style="margin-top:0;">🏢 Business Name</label>
-        <input type="text" id="settingBizName" placeholder="Business name" disabled>
-        <div style="margin-top:16px;">
-          <button class="btn btn-outline" onclick="window.__bakeryToggleDark()" style="margin-top:0;">🎨 Change Theme Mode</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>🚪 Account</span></div>
-        <button class="btn btn-danger" onclick="logout()">Sign Out</button>
-      </div>
-    `}
-  ],
-
-  // ─── INITIALIZATION ───
-  async init(st) {
-    // Default dates
-    document.getElementById('orderDate').value = todayStr();
-    document.getElementById('expDate').value = todayStr();
-    document.getElementById('reportDate').value = todayStr();
-    document.getElementById('reportMonth').value = thisMonthStr();
-    document.getElementById('reportYear').value = thisYearStr();
-    document.getElementById('settingBizName').value = st.tenantData.name || '';
-
-    // Data Snapshot (ሪል ታይም ዳታ)
-    unsubProducts = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', st.tenantId)), snap => {
-      allProducts = []; snap.forEach(d => allProducts.push({ id: d.id, ...d.data() }));
-      window.__bakeryRenderItems();
-      window.__bakeryRenderPOS();
-    });
-
-    unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', st.tenantId)), snap => {
-      allSales = []; snap.forEach(d => allSales.push({ id: d.id, ...d.data() }));
-      window.__bakeryRenderDashboard();
-      window.__bakeryRenderReports();
-    });
-
-    unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', st.tenantId)), snap => {
-      allExpenses = []; snap.forEach(d => allExpenses.push({ id: d.id, ...d.data() }));
-      window.__bakeryRenderExpenses();
-      window.__bakeryRenderDashboard();
-    });
+  panels: [],
+  
+  // Temporary state for UI interactions
+  _state: {
+    items: [],
+    cart: [],
+    branches: [],
+    settings: {},
+    currentReportFilter: 'daily'
   },
 
-  cleanup() {
-    if (unsubProducts) unsubProducts();
-    if (unsubSales) unsubSales();
-    if (unsubExpenses) unsubExpenses();
+  init: async function(appState) {
+    this._state.tenantId = appState.tenantId;
+    this._state.businessType = appState.businessType;
+    this._state.role = appState.role;
+    
+    // Build HTML panels dynamically
+    this.panels = this.buildPanels();
+    
+    // Load initial data
+    await this.loadSettings();
+    await this.loadItems();
+    await this.loadDashboardStats();
   },
 
-  onPageChange(panelId) {
-    if (panelId === 'bakery-dashboard') window.__bakeryRenderDashboard();
-    if (panelId === 'bakery-pos') window.__bakeryRenderPOS();
-    if (panelId === 'bakery-reports') window.__bakeryRenderReports();
-  }
-};
+  onPageChange: function(panelId) {
+    if (panelId === 'bk-home') this.loadDashboardStats();
+    if (panelId === 'bk-items') this.renderItems();
+    if (panelId === 'bk-sales') this.renderSalesUI();
+    if (panelId === 'bk-purchases') this.renderPurchasesUI();
+    if (panelId === 'bk-expenses') this.renderExpensesUI();
+    if (panelId === 'bk-reports') this.renderReportsUI();
+    if (panelId === 'bk-settings') this.renderSettingsUI();
+  },
 
-// ═══════════════════════════════════════════
-// 📊 RENDER DASHBOARD
-// ═══════════════════════════════════════════
-window.__bakeryRenderDashboard = function() {
-  const host = document.getElementById('bakeryTodaySummary');
-  if (!host) return;
-  const today = todayStr();
-  const todaySales = allSales.filter(s => s.date === today).reduce((s, o) => s + (o.paidAmount || 0), 0);
-  const todayExpenses = allExpenses.filter(e => e.date === today).reduce((s, e) => s + e.amount, 0);
-  const profit = todaySales - todayExpenses;
-  
-  host.innerHTML = `
-    <div class="summary-box green" style="margin-bottom:0;"><div class="label">Sales</div><div class="value">${money(todaySales)}</div></div>
-    <div class="summary-box red" style="margin-bottom:0;"><div class="label">Expenses</div><div class="value">${money(todayExpenses)}</div></div>
-    <div class="summary-box blue" style="margin-bottom:0;"><div class="label">Profit</div><div class="value">${money(profit)}</div></div>
-  `;
-};
+  cleanup: function() {
+    this._state.cart = [];
+  },
 
-// ═══════════════════════════════════════════
-// 🛒 POS LOGIC (ሽያጭ ማድረጊያ)
-// ═══════════════════════════════════════════
-window.__bakeryRenderPOS = function() {
-  const grid = document.getElementById('sellProductList');
-  if (!grid) return;
-  
-  const search = (document.getElementById('searchProduct')?.value || '').toLowerCase();
-  const filtered = allProducts.filter(p => (p.name || '').toLowerCase().includes(search));
-  
-  if (filtered.length === 0) {
-    grid.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">ምንም ዕቃ አልተገኘም</div>';
-    return;
-  }
-  
-  grid.innerHTML = filtered.map(p => `
-    <div class="product-card" onclick="window.__bakeryAddToCart('${p.id}')">
-      <div class="p-name">${esc(p.name)}</div>
-      <div class="p-price">${money(p.price)} ETB</div>
-      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Stock: ${p.quantity || 0}</div>
-    </div>
-  `).join('');
-};
+  // ═══════════════════════════════════════════
+  // 🎨 UI BUILDING
+  // ═══════════════════════════════════════════
+  buildPanels: function() {
+    return [
+      { id: 'bk-home', html: this.getHomeHTML() },
+      { id: 'bk-items', html: this.getItemsHTML() },
+      { id: 'bk-sales', html: this.getSalesHTML() },
+      { id: 'bk-quick-sale', html: this.getQuickSaleHTML() },
+      { id: 'bk-purchases', html: this.getPurchasesHTML() },
+      { id: 'bk-expenses', html: this.getExpensesHTML() },
+      { id: 'bk-reports', html: this.getReportsHTML() },
+      { id: 'bk-settings', html: this.getSettingsHTML() }
+    ];
+  },
 
-window.__bakeryAddToCart = function(id) {
-  const product = allProducts.find(p => p.id === id);
-  if (!product) return;
-  
-  const existing = cart.find(c => c.id === id);
-  if (existing) {
-    existing.qty++;
-  } else {
-    cart.push({ id: product.id, name: product.name, price: product.price, qty: 1 });
-  }
-  window.__bakeryRenderCart();
-};
-
-window.__bakeryRenderCart = function() {
-  const list = document.getElementById('cartList');
-  if (!list) return;
-  
-  if (cart.length === 0) {
-    list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">🛒 ጋሪው ባዶ ነው</div>';
-    document.getElementById('cartTotal').textContent = '0.00 ETB';
-    window.__bakeryUpdateUnpaid();
-    return;
-  }
-  
-  let total = 0;
-  list.innerHTML = cart.map((item, index) => {
-    const itemTotal = item.price * item.qty;
-    total += itemTotal;
+  getHomeHTML: function() {
     return `
-      <div class="cart-item">
-        <div class="ci-info">
-          <div class="ci-name">${esc(item.name)}</div>
-          <div class="ci-price">${money(item.price)} x ${item.qty}</div>
-        </div>
-        <div class="ci-qty">
-          <button onclick="window.__bakeryChangeQty(${index}, -1)">-</button>
-          <span>${item.qty}</span>
-          <button onclick="window.__bakeryChangeQty(${index}, 1)">+</button>
-        </div>
-        <div class="ci-total">${money(itemTotal)}</div>
-        <div class="ci-del" onclick="window.__bakeryRemoveFromCart(${index})">×</div>
+      <div class="panel-header"><h2>Dashboard</h2></div>
+      <div class="stats-grid">
+        <div class="stat-card"><span class="stat-label">Today's Sales</span><span class="stat-value" id="bk-stat-sales">0.00 ETB</span></div>
+        <div class="stat-card"><span class="stat-label">Today's Expenses</span><span class="stat-value text-danger" id="bk-stat-expenses">0.00 ETB</span></div>
+        <div class="stat-card"><span class="stat-label">Today's Profit</span><span class="stat-value text-success" id="bk-stat-profit">0.00 ETB</span></div>
+      </div>
+      <h3 class="section-title">Quick Actions</h3>
+      <div class="quick-actions-grid">
+        <button class="qa-btn" onclick="switchPage('bk-sales', null)"><span>🛒</span>New Sale</button>
+        <button class="qa-btn" onclick="switchPage('bk-quick-sale', null)"><span>💵</span>Quick Sale</button>
+        <button class="qa-btn" onclick="switchPage('bk-items', null)"><span>📦</span>Items</button>
+        <button class="qa-btn" onclick="switchPage('bk-purchases', null)"><span>📥</span>Purchases</button>
+        <button class="qa-btn" onclick="switchPage('bk-expenses', null)"><span>💸</span>Expenses</button>
+        <button class="qa-btn" onclick="switchPage('bk-reports', null)"><span>📊</span>Reports</button>
       </div>
     `;
-  }).join('');
+  },
+
+  getItemsHTML: function() {
+    return `
+      <div class="panel-header flex-between">
+        <h2>Items (Stock)</h2>
+        <button class="btn btn-primary" onclick="BakeryModule.openAddItemModal()">+ Add Item</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><span class="stat-label">Total Quantity</span><span class="stat-value" id="bk-total-qty">0</span></div>
+        <div class="stat-card"><span class="stat-label">Stock Value</span><span class="stat-value" id="bk-stock-value">0.00 ETB</span></div>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Category</th><th>Price (ETB)</th><th>Stock</th><th>Actions</th></tr></thead>
+          <tbody id="bk-items-tbody"></tbody>
+        </table>
+      </div>
+      <!-- Add Item Modal Placeholder -->
+      <div id="bk-add-item-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <h3>Add New Item</h3>
+          <form id="bk-add-item-form" onsubmit="BakeryModule.saveNewItem(event)">
+            <div class="form-group"><label>Branch*</label><select id="bk-item-branch" required></select></div>
+            <div class="form-group"><label>Category*</label><input type="text" id="bk-item-category" required placeholder="e.g. Bread, Cake"></div>
+            <div class="form-group"><label>Item Name*</label><input type="text" id="bk-item-name" required></div>
+            <div class="form-group"><label>Price (ETB)*</label><input type="number" step="0.01" id="bk-item-price" required></div>
+            <div class="form-group"><label>Initial Stock (Qty)*</label><input type="number" id="bk-item-stock" required></div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('bk-add-item-modal').classList.add('hidden')">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Item</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  },
+
+  getSalesHTML: function() {
+    return `
+      <div class="panel-header"><h2>New Sale (Itemized)</h2></div>
+      <div class="form-row">
+        <div class="form-group"><label>Branch*</label><select id="bk-sale-branch" required></select></div>
+        <div class="form-group"><label>Date*</label><input type="date" id="bk-sale-date" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Add Item</label>
+          <select id="bk-sale-item-select"></select>
+        </div>
+        <div class="form-group">
+          <label>Qty</label>
+          <input type="number" id="bk-sale-qty" value="1" min="1">
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end;">
+          <button class="btn btn-secondary" onclick="BakeryModule.addToCart()">Add to Cart</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Price</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead>
+          <tbody id="bk-cart-tbody"></tbody>
+        </table>
+      </div>
+      <div class="cart-summary">
+        <div class="summary-row"><span>Total:</span><span id="bk-cart-total">0.00 ETB</span></div>
+        <div class="form-row">
+          <div class="form-group"><label>Payment Type</label><select id="bk-sale-payment"><option value="cash">Cash</option><option value="transfer">Transfer</option></select></div>
+          <div class="form-group"><label>Paid Amount (ETB)</label><input type="number" step="0.01" id="bk-sale-paid" oninput="BakeryModule.updateUnpaidBalance()"></div>
+        </div>
+        <div class="summary-row text-danger"><span>Unpaid Balance:</span><span id="bk-cart-unpaid">0.00 ETB</span></div>
+      </div>
+      <div class="flex-between" style="margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="BakeryModule.clearCart()">Clear</button>
+        <button class="btn btn-primary" onclick="BakeryModule.completeSale()">Complete Sale</button>
+      </div>
+    `;
+  },
+
+  getQuickSaleHTML: function() {
+    return `
+      <div class="panel-header"><h2>Quick Sale (Direct Income)</h2></div>
+      <form id="bk-quick-sale-form" onsubmit="BakeryModule.saveQuickSale(event)">
+        <div class="form-group"><label>Date*</label><input type="date" id="bk-qs-date" value="${todayStr()}" required></div>
+        <div class="form-group"><label>Category*</label><input type="text" id="bk-qs-category" required placeholder="e.g. Bread Sales"></div>
+        <div class="form-group"><label>Branch*</label><select id="bk-qs-branch" required></select></div>
+        <div class="form-group"><label>Amount (ETB)*</label><input type="number" step="0.01" id="bk-qs-amount" required></div>
+        <button type="submit" class="btn btn-primary">+ Add Income</button>
+      </form>
+    `;
+  },
+
+  getPurchasesHTML: function() {
+    return `
+      <div class="panel-header"><h2>Purchases (Stock In)</h2></div>
+      <form id="bk-purchase-form" onsubmit="BakeryModule.savePurchase(event)">
+        <div class="form-group"><label>Item*</label><select id="bk-purch-item" required></select></div>
+        <div class="form-group"><label>Date*</label><input type="date" id="bk-purch-date" value="${todayStr()}" required></div>
+        <div class="form-group"><label>Quantity Added*</label><input type="number" id="bk-purch-qty" required></div>
+        <div class="form-group"><label>Cost per Item (ETB)*</label><input type="number" step="0.01" id="bk-purch-cost" required></div>
+        <button type="submit" class="btn btn-primary">Save Purchase</button>
+      </form>
+      <h3 class="section-title">Recent Purchases</h3>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Total Cost</th></tr></thead>
+          <tbody id="bk-purchases-tbody"></tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  getExpensesHTML: function() {
+    return `
+      <div class="panel-header"><h2>Expenses</h2></div>
+      <form id="bk-expense-form" onsubmit="BakeryModule.saveExpense(event)">
+        <div class="form-row">
+          <div class="form-group"><label>Branch*</label><select id="bk-exp-branch" required></select></div>
+          <div class="form-group"><label>Category*</label><input type="text" id="bk-exp-category" required placeholder="e.g. Flour, Rent"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Amount (ETB)*</label><input type="number" step="0.01" id="bk-exp-amount" required></div>
+          <div class="form-group"><label>Date*</label><input type="date" id="bk-exp-date" value="${todayStr()}" required></div>
+        </div>
+        <div class="form-group"><label>Note</label><input type="text" id="bk-exp-note"></div>
+        <button type="submit" class="btn btn-primary">Save Expense</button>
+      </form>
+      <div class="stats-grid" style="margin-top: 1rem;">
+        <div class="stat-card"><span class="stat-label">This Month</span><span class="stat-value" id="bk-exp-month">0.00 ETB</span></div>
+        <div class="stat-card"><span class="stat-label">All Time</span><span class="stat-value" id="bk-exp-all">0.00 ETB</span></div>
+      </div>
+      <div class="panel-header flex-between" style="margin-top: 1rem;">
+        <h3>Recent Expenses</h3>
+        <select id="bk-exp-filter" onchange="BakeryModule.loadExpenses(this.value)">
+          <option value="recent">Recent</option>
+          <option value="date">Specific Date</option>
+          <option value="month">This Month</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div id="bk-exp-date-filter-container" class="hidden" style="margin-bottom: 1rem;">
+         <input type="date" id="bk-exp-filter-date" onchange="BakeryModule.loadExpenses('date')">
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Branch</th><th>Category</th><th>Amount</th><th>Note</th></tr></thead>
+          <tbody id="bk-expenses-tbody"></tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  getReportsHTML: function() {
+    return `
+      <div class="panel-header"><h2>Reports</h2></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Timeframe</label>
+          <select id="bk-report-timeframe" onchange="BakeryModule.loadReportData()">
+            <option value="daily">Daily (Today)</option>
+            <option value="monthly">Monthly (This Month)</option>
+            <option value="yearly">Yearly (This Year)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Branch Filter</label>
+          <select id="bk-report-branch" onchange="BakeryModule.loadReportData()">
+            <option value="all">All Branches</option>
+          </select>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><span class="stat-label">Revenue</span><span class="stat-value" id="bk-rep-revenue">0.00</span></div>
+        <div class="stat-card"><span class="stat-label">Expenses</span><span class="stat-value text-danger" id="bk-rep-expenses">0.00</span></div>
+        <div class="stat-card"><span class="stat-label">Profit</span><span class="stat-value text-success" id="bk-rep-profit">0.00</span></div>
+        <div class="stat-card"><span class="stat-label">Unpaid</span><span class="stat-value" id="bk-rep-unpaid">0.00</span></div>
+        <div class="stat-card"><span class="stat-label">Cash</span><span class="stat-value" id="bk-rep-cash">0.00</span></div>
+        <div class="stat-card"><span class="stat-label">Transfer</span><span class="stat-value" id="bk-rep-transfer">0.00</span></div>
+      </div>
+      <h3 class="section-title">Top Selling Items</h3>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Revenue</th></tr></thead>
+          <tbody id="bk-rep-top-items"></tbody>
+        </table>
+      </div>
+      <div class="flex-between" style="margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="BakeryModule.exportReportCSV()">Export CSV</button>
+        <button class="btn btn-secondary" onclick="window.print()">Print</button>
+      </div>
+    `;
+  },
+
+  getSettingsHTML: function() {
+    return `
+      <div class="panel-header"><h2>Settings</h2></div>
+      <form id="bk-settings-form" onsubmit="BakeryModule.saveSettings(event)">
+        <div class="form-group"><label>Business Name</label><input type="text" id="bk-set-name"></div>
+        <div class="form-group"><label>Phone</label><input type="text" id="bk-set-phone"></div>
+        <div class="form-group"><label>Low Stock Threshold</label><input type="number" id="bk-set-threshold" value="10"></div>
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+      </form>
+      
+      <h3 class="section-title" style="margin-top: 2rem;">Branches Management</h3>
+      <div class="form-row">
+        <input type="text" id="bk-new-branch" placeholder="New Branch Name">
+        <button class="btn btn-secondary" onclick="BakeryModule.addBranch()">+ Add Branch</button>
+      </div>
+      <ul id="bk-branches-list" class="list-group"></ul>
+    `;
+  },
+
+  // ═══════════════════════════════════════════
+  // 🔄 DATA FETCHING & RENDERING
+  // ═══════════════════════════════════════════
   
-  document.getElementById('cartTotal').textContent = money(total) + ' ETB';
-  window.__bakeryUpdateUnpaid();
-};
+  loadSettings: async function() {
+    try {
+      const docRef = doc(db, 'tenants', this._state.tenantId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        this._state.settings = data;
+        this._state.branches = data.branches || ['Main Branch'];
+        this._state.threshold = data.lowStockThreshold || 10;
+        this.populateBranchesDropdowns();
+      }
+    } catch (e) { console.error("Error loading settings:", e); }
+  },
 
-window.__bakeryChangeQty = function(index, change) {
-  cart[index].qty += change;
-  if (cart[index].qty <= 0) cart.splice(index, 1);
-  window.__bakeryRenderCart();
-};
+  loadItems: async function() {
+    try {
+      const q = query(collection(db, 'items'), where('tenantId', '==', this._state.tenantId));
+      const snapshot = await getDocs(q);
+      this._state.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { console.error("Error loading items:", e); }
+  },
 
-window.__bakeryRemoveFromCart = function(index) {
-  cart.splice(index, 1);
-  window.__bakeryRenderCart();
-};
-
-window.__bakeryClearCart = function() {
-  cart = [];
-  document.getElementById('orderPaid').value = '';
-  window.__bakeryRenderCart();
-};
-
-window.__bakeryUpdateUnpaid = function() {
-  const totalText = document.getElementById('cartTotal')?.textContent || '0';
-  const total = parseFloat(totalText.replace(/,/g, '')) || 0;
-  const paid = parseFloat(document.getElementById('orderPaid')?.value) || 0;
-  const unpaid = total - paid;
-  const display = document.getElementById('unpaidDisplay');
-  if (display) {
-    display.textContent = `📝 Unpaid: ${money(Math.max(0, unpaid))} ETB`;
-    display.style.color = unpaid > 0 ? 'var(--danger)' : 'var(--success)';
-  }
-};
-
-window.__bakeryCompleteOrder = async function() {
-  if (cart.length === 0) return showToast('ጋሪው ባዶ ነው!', 'error');
-  
-  const date = document.getElementById('orderDate').value;
-  const paymentType = document.getElementById('orderPaymentType').value;
-  const paidAmount = parseFloat(document.getElementById('orderPaid').value) || 0;
-  const total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
-  
-  if (paidAmount > total) return showToast('የተከፈለው ገንዘብ ከጠቅላላው መብለጥ አይችልም', 'error');
-  
-  try {
-    // 1. ሽያጭ መመዝገብ
-    await addDoc(collection(db, 'sales'), {
-      tenantId: state.tenantId,
-      items: cart,
-      total: total,
-      paidAmount: paidAmount,
-      unpaid: total - paidAmount,
-      paymentType: paymentType,
-      date: date,
-      createdAt: serverTimestamp()
+  populateBranchesDropdowns: function() {
+    const branchOptions = this._state.branches.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+    ['bk-item-branch', 'bk-sale-branch', 'bk-qs-branch', 'bk-exp-branch'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = branchOptions;
     });
+    const repBranch = document.getElementById('bk-report-branch');
+    if (repBranch) repBranch.innerHTML = `<option value="all">All Branches</option>${branchOptions}`;
+  },
+
+  renderItems: async function() {
+    await this.loadItems();
+    const tbody = document.getElementById('bk-items-tbody');
+    if (!tbody) return;
     
-    // 2. ክምችት (Stock) መቀነስ
-    for (const item of cart) {
-      await updateDoc(doc(db, 'products', item.id), {
-        quantity: increment(-item.qty)
-      });
-    }
+    let totalQty = 0, totalVal = 0;
+    tbody.innerHTML = this._state.items.map(item => {
+      totalQty += item.stock || 0;
+      totalVal += (item.stock || 0) * (item.price || 0);
+      const isLow = item.stock <= this._state.threshold;
+      return `
+        <tr>
+          <td>${esc(item.name)} ${isLow ? '<span class="badge badge-danger">Low Stock</span>' : ''}</td>
+          <td>${esc(item.category)}</td>
+          <td>${money(item.price)}</td>
+          <td>${item.stock || 0}</td>
+          <td><button class="btn btn-sm btn-secondary" onclick="BakeryModule.deleteItem('${item.id}')">Delete</button></td>
+        </tr>
+      `;
+    }).join('');
     
-    showToast('✅ ሽያጩ ተመዝግቧል!');
-    window.__bakeryClearCart();
-  } catch (e) {
-    showToast('❌ ስህተት: ' + e.message, 'error');
-  }
-};
+    document.getElementById('bk-total-qty').textContent = totalQty;
+    document.getElementById('bk-stock-value').textContent = money(totalVal) + ' ETB';
+  },
 
-// ═══════════════════════════════════════════
-// 🍞 ITEMS (ክምችት ማስተዳደሪያ)
-// ═══════════════════════════════════════════
-window.__bakeryRenderItems = function() {
-  const list = document.getElementById('bakeryItemsList');
-  if (!list) return;
-  
-  const search = (document.getElementById('searchService')?.value || '').toLowerCase();
-  const filtered = allProducts.filter(p => (p.name || '').toLowerCase().includes(search));
-  
-  // ጠቅላላ ክምችት ማስላት
-  const totalQty = allProducts.reduce((s, p) => s + (p.quantity || 0), 0);
-  const totalVal = allProducts.reduce((s, p) => s + ((p.quantity || 0) * (p.price || 0)), 0);
-  if (document.getElementById('totalStockQty')) document.getElementById('totalStockQty').textContent = totalQty;
-  if (document.getElementById('totalStockValue')) document.getElementById('totalStockValue').textContent = money(totalVal);
-  
-  if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="emoji">🍞</div><div>ምንም ዕቃ የለም</div></div>';
-    return;
-  }
-  
-  list.innerHTML = filtered.map(p => `
-    <div class="item-row">
-      <div class="item-row-name">
-        ${esc(p.name)}
-        <div style="font-size:11px; color:var(--text-muted); font-weight:normal;">${esc(p.category || 'General')}</div>
-      </div>
-      <div style="text-align:right;">
-        <div class="item-row-price">${money(p.price)} ETB</div>
-        <div style="font-size:12px; color:var(--text-muted);">Qty: ${p.quantity || 0}</div>
-      </div>
-      <div style="display:flex; gap:6px; margin-left:10px;">
-        <button class="btn btn-outline btn-sm" onclick="window.__bakeryOpenItemModal('${p.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="window.__bakeryDeleteItem('${p.id}', '${escJs(p.name)}')">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-};
+  renderSalesUI: function() {
+    const select = document.getElementById('bk-sale-item-select');
+    if (!select) return;
+    select.innerHTML = this._state.items.map(i => `<option value="${i.id}">${esc(i.name)} - ${money(i.price)} ETB (Stock: ${i.stock})</option>`).join('');
+    this.renderCart();
+    document.getElementById('bk-sale-date').value = todayStr();
+  },
 
-window.__bakeryOpenItemModal = function(id = null) {
-  editingProductId = id;
-  let p = { category: '', name: '', price: '', quantity: '' };
-  
-  if (id) {
-    const existing = allProducts.find(x => x.id === id);
-    if (existing) p = existing;
-  }
-  
-  const html = `
-    <div class="modal-overlay open" id="itemModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>${id ? '✏️ Edit Item' : '➕ Add Item'}</h3>
-          <button class="modal-close" onclick="document.getElementById('itemModal').remove()">×</button>
-        </div>
-        <div class="modal-body">
-          <label class="field-label" style="margin-top:0;">📁 Category</label>
-          <input type="text" id="modalCat" value="${esc(p.category)}" placeholder="e.g. ዳቦ">
-          
-          <label class="field-label">🍞 Item Name *</label>
-          <input type="text" id="modalName" value="${esc(p.name)}" placeholder="e.g. White Bread">
-          
-          <label class="field-label">💰 Price (ETB) *</label>
-          <input type="number" id="modalPrice" value="${p.price}" placeholder="30.00" step="any">
-          
-          <label class="field-label">📦 Quantity (Stock) *</label>
-          <input type="number" id="modalQty" value="${p.quantity}" placeholder="50">
-          
-          <button class="btn btn-success" onclick="window.__bakerySaveItem('${id || ''}')" style="margin-top:16px;">💾 Save</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.getElementById('globalModalContainer').innerHTML = html;
-};
+  renderCart: function() {
+    const tbody = document.getElementById('bk-cart-tbody');
+    let total = 0;
+    tbody.innerHTML = this._state.cart.map((item, index) => {
+      const lineTotal = item.price * item.qty;
+      total += lineTotal;
+      return `
+        <tr>
+          <td>${esc(item.name)}</td>
+          <td>${money(item.price)}</td>
+          <td>${item.qty}</td>
+          <td>${money(lineTotal)}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="BakeryModule.removeFromCart(${index})">Remove</button></td>
+        </tr>
+      `;
+    }).join('');
+    document.getElementById('bk-cart-total').textContent = money(total) + ' ETB';
+    this.updateUnpaidBalance();
+  },
 
-window.__bakerySaveItem = async function(id) {
-  const category = document.getElementById('modalCat').value.trim() || 'General';
-  const name = document.getElementById('modalName').value.trim();
-  const price = parseFloat(document.getElementById('modalPrice').value);
-  const quantity = parseInt(document.getElementById('modalQty').value) || 0;
-  
-  if (!name) return showToast('ስም ያስፈልጋል', 'error');
-  if (isNaN(price) || price <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
-  
-  try {
-    if (id) {
-      await updateDoc(doc(db, 'products', id), { category, name, price, quantity });
-      showToast('✅ ተሻሽሏል');
+  updateUnpaidBalance: function() {
+    const total = this._state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const paid = parseFloat(document.getElementById('bk-sale-paid').value) || 0;
+    const unpaid = Math.max(0, total - paid);
+    document.getElementById('bk-cart-unpaid').textContent = money(unpaid) + ' ETB';
+  },
+
+  renderPurchasesUI: async function() {
+    const select = document.getElementById('bk-purch-item');
+    if (!select) return;
+    select.innerHTML = this._state.items.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('');
+    
+    // Load recent purchases
+    const q = query(collection(db, 'purchases'), where('tenantId', '==', this._state.tenantId), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    const tbody = document.getElementById('bk-purchases-tbody');
+    tbody.innerHTML = snapshot.docs.slice(0, 10).map(d => {
+      const p = d.data();
+      return `<tr><td>${p.date}</td><td>${esc(p.itemName)}</td><td>${p.qty}</td><td>${money(p.qty * p.cost)} ETB</td></tr>`;
+    }).join('');
+  },
+
+  renderExpensesUI: async function() {
+    await this.loadExpenses('recent');
+    await this.updateExpenseSummaries();
+  },
+
+  loadExpenses: async function(filterType) {
+    const dateFilter = document.getElementById('bk-exp-date-filter-container');
+    if (filterType === 'date') {
+      dateFilter.classList.remove('hidden');
+      const specificDate = document.getElementById('bk-exp-filter-date').value;
+      if (!specificDate) return; // wait for date selection
+      this._fetchExpenses('date', specificDate);
     } else {
-      await addDoc(collection(db, 'products'), {
-        tenantId: state.tenantId, category, name, price, quantity, createdAt: serverTimestamp()
-      });
-      showToast('✅ ተጨምሯል');
+      dateFilter.classList.add('hidden');
+      this._fetchExpenses(filterType);
     }
-    document.getElementById('itemModal').remove();
-  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
-};
+  },
 
-window.__bakeryDeleteItem = async function(id, name) {
-  if (!confirm(`"${name}" ን ማጥፋት?`)) return;
-  try {
-    await deleteDoc(doc(db, 'products', id));
-    showToast('✅ ተጠፍቷል');
-  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
-};
+  _fetchExpenses: async function(type, val) {
+    let q = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId), orderBy('date', 'desc'));
+    if (type === 'date') q = query(q, where('date', '==', val));
+    else if (type === 'month') q = query(q, where('date', '>=', thisMonthStr() + '-01'));
+    
+    if (type === 'recent') q = query(q, orderBy('date', 'desc')); // Limit on client side
+    
+    const snap = await getDocs(q);
+    const tbody = document.getElementById('bk-expenses-tbody');
+    let docs = snap.docs;
+    if (type === 'recent') docs = docs.slice(0, 10);
+    
+    tbody.innerHTML = docs.map(d => {
+      const e = d.data();
+      return `<tr><td>${e.date}</td><td>${esc(e.branch)}</td><td>${esc(e.category)}</td><td>${money(e.amount)} ETB</td><td>${esc(e.note || '')}</td></tr>`;
+    }).join('');
+  },
 
-// ═══════════════════════════════════════════
-// 💸 EXPENSES (ወጪዎች)
-// ═══════════════════════════════════════════
-window.__bakeryRenderExpenses = function() {
-  const list = document.getElementById('bakeryExpensesList');
-  if (!list) return;
-  
-  // ጠቅላላ ወጪዎችን ማስላት
-  const currentMonth = thisMonthStr();
-  let monthTotal = 0, allTotal = 0;
-  allExpenses.forEach(e => {
-    allTotal += e.amount;
-    if (e.date && e.date.startsWith(currentMonth)) monthTotal += e.amount;
-  });
-  
-  if (document.getElementById('expMonthTotal')) document.getElementById('expMonthTotal').textContent = money(monthTotal);
-  if (document.getElementById('expAllTotal')) document.getElementById('expAllTotal').textContent = money(allTotal);
-  
-  // ዝርዝር ማሳየት (ከአዲስ ወደ አሮጌ)
-  const recent = [...allExpenses].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 20);
-  
-  if (recent.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="emoji">💸</div><div>ምንም ወጪ የለም</div></div>';
-    return;
-  }
-  
-  list.innerHTML = recent.map(e => `
-    <div class="item-row">
-      <div class="item-row-name">
-        ${esc(e.category)}
-        ${e.note ? `<div style="font-size:11px; color:var(--text-muted); font-weight:normal;">${esc(e.note)}</div>` : ''}
-      </div>
-      <div style="text-align:right;">
-        <div class="item-row-price" style="color:var(--danger);">- ${money(e.amount)}</div>
-        <div style="font-size:11px; color:var(--text-muted);">${esc(e.date)}</div>
-      </div>
-      <div style="display:flex; gap:6px; margin-left:10px;">
-        <button class="btn btn-danger btn-sm" onclick="window.__bakeryDeleteExpense('${e.id}')">🗑️</button>
-      </div>
-    </div>
-  `).join('');
-};
-
-window.__bakeryAddExpense = async function() {
-  const category = document.getElementById('expCategory').value.trim();
-  const amount = parseFloat(document.getElementById('expAmount').value);
-  const date = document.getElementById('expDate').value;
-  const note = document.getElementById('expNote').value.trim();
-  
-  if (!category) return showToast('ምድብ ያስፈልጋል', 'error');
-  if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው ወጪ ያስፈልጋል', 'error');
-  if (!date) return showToast('ቀን ያስፈልጋል', 'error');
-  
-  try {
-    await addDoc(collection(db, 'expenses'), {
-      tenantId: state.tenantId, category, amount, date, note, createdAt: serverTimestamp()
+  updateExpenseSummaries: async function() {
+    const qAll = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId));
+    const snapAll = await getDocs(qAll);
+    let allTotal = 0, monthTotal = 0;
+    const currentMonth = thisMonthStr();
+    snapAll.forEach(d => {
+      const exp = d.data();
+      allTotal += exp.amount;
+      if (exp.date.startsWith(currentMonth)) monthTotal += exp.amount;
     });
-    showToast('✅ ወጪው ተመዝግቧል');
-    document.getElementById('expCategory').value = '';
-    document.getElementById('expAmount').value = '';
-    document.getElementById('expNote').value = '';
-  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
-};
+    document.getElementById('bk-exp-month').textContent = money(monthTotal) + ' ETB';
+    document.getElementById('bk-exp-all').textContent = money(allTotal) + ' ETB';
+  },
 
-window.__bakeryDeleteExpense = async function(id) {
-  if (!confirm('ይህን ወጪ ማጥፋት?')) return;
-  try {
-    await deleteDoc(doc(db, 'expenses', id));
-    showToast('✅ ተጠፍቷል');
-  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
-};
+  renderReportsUI: function() {
+    this.loadReportData();
+  },
 
-// ═══════════════════════════════════════════
-// 📊 REPORTS (ሪፖርቶች)
-// ═══════════════════════════════════════════
-let currentReportType = 'daily';
+  renderSettingsUI: function() {
+    document.getElementById('bk-set-name').value = this._state.settings.name || '';
+    document.getElementById('bk-set-phone').value = this._state.settings.phone || '';
+    document.getElementById('bk-set-threshold').value = this._state.threshold;
+    this.renderBranchesList();
+  },
 
-window.__bakerySetReportType = function(type, btn) {
-  currentReportType = type;
-  document.querySelectorAll('.report-type-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  
-  const elDate = document.getElementById('reportDate');
-  const elMonth = document.getElementById('reportMonth');
-  const elYear = document.getElementById('reportYear');
-  
-  if (!elDate) return;
-  
-  if (type === 'daily') {
-    elDate.style.display = 'block'; elMonth.style.display = 'none'; elYear.style.display = 'none';
-  } else if (type === 'monthly') {
-    elDate.style.display = 'none'; elMonth.style.display = 'block'; elYear.style.display = 'none';
-  } else {
-    elDate.style.display = 'none'; elMonth.style.display = 'none'; elYear.style.display = 'block';
+  renderBranchesList: function() {
+    const list = document.getElementById('bk-branches-list');
+    if (!list) return;
+    list.innerHTML = this._state.branches.map(b => `<li class="list-group-item">${esc(b)}</li>`).join('');
+  },
+
+  loadDashboardStats: async function() {
+    const today = todayStr();
+    // Sales
+    const qSales = query(collection(db, 'sales'), where('tenantId', '==', this._state.tenantId), where('date', '==', today));
+    const snapSales = await getDocs(qSales);
+    let totalSales = 0;
+    snapSales.forEach(d => { totalSales += d.data().total || 0; });
+
+    // Expenses
+    const qExp = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId), where('date', '==', today));
+    const snapExp = await getDocs(qExp);
+    let totalExp = 0;
+    snapExp.forEach(d => { totalExp += d.data().amount || 0; });
+
+    document.getElementById('bk-stat-sales').textContent = money(totalSales) + ' ETB';
+    document.getElementById('bk-stat-expenses').textContent = money(totalExp) + ' ETB';
+    document.getElementById('bk-stat-profit').textContent = money(totalSales - totalExp) + ' ETB';
+  },
+
+  // ═══════════════════════════════════════════
+  // 💾 CRUD OPERATIONS
+  // ═══════════════════════════════════════════
+
+  openAddItemModal: function() {
+    document.getElementById('bk-add-item-form').reset();
+    document.getElementById('bk-add-item-modal').classList.remove('hidden');
+  },
+
+  saveNewItem: async function(e) {
+    e.preventDefault();
+    const newItem = {
+      tenantId: this._state.tenantId,
+      branch: document.getElementById('bk-item-branch').value,
+      category: document.getElementById('bk-item-category').value,
+      name: document.getElementById('bk-item-name').value,
+      price: parseFloat(document.getElementById('bk-item-price').value),
+      stock: parseInt(document.getElementById('bk-item-stock').value),
+      createdAt: serverTimestamp()
+    };
+    try {
+      await addDoc(collection(db, 'items'), newItem);
+      showToast('Item saved successfully');
+      document.getElementById('bk-add-item-modal').classList.add('hidden');
+      this.renderItems();
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  deleteItem: async function(id) {
+    if(!confirm('Are you sure?')) return;
+    try {
+      await deleteDoc(doc(db, 'items', id));
+      showToast('Item deleted');
+      this.renderItems();
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  addToCart: function() {
+    const itemId = document.getElementById('bk-sale-item-select').value;
+    const qty = parseInt(document.getElementById('bk-sale-qty').value);
+    const item = this._state.items.find(i => i.id === itemId);
+    if (!item || qty <= 0) return;
+    if (item.stock < qty) return showToast('Not enough stock!', 'error');
+
+    const existing = this._state.cart.find(c => c.id === itemId);
+    if (existing) existing.qty += qty;
+    else this._state.cart.push({ id: item.id, name: item.name, price: item.price, qty: qty });
+    
+    this.renderCart();
+  },
+
+  removeFromCart: function(index) {
+    this._state.cart.splice(index, 1);
+    this.renderCart();
+  },
+
+  clearCart: function() {
+    this._state.cart = [];
+    this.renderCart();
+  },
+
+  completeSale: async function() {
+    if (this._state.cart.length === 0) return showToast('Cart is empty', 'error');
+    const total = this._state.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const paid = parseFloat(document.getElementById('bk-sale-paid').value) || 0;
+    
+    const saleData = {
+      tenantId: this._state.tenantId,
+      date: document.getElementById('bk-sale-date').value,
+      branch: document.getElementById('bk-sale-branch').value,
+      paymentType: document.getElementById('bk-sale-payment').value,
+      items: this._state.cart,
+      total: total,
+      paid: paid,
+      unpaid: total - paid,
+      createdAt: serverTimestamp()
+    };
+
+    try {
+      // 1. Save Sale
+      await addDoc(collection(db, 'sales'), saleData);
+      
+      // 2. Deduct Stock
+      for (let item of this._state.cart) {
+        const itemRef = doc(db, 'items', item.id);
+        await updateDoc(itemRef, { stock: increment(-item.qty) });
+      }
+      
+      showToast('Sale completed successfully');
+      this.clearCart();
+      document.getElementById('bk-sale-paid').value = '';
+      await this.loadItems(); // Refresh local items stock
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  saveQuickSale: async function(e) {
+    e.preventDefault();
+    const saleData = {
+      tenantId: this._state.tenantId,
+      date: document.getElementById('bk-qs-date').value,
+      category: document.getElementById('bk-qs-category').value,
+      branch: document.getElementById('bk-qs-branch').value,
+      total: parseFloat(document.getElementById('bk-qs-amount').value),
+      isQuick: true,
+      createdAt: serverTimestamp()
+    };
+    try {
+      await addDoc(collection(db, 'sales'), saleData);
+      showToast('Income added successfully');
+      e.target.reset();
+      document.getElementById('bk-qs-date').value = todayStr();
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  savePurchase: async function(e) {
+    e.preventDefault();
+    const itemId = document.getElementById('bk-purch-item').value;
+    const qty = parseInt(document.getElementById('bk-purch-qty').value);
+    const cost = parseFloat(document.getElementById('bk-purch-cost').value);
+    const itemName = this._state.items.find(i => i.id === itemId)?.name || 'Unknown';
+    
+    try {
+      await addDoc(collection(db, 'purchases'), {
+        tenantId: this._state.tenantId,
+        itemId, itemName, qty, cost,
+        date: document.getElementById('bk-purch-date').value,
+        createdAt: serverTimestamp()
+      });
+      await updateDoc(doc(db, 'items', itemId), { stock: increment(qty) });
+      showToast('Purchase recorded and stock updated');
+      e.target.reset();
+      document.getElementById('bk-purch-date').value = todayStr();
+      this.renderPurchasesUI();
+      await this.loadItems();
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  saveExpense: async function(e) {
+    e.preventDefault();
+    const expData = {
+      tenantId: this._state.tenantId,
+      branch: document.getElementById('bk-exp-branch').value,
+      category: document.getElementById('bk-exp-category').value,
+      amount: parseFloat(document.getElementById('bk-exp-amount').value),
+      date: document.getElementById('bk-exp-date').value,
+      note: document.getElementById('bk-exp-note').value,
+      createdAt: serverTimestamp()
+    };
+    try {
+      await addDoc(collection(db, 'expenses'), expData);
+      showToast('Expense saved');
+      e.target.reset();
+      document.getElementById('bk-exp-date').value = todayStr();
+      this.renderExpensesUI();
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  saveSettings: async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('bk-set-name').value;
+    const phone = document.getElementById('bk-set-phone').value;
+    const threshold = parseInt(document.getElementById('bk-set-threshold').value);
+    
+    try {
+      await updateDoc(doc(db, 'tenants', this._state.tenantId), {
+        name, phone, lowStockThreshold: threshold
+      });
+      this._state.settings.name = name;
+      this._state.settings.phone = phone;
+      this._state.threshold = threshold;
+      showToast('Settings saved');
+      document.getElementById('hdrBusinessName').textContent = name;
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  addBranch: async function() {
+    const input = document.getElementById('bk-new-branch');
+    const branchName = input.value.trim();
+    if (!branchName) return;
+    
+    const newBranches = [...this._state.branches, branchName];
+    try {
+      await updateDoc(doc(db, 'tenants', this._state.tenantId), { branches: newBranches });
+      this._state.branches = newBranches;
+      this.populateBranchesDropdowns();
+      this.renderBranchesList();
+      input.value = '';
+      showToast('Branch added');
+    } catch (err) { showToast(err.message, 'error'); }
+  },
+
+  // ═══════════════════════════════════════════
+  // 📊 REPORTING LOGIC
+  // ═══════════════════════════════════════════
+  loadReportData: async function() {
+    const timeframe = document.getElementById('bk-report-timeframe').value;
+    const branch = document.getElementById('bk-report-branch').value;
+    
+    let dateCondition = '';
+    if (timeframe === 'daily') dateCondition = todayStr();
+    else if (timeframe === 'monthly') dateCondition = thisMonthStr();
+    else if (timeframe === 'yearly') dateCondition = thisYearStr();
+
+    // Fetch Sales
+    let qSales = query(collection(db, 'sales'), where('tenantId', '==', this._state.tenantId));
+    if (branch !== 'all') qSales = query(qSales, where('branch', '==', branch));
+    // Note: For optimal performance, date filtering should be done via Firestore queries (using >= and <=)
+    // But since dates are strings (YYYY-MM-DD), we filter in JS for simplicity in this snippet.
+    
+    const snapSales = await getDocs(qSales);
+    const allSales = snapSales.docs.map(d => d.data()).filter(s => s.date.startsWith(dateCondition));
+
+    // Fetch Expenses
+    let qExp = query(collection(db, 'expenses'), where('tenantId', '==', this._state.tenantId));
+    if (branch !== 'all') qExp = query(qExp, where('branch', '==', branch));
+    const snapExp = await getDocs(qExp);
+    const allExp = snapExp.docs.map(d => d.data()).filter(e => e.date.startsWith(dateCondition));
+
+    // Calculations
+    let revenue = 0, unpaid = 0, cash = 0, transfer = 0;
+    const itemSales = {}; // { itemName: { qty, revenue } }
+
+    allSales.forEach(s => {
+      revenue += s.total || 0;
+      unpaid += s.unpaid || 0;
+      if (s.paymentType === 'cash') cash += s.total || 0;
+      else if (s.paymentType === 'transfer') transfer += s.total || 0;
+      
+      if (s.items) {
+        s.items.forEach(it => {
+          if (!itemSales[it.name]) itemSales[it.name] = { qty: 0, rev: 0 };
+          itemSales[it.name].qty += it.qty;
+          itemSales[it.name].rev += (it.price * it.qty);
+        });
+      }
+    });
+
+    let expenses = 0;
+    allExp.forEach(e => { expenses += e.amount || 0; });
+
+    document.getElementById('bk-rep-revenue').textContent = money(revenue) + ' ETB';
+    document.getElementById('bk-rep-expenses').textContent = money(expenses) + ' ETB';
+    document.getElementById('bk-rep-profit').textContent = money(revenue - expenses) + ' ETB';
+    document.getElementById('bk-rep-unpaid').textContent = money(unpaid) + ' ETB';
+    document.getElementById('bk-rep-cash').textContent = money(cash) + ' ETB';
+    document.getElementById('bk-rep-transfer').textContent = money(transfer) + ' ETB';
+
+    // Top Items
+    const sortedItems = Object.entries(itemSales).sort((a, b) => b[1].rev - a[1].rev).slice(0, 5);
+    document.getElementById('bk-rep-top-items').innerHTML = sortedItems.map(([name, data], idx) => `
+      <tr><td>${idx + 1}</td><td>${esc(name)}</td><td>${data.qty}</td><td>${money(data.rev)} ETB</td></tr>
+    `).join('');
+
+    // Store data for CSV export
+    this._state.reportData = { timeframe, branch, revenue, expenses, profit: revenue - expenses, unpaid, cash, transfer, sortedItems };
+  },
+
+  exportReportCSV: function() {
+    if (!this._state.reportData) return showToast('No data to export', 'warning');
+    const d = this._state.reportData;
+    
+    let csv = "Metric,Value (ETB)\n";
+    csv += `Revenue,${d.revenue}\nExpenses,${d.expenses}\nProfit,${d.profit}\nUnpaid,${d.unpaid}\nCash,${d.cash}\nTransfer,${d.transfer}\n\n`;
+    csv += "Top Selling Items\n#,Item,Qty,Revenue\n";
+    d.sortedItems.forEach(([name, data], i) => {
+      csv += `${i+1},${name},${data.qty},${data.rev}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `report_${d.timeframe}_${Date.now()}.csv`;
+    link.click();
   }
-  window.__bakeryRenderReports();
-};
-
-window.__bakeryRenderReports = function() {
-  if (!document.getElementById('repRevenue')) return;
-  
-  let filterVal = '';
-  if (currentReportType === 'daily') filterVal = document.getElementById('reportDate').value;
-  else if (currentReportType === 'monthly') filterVal = document.getElementById('reportMonth').value;
-  else filterVal = document.getElementById('reportYear').value;
-  
-  if (!filterVal) return;
-  
-  const filteredSales = allSales.filter(s => s.date && s.date.startsWith(filterVal));
-  const filteredExps = allExpenses.filter(e => e.date && e.date.startsWith(filterVal));
-  
-  let revenue = 0, unpaid = 0, cash = 0, transfer = 0;
-  
-  filteredSales.forEach(s => {
-    revenue += (s.paidAmount || 0);
-    unpaid += (s.unpaid || 0);
-    if (s.paymentType === 'cash') cash += (s.paidAmount || 0);
-    if (s.paymentType === 'transfer') transfer += (s.paidAmount || 0);
-  });
-  
-  const totalExp = filteredExps.reduce((s, e) => s + e.amount, 0);
-  const profit = revenue - totalExp;
-  
-  document.getElementById('repRevenue').textContent = money(revenue);
-  document.getElementById('repExpenses').textContent = money(totalExp);
-  document.getElementById('repProfit').textContent = money(profit);
-  document.getElementById('repUnpaid').textContent = money(unpaid);
-  document.getElementById('repCash').textContent = money(cash);
-  document.getElementById('repTransfer').textContent = money(transfer);
-};
-
-// ═══════════════════════════════════════════
-// 🎨 EXTRA SETTINGS (ተጨማሪ ቅንብሮች)
-// ═══════════════════════════════════════════
-window.__bakeryToggleDark = function() {
-  const isDark = !document.body.classList.contains('dark-mode');
-  if (isDark) document.body.classList.add('dark-mode');
-  else document.body.classList.remove('dark-mode');
-  updateDoc(doc(db, 'tenants', state.tenantId), { darkMode: isDark }).catch(() => {});
 };
