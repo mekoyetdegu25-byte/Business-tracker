@@ -35,13 +35,13 @@ body.dark-mode {
 
 /* ─── MODULE THEMES (businessType መሰረት) ─── */
 body[data-module="bakery"]      { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
-body[data-module="laundry"]     { --primary: #1e40af; --primary-light: #2563eb; --accent: #3b82f6; }
-body[data-module="hotel"]       { --primary: #5b21b6; --primary-light: #7c3aed; --accent: #8b5cf6; }
-body[data-module="restaurant"]  { --primary: #9a3412; --primary-light: #c2410c; --accent: #f97316; }
-body[data-module="supermarket"] { --primary: #065f46; --primary-light: #047857; --accent: #10b981; }
-body[data-module="retail"]      { --primary: #155e75; --primary-light: #0e7490; --accent: #06b6d4; }
-body[data-module="drinks"]      { --primary: #991b1b; --primary-light: #b91c1c; --accent: #ef4444; }
-body[data-module="pension"]     { --primary: #334155; --primary-light: #475569; --accent: #64748b; }
+body[data-module="laundry"]     { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="hotel"]       { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="restaurant"]  { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="supermarket"] { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="retail"]      { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="drinks"]      { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
+body[data-module="pension"]     { --primary: #1a365d; --primary-light: #2c5282; --accent: #d4af37; }
 
 /* ─── RESET ─── */
 * {
