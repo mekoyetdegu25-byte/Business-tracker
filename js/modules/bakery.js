@@ -26,13 +26,14 @@ let openCategories = new Set();
 export const BakeryModule = {
   name: 'Bakery',
   icon: '🍞',
-    navItems: [
+      navItems: [
     { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true },
     { id: 'panel2', label: 'New Sale', icon: '🛒' },
     { id: 'panelQuickSale', label: 'Quick', icon: '⚡' },
     { id: 'panel1', label: 'Items', icon: '🍞' },
     { id: 'panel6', label: 'Reports', icon: '📊' },
-    { id: 'panel8', label: 'Settings', icon: '⚙️' },
+    { id: 'panel8', label: 'Settings', icon: '⚙️' }, // 👈 6ኛው ይህ ነው
+    // ከዚህ በታች ያሉት በሞባይል ማውጫ ላይ አይታዩም (ምክንያቱም slice(0, 6) ስላለ)
     { id: 'panelPurchases', label: 'Purchases', icon: '📥' },
     { id: 'panel4', label: 'Expenses', icon: '💸' }
   ],
