@@ -1,6 +1,6 @@
 // js/modules/bakery.js
 import { db } from '../firebase.js';
-import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { collection, addDoc, query, where, serverTimestamp, doc, updateDoc, deleteDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { state, esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast } from '../core.js';
 
 // ═══════════════════════════════════════════
@@ -20,19 +20,52 @@ let reportType = 'daily';
 let unsubBranches = null, unsubServices = null, unsubSales = null, unsubExpenses = null, unsubPurchases = null;
 let openCategories = new Set();
 
+const MODAL_ID = 'serviceModal';
+
+const SERVICE_MODAL_HTML = `
+<div class="modal-overlay" id="${MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="serviceModalTitle">➕ Add Item</h3>
+      <button class="modal-close" onclick="window.closeServiceModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="serviceBranchSection" style="display:none;">
+        <label class="field-label" style="margin-top:0;">🏢 Branch *</label>
+        <select id="serviceBranch"></select>
+      </div>
+      <label class="field-label" style="margin-top:0;">📁 Category *</label>
+      <input list="serviceCategoryList" id="serviceCategory" placeholder="e.g. Bread, Cake">
+      <datalist id="serviceCategoryList">
+        <option value="Bread">
+        <option value="Cake">
+        <option value="Biscuit">
+        <option value="Pastry">
+      </datalist>
+      <label class="field-label">🍞 Item Name *</label>
+      <input type="text" id="serviceName" placeholder="e.g. White Bread">
+      <label class="field-label">💰 Price (ETB) *</label>
+      <input type="number" id="servicePrice" placeholder="15.00" step="any">
+      <label class="field-label">📦 Stock Quantity *</label>
+      <input type="number" id="serviceStock" placeholder="50">
+      <button class="btn btn-success" onclick="window.saveService()" id="saveServiceBtn">💾 Save</button>
+    </div>
+  </div>
+</div>`;
+
 // ═══════════════════════════════════════════
 // 🧩 MODULE DEFINITION
 // ═══════════════════════════════════════════
 export const BakeryModule = {
   name: 'Bakery',
   icon: '🍞',
-      navItems: [
+  navItems: [
     { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true },
     { id: 'panel2', label: 'New Sale', icon: '🛒' },
     { id: 'panelQuickSale', label: 'Quick', icon: '⚡' },
     { id: 'panel1', label: 'Items', icon: '🍞' },
-    { id: 'panel8', label: 'Settings', icon: '⚙️' }, // 👈 6ኛው ይህ ነው
-    // ከዚህ በታች ያሉት በሞባይል ማውጫ ላይ አይታዩም (ምክንያቱም slice(0, 6) ስላለ)
+    { id: 'panel8', label: 'Settings', icon: '⚙️' },
+    // ከዚህ በታች ያሉት በሞባይል የታችኛው ማውጫ ላይ አይታዩም (slice(0, 5))
     { id: 'panel6', label: 'Reports', icon: '📊' },
     { id: 'panelPurchases', label: 'Purchases', icon: '📥' },
     { id: 'panel4', label: 'Expenses', icon: '💸' }
@@ -88,10 +121,10 @@ export const BakeryModule = {
       <div class="card">
         <div class="card-title">
           <span>🍞 Bakery Items</span>
-          <button class="btn btn-primary btn-sm" onclick="openServiceModal()">➕ Add Item</button>
+          <button class="btn btn-primary btn-sm" onclick="window.openServiceModal()">➕ Add Item</button>
         </div>
         <div class="filter-bar">
-          <input type="text" id="searchService" placeholder="🔍 Search item..." oninput="servicePage=1; window.renderServiceList()">
+          <input type="text" id="searchService" placeholder="🔍 Search item..." oninput="window.bakeryServiceSearch()">
         </div>
         <div id="serviceListContainer"></div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
@@ -224,7 +257,7 @@ export const BakeryModule = {
         </div>
         <h4 style="font-size:14px; font-weight:700; margin-bottom:12px;">📋 Recent Expenses</h4>
         <div class="filter-bar">
-          <input type="text" id="searchExpense" placeholder="🔍 Search..." oninput="expensesPage=1; window.renderExpenses()">
+          <input type="text" id="searchExpense" placeholder="🔍 Search..." oninput="window.bakeryExpenseSearch()">
         </div>
         <div class="date-filter-chips">
           <button class="date-chip active" onclick="window.setExpenseDateFilter('recent', this)">Recent</button>
@@ -327,12 +360,18 @@ export const BakeryModule = {
       </div>
     `}
   ],
-  
+
   // ═══════════════════════════════════════════
-  // 🚀 INIT (አንድ ጊዜ ሲጫን የሚሰራ)
+  // 🚀 INIT
   // ═══════════════════════════════════════════
   init: async (appState) => {
-    // Global functions ማዘጋጀት (ለ HTML onclick)
+    // Modal ን ወደ global container ማስገባት
+    const modalHost = document.getElementById('globalModalContainer');
+    if (modalHost && !document.getElementById(MODAL_ID)) {
+      modalHost.insertAdjacentHTML('beforeend', SERVICE_MODAL_HTML);
+    }
+
+    // Global functions ማዘጋጀት
     window.renderServiceList = renderServiceList;
     window.renderPOSProducts = renderPOSProducts;
     window.updateUnpaidDisplay = updateUnpaidDisplay;
@@ -359,7 +398,9 @@ export const BakeryModule = {
     window.deleteBranch = deleteBranch;
     window.exportReportCSV = exportReportCSV;
     window.printReport = printReport;
-    
+    window.bakeryServiceSearch = () => { servicePage = 1; renderServiceList(); };
+    window.bakeryExpenseSearch = () => { expensesPage = 1; renderExpenses(); };
+
     // Default Dates
     const today = todayStr();
     if (document.getElementById('orderDate')) document.getElementById('orderDate').value = today;
@@ -371,14 +412,11 @@ export const BakeryModule = {
     if (document.getElementById('reportYear')) document.getElementById('reportYear').value = thisYearStr();
     if (document.getElementById('expenseFilterDate')) document.getElementById('expenseFilterDate').value = today;
     if (document.getElementById('expenseFilterMonth')) document.getElementById('expenseFilterMonth').value = thisMonthStr();
-    if (document.getElementById('settingLowStock')) document.getElementById('settingLowStock').value = appState.lowStockThreshold;
+    if (document.getElementById('settingLowStock')) document.getElementById('settingLowStock').value = appState.lowStockThreshold || 10;
 
     await loadAllData(appState);
   },
 
-  // ═══════════════════════════════════════════
-  // 🔄 ON PAGE CHANGE (ገጽ ሲቀየር)
-  // ═══════════════════════════════════════════
   onPageChange: (panelId) => {
     if (panelId === 'panel1') renderServiceList();
     if (panelId === 'panel2') renderPOSProducts();
@@ -386,42 +424,30 @@ export const BakeryModule = {
     if (panelId === 'panelMobileHome') updateMobileHome();
   },
 
-  // ═══════════════════════════════════════════
-  // 🧹 CLEANUP (ሲወጣ)
-  // ═══════════════════════════════════════════
   cleanup: () => {
     if (unsubBranches) unsubBranches();
     if (unsubServices) unsubServices();
     if (unsubSales) unsubSales();
     if (unsubExpenses) unsubExpenses();
     if (unsubPurchases) unsubPurchases();
-    // Global functions ማጽዳት
-    delete window.renderServiceList;
-    delete window.renderPOSProducts;
-    delete window.updateUnpaidDisplay;
-    delete window.renderExpenses;
-    delete window.changeExpenseDate;
-    delete window.setExpenseDateFilter;
-    delete window.setReportType;
-    delete window.renderReports;
-    delete window.openServiceModal;
-    delete window.closeServiceModal;
-    delete window.saveService;
-    delete window.deleteService;
-    delete window.toggleCategory;
-    delete window.addToCart;
-    delete window.updateCartQty;
-    delete window.removeFromCart;
-    delete window.clearCart;
-    delete window.completeOrder;
-    delete window.addQuickSale;
-    delete window.savePurchase;
-    delete window.addExpense;
-    delete window.saveSettings;
-    delete window.addBranch;
-    delete window.deleteBranch;
-    delete window.exportReportCSV;
-    delete window.printReport;
+    unsubBranches = unsubServices = unsubSales = unsubExpenses = unsubPurchases = null;
+
+    document.getElementById(MODAL_ID)?.remove();
+
+    allBranches = []; allServices = []; allSales = []; allExpenses = []; allPurchases = []; cart = [];
+    editingServiceId = null; servicePage = 1; expensesPage = 1;
+    openCategories = new Set(); expenseDateFilter = 'recent'; reportType = 'daily';
+
+    const fnNames = [
+      'renderServiceList', 'renderPOSProducts', 'updateUnpaidDisplay', 'renderExpenses',
+      'changeExpenseDate', 'setExpenseDateFilter', 'setReportType', 'renderReports',
+      'openServiceModal', 'closeServiceModal', 'saveService', 'deleteService',
+      'toggleCategory', 'addToCart', 'updateCartQty', 'removeFromCart', 'clearCart',
+      'completeOrder', 'addQuickSale', 'savePurchase', 'addExpense', 'saveSettings',
+      'addBranch', 'deleteBranch', 'exportReportCSV', 'printReport',
+      'bakeryServiceSearch', 'bakeryExpenseSearch'
+    ];
+    fnNames.forEach(fn => delete window[fn]);
   }
 };
 
@@ -443,6 +469,7 @@ async function loadAllData(appState) {
     renderServiceList();
     renderPOSProducts();
     updateServiceCategories();
+    populatePurchaseItems();
   });
 
   unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', appState.tenantId)), snap => {
@@ -463,7 +490,6 @@ async function loadAllData(appState) {
     allPurchases = []; snap.forEach(d => allPurchases.push({ id: d.id, ...d.data() }));
     allPurchases.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderPurchases();
-    populatePurchaseItems();
   });
 }
 
@@ -486,7 +512,9 @@ function updateMobileHome() {
 function updateServiceCategories() {
   const cats = [...new Set(allServices.map(s => s.category).filter(Boolean))];
   const dl = document.getElementById('serviceCategoryList');
-  if (dl) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  if (dl && cats.length > 0) {
+    dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  }
 }
 
 function renderBranchSettings(appState) {
@@ -507,54 +535,54 @@ function renderBranchSettings(appState) {
 
 function updateBranchDropdowns(appState) {
   const hasBranches = appState.plan === 'pro' && allBranches.length > 0;
-  
+  const opts = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+
   const posSec = document.getElementById('posBranchSection');
   const posSel = document.getElementById('orderBranch');
   if (posSec) posSec.style.display = hasBranches ? 'block' : 'none';
-  if (hasBranches && posSel) posSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+  if (hasBranches && posSel) posSel.innerHTML = opts;
 
   const srvSec = document.getElementById('serviceBranchSection');
   const srvSel = document.getElementById('serviceBranch');
   if (srvSec) srvSec.style.display = hasBranches ? 'block' : 'none';
-  if (hasBranches && srvSel) srvSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+  if (hasBranches && srvSel) srvSel.innerHTML = opts;
 
   const expSec = document.getElementById('expBranchSection');
   const expSel = document.getElementById('expBranch');
   if (expSec) expSec.style.display = hasBranches ? 'block' : 'none';
-  if (hasBranches && expSel) expSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+  if (hasBranches && expSel) expSel.innerHTML = opts;
 
   const repSec = document.getElementById('reportBranchSection');
   const repSel = document.getElementById('reportBranch');
   if (repSec) repSec.style.display = hasBranches ? 'block' : 'none';
   if (hasBranches && repSel) {
     const currentVal = repSel.value;
-    repSel.innerHTML = '<option value="all">📊 All Branches</option>' + allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+    repSel.innerHTML = '<option value="all">📊 All Branches</option>' + opts;
     if (currentVal) repSel.value = currentVal;
   }
 
   const quickSec = document.getElementById('quickBranchSection');
   const quickSel = document.getElementById('quickBranch');
   if (quickSec) quickSec.style.display = hasBranches ? 'block' : 'none';
-  if (hasBranches && quickSel) quickSel.innerHTML = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+  if (hasBranches && quickSel) quickSel.innerHTML = opts;
 }
 
 async function addBranch() {
-  const appState = state;
-  if (appState.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
+  if (state.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
   const name = document.getElementById('newBranchName').value.trim();
   if (!name) return showToast('የቅርንጫፍ ስም ያስፈልጋል', 'error');
   if (allBranches.find(b => b.name.toLowerCase() === name.toLowerCase())) return showToast('ይህ ቅርንጫፍ አስቀድሞ አለ', 'error');
   try {
-    await addDoc(collection(db, 'branches'), { tenantId: appState.tenantId, name: name, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'branches'), { tenantId: state.tenantId, name, createdAt: serverTimestamp() });
     document.getElementById('newBranchName').value = '';
     showToast('✅ ቅርንጫፍ ተጨምሯል');
-  } catch(e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
+  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteBranch(id, name) {
   if (name === 'Main') return showToast('Main ማጥፋት አይቻልም', 'error');
   if (!confirm(`"${name}" ቅርንጫፍን ማጥፋት?`)) return;
-  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch(e) { showToast('❌ ስህተት', 'error'); }
+  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 // ═══════════════════════════════════════════
@@ -571,6 +599,9 @@ function openServiceModal(id = null) {
     document.getElementById('serviceName').value = s.name || '';
     document.getElementById('servicePrice').value = s.price || '';
     document.getElementById('serviceStock').value = s.quantity || 0;
+    if (state.plan === 'pro' && s.branch && document.getElementById('serviceBranch')) {
+      document.getElementById('serviceBranch').value = s.branch;
+    }
     document.getElementById('saveServiceBtn').textContent = '💾 Update';
   } else {
     document.getElementById('serviceModalTitle').textContent = '➕ Add Item';
@@ -580,21 +611,20 @@ function openServiceModal(id = null) {
     document.getElementById('serviceStock').value = '';
     document.getElementById('saveServiceBtn').textContent = '💾 Save';
   }
-  document.getElementById('serviceModal').classList.add('open');
+  document.getElementById(MODAL_ID)?.classList.add('open');
 }
 
 function closeServiceModal() {
-  document.getElementById('serviceModal').classList.remove('open');
+  document.getElementById(MODAL_ID)?.classList.remove('open');
   editingServiceId = null;
 }
 
 async function saveService() {
-  const appState = state;
   const category = document.getElementById('serviceCategory').value.trim();
   const name = document.getElementById('serviceName').value.trim();
   const price = parseFloat(document.getElementById('servicePrice').value);
   const stock = parseInt(document.getElementById('serviceStock').value) || 0;
-  const branch = appState.plan === 'pro' ? document.getElementById('serviceBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('serviceBranch')?.value || 'Main') : 'Main';
 
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (!name) return showToast('Item Name ያስፈልጋል', 'error');
@@ -605,7 +635,7 @@ async function saveService() {
       await updateDoc(doc(db, 'products', editingServiceId), { category, name, price, quantity: stock, branch });
       showToast('✅ ተሻሽሏል');
     } else {
-      await addDoc(collection(db, 'products'), { tenantId: appState.tenantId, category, name, price, quantity: stock, branch, createdAt: serverTimestamp() });
+      await addDoc(collection(db, 'products'), { tenantId: state.tenantId, category, name, price, quantity: stock, branch, createdAt: serverTimestamp() });
       showToast('✅ ተጨምሯል');
     }
     closeServiceModal();
@@ -630,32 +660,34 @@ function renderServiceList() {
   const search = (document.getElementById('searchService')?.value || '').toLowerCase();
   let filtered = allServices;
   if (search) filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(search) || (s.category || '').toLowerCase().includes(search));
-  
+
   const totalQty = allServices.reduce((s, x) => s + (x.quantity || 0), 0);
   const totalVal = allServices.reduce((s, x) => s + ((x.quantity || 0) * (x.price || 0)), 0);
   if (document.getElementById('totalStockQty')) document.getElementById('totalStockQty').textContent = totalQty;
   if (document.getElementById('totalStockValue')) document.getElementById('totalStockValue').textContent = money(totalVal);
-  
+
   if (filtered.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><div style="font-size:48px; margin-bottom:12px;">🍞</div><div style="font-weight:600;">ምንም ዕቃ የለም</div></div>`;
     renderPagination('servicePagination', 0, servicePage, servicePerPage, (page) => { servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; servicePage = 1; renderServiceList(); });
     return;
   }
-  
+
   const totalPages = Math.ceil(filtered.length / servicePerPage);
   if (servicePage > totalPages) servicePage = totalPages;
   const start = (servicePage - 1) * servicePerPage;
   const paginated = filtered.slice(start, start + servicePerPage);
-  
+
   const grouped = {};
   paginated.forEach(s => {
     const cat = s.category || 'Other';
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(s);
   });
-  
+
+  const threshold = state.lowStockThreshold || 10;
+
   container.innerHTML = Object.keys(grouped).sort().map(cat => {
-    const items = grouped[cat].sort((a,b) => a.name.localeCompare(b.name));
+    const items = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
     const isOpen = openCategories.has(cat) || (search && search.length > 0);
     return `
       <div class="category-collapsible ${isOpen ? 'open' : ''}">
@@ -664,7 +696,7 @@ function renderServiceList() {
         </div>
         <div class="category-body">
           ${items.map(s => {
-            const isLow = (s.quantity || 0) <= state.lowStockThreshold;
+            const isLow = (s.quantity || 0) <= threshold;
             return `
             <div class="item-row">
               <div class="item-row-name">🍞 ${esc(s.name)}<div style="font-size:11px; color:${isLow ? 'var(--danger)' : 'var(--success)'}; font-weight:700; margin-top:2px;">${isLow ? '⚠️' : '✅'} Stock: ${s.quantity || 0}</div></div>
@@ -678,7 +710,7 @@ function renderServiceList() {
         </div>
       </div>`;
   }).join('');
-  
+
   renderPagination('servicePagination', filtered.length, servicePage, servicePerPage, (page) => { servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; servicePage = 1; renderServiceList(); });
 }
 
@@ -691,13 +723,13 @@ function renderPOSProducts() {
   const search = (document.getElementById('searchProduct')?.value || '').toLowerCase();
   let filtered = allServices.filter(s => (s.quantity || 0) > 0);
   if (search) filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(search) || (s.category || '').toLowerCase().includes(search));
-  
+
   if (filtered.length === 0) {
     listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">ምንም ዕቃ የለም (ወይም ስቶክ አልቋል)</div>';
     return;
   }
-  
-  listEl.innerHTML = filtered.sort((a,b) => a.name.localeCompare(b.name)).map(s => `
+
+  listEl.innerHTML = filtered.sort((a, b) => a.name.localeCompare(b.name)).map(s => `
     <div class="product-card" onclick="window.addToCart('${s.id}')">
       <div><div class="p-name">${esc(s.name)}</div><div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Stock: ${s.quantity || 0}</div></div>
       <div class="p-price">${money(s.price)} ETB</div>
@@ -763,11 +795,10 @@ function updateUnpaidDisplay() {
 }
 
 async function completeOrder() {
-  const appState = state;
   const orderDate = document.getElementById('orderDate').value;
   const paid = parseFloat(document.getElementById('orderPaid').value) || 0;
   const paymentType = document.getElementById('orderPaymentType').value;
-  const branch = appState.plan === 'pro' ? document.getElementById('orderBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('orderBranch')?.value || 'Main') : 'Main';
 
   if (!orderDate) return showToast('ቀን ያስፈልጋል', 'error');
   if (cart.length === 0) return showToast('Cart ባዶ ነው', 'error');
@@ -776,7 +807,7 @@ async function completeOrder() {
 
   try {
     const items = cart.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty, total: c.price * c.qty }));
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, date: orderDate, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, date: orderDate, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, createdAt: serverTimestamp() });
     for (const c of cart) { await updateDoc(doc(db, 'products', c.id), { quantity: increment(-c.qty) }); }
     showToast('✅ Sale ተመዝግቧል');
     cart = []; renderCart();
@@ -790,18 +821,17 @@ async function completeOrder() {
 // ⚡ QUICK SALE
 // ═══════════════════════════════════════════
 async function addQuickSale() {
-  const appState = state;
   const date = document.getElementById('quickDate').value;
   const amount = parseFloat(document.getElementById('quickAmount').value);
   const category = document.getElementById('quickCategory').value.trim() || 'Quick Sale';
-  const branch = appState.plan === 'pro' ? document.getElementById('quickBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('quickBranch')?.value || 'Main') : 'Main';
 
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው መጠን ያስፈልጋል', 'error');
 
   try {
     await addDoc(collection(db, 'sales'), {
-      tenantId: appState.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, createdAt: serverTimestamp(), isQuickSale: true
+      tenantId: state.tenantId, date, items: [{ name: category, qty: 1, price: amount, total: amount }], total: amount, paidAmount: amount, unpaidAmount: 0, paymentType: 'cash', branch, createdAt: serverTimestamp(), isQuickSale: true
     });
     showToast('✅ Quick Sale ተመዝግቧል');
     document.getElementById('quickAmount').value = '';
@@ -835,7 +865,6 @@ function renderPurchases() {
 }
 
 async function savePurchase() {
-  const appState = state;
   const itemId = document.getElementById('purchaseItem').value;
   const date = document.getElementById('purchaseDate').value;
   const qty = parseInt(document.getElementById('purchaseQty').value);
@@ -850,7 +879,7 @@ async function savePurchase() {
 
   try {
     await addDoc(collection(db, 'purchases'), {
-      tenantId: appState.tenantId, itemId, itemName: item.name, date, quantity: qty, cost, totalCost: qty * cost, createdAt: serverTimestamp()
+      tenantId: state.tenantId, itemId, itemName: item.name, date, quantity: qty, cost, totalCost: qty * cost, createdAt: serverTimestamp()
     });
     await updateDoc(doc(db, 'products', itemId), { quantity: increment(qty) });
     showToast('✅ ግዢ ተመዝግቧል');
@@ -864,19 +893,18 @@ async function savePurchase() {
 // 💸 EXPENSES
 // ═══════════════════════════════════════════
 async function addExpense() {
-  const appState = state;
   const category = document.getElementById('expCategory').value.trim();
   const amount = parseFloat(document.getElementById('expAmount').value);
   const date = document.getElementById('expDate').value;
   const note = document.getElementById('expNote').value.trim();
-  const branch = appState.plan === 'pro' ? document.getElementById('expBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('expBranch')?.value || 'Main') : 'Main';
 
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
 
   try {
-    await addDoc(collection(db, 'expenses'), { tenantId: appState.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'expenses'), { tenantId: state.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
     document.getElementById('expCategory').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
@@ -909,7 +937,6 @@ function renderExpenses() {
   const search = (document.getElementById('searchExpense')?.value || '').toLowerCase();
   if (search) filtered = filtered.filter(e => (e.category || '').toLowerCase().includes(search) || (e.note || '').toLowerCase().includes(search));
 
-  const today = todayStr();
   const currentMonth = thisMonthStr();
   if (expenseDateFilter === 'date') {
     const d = document.getElementById('expenseFilterDate').value;
@@ -965,7 +992,6 @@ function setReportType(type, btn) {
 }
 
 function renderReports() {
-  const appState = state;
   if (!document.getElementById('repRevenue')) return;
 
   let filterDate = '';
@@ -977,16 +1003,14 @@ function renderReports() {
   if (headerEl) headerEl.textContent = headerText;
 
   let branchFilter = 'all';
-  if (appState.plan === 'pro' && document.getElementById('reportBranch')) branchFilter = document.getElementById('reportBranch').value;
+  if (state.plan === 'pro' && document.getElementById('reportBranch')) branchFilter = document.getElementById('reportBranch').value;
 
   let filteredSales = allSales.filter(s => {
     if (reportType === 'daily') return s.date === filterDate;
-    if (reportType === 'monthly') return s.date && s.date.startsWith(filterDate);
     return s.date && s.date.startsWith(filterDate);
   });
   let filteredExpenses = allExpenses.filter(e => {
     if (reportType === 'daily') return e.date === filterDate;
-    if (reportType === 'monthly') return e.date && e.date.startsWith(filterDate);
     return e.date && e.date.startsWith(filterDate);
   });
 
@@ -995,7 +1019,6 @@ function renderReports() {
     filteredExpenses = filteredExpenses.filter(e => e.branch === branchFilter);
   }
 
-  const totalRevenue = filteredSales.reduce((s, o) => s + (o.total || 0), 0);
   const totalPaid = filteredSales.reduce((s, o) => s + (o.paidAmount || 0), 0);
   const totalUnpaid = filteredSales.reduce((s, o) => s + (o.unpaidAmount || 0), 0);
   const totalExpenses = filteredExpenses.reduce((s, e) => s + (e.amount || 0), 0);
@@ -1062,13 +1085,15 @@ function printReport() {
 // ⚙️ SETTINGS
 // ═══════════════════════════════════════════
 async function saveSettings() {
-  const appState = state;
   const name = document.getElementById('settingBizName').value.trim();
   const phone = document.getElementById('settingBizPhone').value.trim();
   const lowStock = parseInt(document.getElementById('settingLowStock').value) || 10;
 
   try {
-    await updateDoc(doc(db, 'tenants', appState.tenantId), { name, phone, lowStockThreshold: lowStock });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { name, phone, lowStockThreshold: lowStock });
+    state.lowStockThreshold = lowStock;
+    if (name) document.getElementById('hdrBusinessName').textContent = name;
+    renderServiceList();
     showToast('✅ Settings ተቀምጧል');
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
@@ -1082,7 +1107,7 @@ function renderPagination(containerId, totalItems, currentPage, perPage, onPageC
   const totalPages = Math.ceil(totalItems / perPage);
   if (totalItems === 0) { el.innerHTML = ''; return; }
 
-  let html = `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:12px;">
+  const html = `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:12px;">
     <span style="font-size:12px; color:var(--text-muted);">Show</span>
     <select onchange="(${onPerPageChange.toString()})(parseInt(this.value))" style="width:auto; padding:4px 8px; font-size:12px; border-radius:6px;">
       ${[10, 25, 50].map(n => `<option value="${n}" ${n === perPage ? 'selected' : ''}>${n}</option>`).join('')}
