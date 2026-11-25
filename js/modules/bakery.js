@@ -4,55 +4,51 @@
 // ═══════════════════════════════════════════════════════════
 import { db, auth } from '../firebase.js';
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, serverTimestamp, writeBatch, increment
+  collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
+  query, orderBy, serverTimestamp, writeBatch, increment
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast, state } from '../core.js';
 
-// ─── የዘርፉ ውስጣዊ ሁኔታ ───
+// ─── ውስጣዊ ሁኔታ ───
 const B = {
-  items: [],
-  sales: [],
-  purchases: [],
-  expenses: [],
-  categories: [],
-  branches: [],
-  branchFilter: 'all',
-  cart: [],
-  paymentType: 'cash',
-  reportPeriod: 'daily',
-  reportBranch: 'all',
+  items: [], sales: [], purchases: [], expenses: [],
+  categories: [], branches: [],
+  cart: [], paymentType: 'cash',
+  reportPeriod: 'daily', reportBranch: 'all',
   expenseFilter: 'recent',
+  itemsPage: 1, itemsPerPage: 10, editingItemId: null,
   loaded: { items: false, sales: false, purchases: false, expenses: false },
 };
 
 const DEFAULT_CATEGORIES = ['ዳቦ', 'ኬክ', 'ብስኩት', 'መጠጥ', 'ሌላ'];
 
 // ═══════════════════════════════════════════════════════
-// 🧩 NAVIGATION + PANELS (ስሞች ከ HTML ጋር ይገጣጠማሉ)
+// 🧩 NAVIGATION
 // ═══════════════════════════════════════════════════════
 const navItems = [
-  { id: 'home',       icon: '🏠', label: 'Home',     default: true },
-  { id: 'newSale',    icon: '🛒', label: 'New Sale' },
-  { id: 'quickSale',  icon: '⚡', label: 'Quick' },
-  { id: 'items',      icon: '🍞', label: 'Items' },
-  { id: 'reports',    icon: '📊', label: 'Reports' },
-  { id: 'more',       icon: '⚙️', label: 'More' },
+  { id: 'home',      icon: '🏠', label: 'Home',     default: true },
+  { id: 'newSale',   icon: '🛒', label: 'New Sale' },
+  { id: 'quickSale', icon: '⚡', label: 'Quick' },
+  { id: 'items',     icon: '🍞', label: 'Items' },
+  { id: 'reports',   icon: '📊', label: 'Reports' },
+  { id: 'more',      icon: '⚙️', label: 'More' },
 ];
 
-// የ "More" ማውጫ ውስጥ ያሉት ገጾች
 const moreItems = [
-  { id: 'items',      icon: '🍞', label: 'Items (Stock)' },
-  { id: 'newSale',    icon: '🛒', label: 'New Sale' },
-  { id: 'quickSale',  icon: '⚡', label: 'Quick Sale' },
-  { id: 'purchases',  icon: '📥', label: 'Purchases' },
-  { id: 'expenses',   icon: '💸', label: 'Expenses' },
-  { id: 'reports',    icon: '📊', label: 'Reports' },
-  { id: 'settings',   icon: '⚙️', label: 'Settings' },
+  { id: 'items',     icon: '🍞', label: 'Items (Stock)' },
+  { id: 'newSale',   icon: '🛒', label: 'New Sale' },
+  { id: 'quickSale', icon: '⚡', label: 'Quick Sale' },
+  { id: 'purchases', icon: '📥', label: 'Purchases' },
+  { id: 'expenses',  icon: '💸', label: 'Expenses' },
+  { id: 'reports',   icon: '📊', label: 'Reports' },
+  { id: 'settings',  icon: '⚙️', label: 'Settings' },
 ];
 
-// ─── የገጽ HTML (ከ bakery index ጋር ተመሳሳይ) ───
+// ═══════════════════════════════════════════════════════
+// 🖼️ PANEL HTML
+// ═══════════════════════════════════════════════════════
 const panelsHTML = {
+
   home: `
     <div class="card">
       <div class="card-title">📅 Today's Summary</div>
@@ -97,13 +93,28 @@ const panelsHTML = {
     </div>
   `,
 
+  more: `
+    <div class="card">
+      <div class="card-title">⚙️ More</div>
+      <div class="more-menu-list">
+        ${moreItems.map(m => `
+          <div class="menu-header" onclick="switchPage('${m.id}')" data-tab="${m.id}">
+            <div class="m-left"><i>${m.icon}</i> <span>${esc(m.label)}</span></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `,
+
   items: `
     <div class="card">
       <div class="card-title">
         <span>🍞 Bakery Items</span>
         <button class="btn btn-primary btn-sm" onclick="openAddItemModal()">➕ Add Item</button>
       </div>
-      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+      <input type="text" id="itemsSearchInput" placeholder="🔍 Search item..." oninput="renderItems()">
+      <div id="itemsList" style="margin-top:12px;"></div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-top:12px;">
         <div class="summary-box blue">
           <div class="label">Total Quantity</div>
           <div class="value" id="itemsTotalQty">0</div>
@@ -113,7 +124,11 @@ const panelsHTML = {
           <div class="value" id="itemsTotalValue">0.00</div>
         </div>
       </div>
-      <div id="itemsList"></div>
+      <div class="pagination-controls">
+        <button id="itemsPrev" onclick="itemsPage(-1)">← Prev</button>
+        <span id="itemsPageInfo" style="font-size:12px;color:var(--text-muted);padding:0 8px;">Page 1 of 1</span>
+        <button id="itemsNext" onclick="itemsPage(1)">Next →</button>
+      </div>
     </div>
   `,
 
@@ -136,6 +151,7 @@ const panelsHTML = {
             <div class="empty-state"><div class="emoji">🛒</div><p>ምርት አልተመረጠም</p></div>
           </div>
           <div class="pos-cart-footer">
+            <label class="field-label">💳 Payment Type</label>
             <div class="payment-type-selector">
               <button class="payment-type-btn active" data-pay="cash" onclick="setPaymentType('cash', this)">💵 Cash</button>
               <button class="payment-type-btn" data-pay="transfer" onclick="setPaymentType('transfer', this)">🏦 Transfer</button>
@@ -152,7 +168,7 @@ const panelsHTML = {
               <div class="label">📝 Unpaid</div>
               <div class="value" id="saleUnpaid">0.00 ETB</div>
             </div>
-            <button class="btn btn-success" onclick="completeSale()">💸 Complete Sale</button>
+            <button class="btn btn-success" onclick="completeSale(event)">💸 Complete Sale</button>
             <button class="btn btn-outline" onclick="clearCart()">🗑️ Clear</button>
           </div>
         </div>
@@ -274,6 +290,7 @@ const panelsHTML = {
         <button class="report-type-tab" data-p="monthly" onclick="setReportPeriod('monthly', this)">📆 Monthly</button>
         <button class="report-type-tab" data-p="yearly" onclick="setReportPeriod('yearly', this)">📊 Yearly</button>
       </div>
+      <div style="text-align:center;font-weight:700;color:var(--text-muted);margin-bottom:12px;" id="repPeriodLabel">Daily (${todayStr()})</div>
       <div class="form-group">
         <label class="field-label">🏢 Branch Filter</label>
         <select id="repBranch" onchange="setReportBranch(this.value)"></select>
@@ -295,13 +312,15 @@ const panelsHTML = {
           <div class="label">Unpaid</div>
           <div class="value" id="repUnpaid">0.00</div>
         </div>
+      </div>
+      <div class="payment-breakdown">
         <div class="payment-breakdown-item cash">
           <div class="label">💵 Cash</div>
-          <div class="value" id="repCash">0.00</div>
+          <div class="value" id="repCash">0.00 ETB</div>
         </div>
         <div class="payment-breakdown-item transfer">
           <div class="label">🏦 Transfer</div>
-          <div class="value" id="repTransfer">0.00</div>
+          <div class="value" id="repTransfer">0.00 ETB</div>
         </div>
       </div>
     </div>
@@ -310,11 +329,11 @@ const panelsHTML = {
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;">
           <thead>
-            <tr style="border-bottom:1px solid var(--border);text-align:left;">
-              <th style="padding:8px;">#</th>
-              <th style="padding:8px;">Item</th>
-              <th style="padding:8px;">Qty</th>
-              <th style="padding:8px;">Revenue</th>
+            <tr style="border-bottom:1px solid var(--border);text-align:left;background:var(--bg);">
+              <th style="padding:10px 8px;">#</th>
+              <th style="padding:10px 8px;">Item</th>
+              <th style="padding:10px 8px;">Qty</th>
+              <th style="padding:10px 8px;">Revenue</th>
             </tr>
           </thead>
           <tbody id="repTopItems"></tbody>
@@ -354,8 +373,8 @@ const panelsHTML = {
     <div class="card">
       <div class="card-title">🎨 Theme</div>
       <div class="payment-type-selector">
-        <button class="payment-type-btn" onclick="setTheme('light', this)">☀️ Light</button>
-        <button class="payment-type-btn" onclick="setTheme('dark', this)">🌙 Dark</button>
+        <button class="payment-type-btn" data-theme="light" onclick="setTheme('light', this)">☀️ Light</button>
+        <button class="payment-type-btn" data-theme="dark" onclick="setTheme('dark', this)">🌙 Dark</button>
       </div>
     </div>
     <div class="card">
@@ -366,51 +385,39 @@ const panelsHTML = {
 };
 
 // ═══════════════════════════════════════════════════════
-// 🚀 MODULE INIT
+// 🚀 INIT
 // ═══════════════════════════════════════════════════════
 async function init(appState) {
-  // የገፆችን HTML ማስገባት
   const host = document.getElementById('modulePanels');
-  if (host) {
+
+  // ገጾች ሁለት ጊዜ እንዳይጫኑ
+  if (host && !host.querySelector('.panel')) {
     host.innerHTML = Object.keys(panelsHTML)
       .map(id => `<div class="panel" id="${id}">${panelsHTML[id]}</div>`)
       .join('');
   }
 
-  // "More" ገጾችን ማከል (ካልተጨመሩ)
-  ensureMorePanels();
-
-  // የጎን ማውጫ እና የሞባይል ማውጫ ማዘጋጀት
   buildSidebar();
   buildMobileNav();
-
-  // የቅርንጫፎችን እና ምድቦችን መጫን
   await ensureBranchSelects();
   await ensureCategorySelects();
 
-  // የመነሻ ገጽ
   switchPage('home');
-  await refreshHome();
-}
 
-function ensureMorePanels() {
-  const host = document.getElementById('modulePanels');
-  if (!host) return;
-  ['purchases', 'expenses', 'settings'].forEach(id => {
-    if (!document.getElementById(id)) {
-      const div = document.createElement('div');
-      div.className = 'panel';
-      div.id = id;
-      div.innerHTML = panelsHTML[id] || '';
-      host.appendChild(div);
-    }
-  });
+  // አሁን ያለውን theme ማሳየት
+  const isDark = document.body.classList.contains('dark-mode');
+  document.querySelector(`.payment-type-btn[data-theme="${isDark ? 'dark' : 'light'}"]`)?.classList.add('active');
+
+  await refreshHome();
 }
 
 function buildSidebar() {
   const sidebar = document.getElementById('sidebarNav');
   if (!sidebar) return;
-  const all = mergeNav(navItems, moreItems);
+  const seen = new Set(), all = [];
+  [...navItems, ...moreItems].forEach(i => {
+    if (!seen.has(i.id)) { seen.add(i.id); all.push(i); }
+  });
   sidebar.innerHTML = all.map(item => `
     <div class="menu-header ${item.default ? 'active' : ''}"
          data-tab="${item.id}" onclick="switchPage('${item.id}', this)">
@@ -420,9 +427,9 @@ function buildSidebar() {
 }
 
 function buildMobileNav() {
-  const mobileNav = document.getElementById('mobileBottomNav');
-  if (!mobileNav) return;
-  mobileNav.innerHTML = navItems.map(item => `
+  const nav = document.getElementById('mobileBottomNav');
+  if (!nav) return;
+  nav.innerHTML = navItems.map(item => `
     <button class="mobile-nav-item ${item.default ? 'active' : ''}"
             data-tab="${item.id}" onclick="mobileNavClick('${item.id}', this)">
       <span class="nav-icon">${item.icon}</span><span>${esc(item.label)}</span>
@@ -430,85 +437,59 @@ function buildMobileNav() {
   `).join('');
 }
 
-// ሁለቱን ዝርዝሮች በአንድ ላይ ማዋሃድ (ድግግሞሽ ሳይኖር)
-function mergeNav(primary, extra) {
-  const seen = new Set();
-  const out = [];
-  [...primary, ...extra].forEach(item => {
-    if (!seen.has(item.id)) { seen.add(item.id); out.push(item); }
-  });
-  return out;
-}
-
 // ═══════════════════════════════════════════════════════
 // 📊 DATA LOADERS
 // ═══════════════════════════════════════════════════════
-function tenantId() { return state.tenantId; }
+function col(name) { return collection(db, 'tenants', state.tenantId, name); }
 
-function col(name) {
-  return collection(db, 'tenants', tenantId(), name);
-}
-
-async function loadItems(force = false) {
+async function loadItems(force) {
   if (B.loaded.items && !force) return B.items;
   const snap = await getDocs(query(col('items'), orderBy('name')));
   B.items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  B.loaded.items = true;
-  return B.items;
+  B.loaded.items = true; return B.items;
 }
-
-async function loadSales(force = false) {
+async function loadSales(force) {
   if (B.loaded.sales && !force) return B.sales;
   const snap = await getDocs(query(col('sales'), orderBy('date', 'desc')));
   B.sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  B.loaded.sales = true;
-  return B.sales;
+  B.loaded.sales = true; return B.sales;
 }
-
-async function loadPurchases(force = false) {
+async function loadPurchases(force) {
   if (B.loaded.purchases && !force) return B.purchases;
   const snap = await getDocs(query(col('purchases'), orderBy('date', 'desc')));
   B.purchases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  B.loaded.purchases = true;
-  return B.purchases;
+  B.loaded.purchases = true; return B.purchases;
 }
-
-async function loadExpenses(force = false) {
+async function loadExpenses(force) {
   if (B.loaded.expenses && !force) return B.expenses;
   const snap = await getDocs(query(col('expenses'), orderBy('date', 'desc')));
   B.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  B.loaded.expenses = true;
-  return B.expenses;
+  B.loaded.expenses = true; return B.expenses;
 }
 
-// ─── ቅርንጫፎች → selects ───
 async function ensureBranchSelects() {
-  B.branches = state.tenantData?.branches || [];
-  if (!B.branches.length) B.branches = [{ id: 'main', name: 'Main Branch' }];
+  B.branches = (state.tenantData?.branches?.length)
+    ? state.tenantData.branches
+    : [{ id: 'main', name: 'Main' }];
 
-  const html = B.branches.map(b =>
-    `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
+  const opts = B.branches
+    .map(b => `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
 
   ['saleBranch', 'qsBranch', 'expBranch'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && !el.options.length) el.innerHTML = html;
+    if (el) el.innerHTML = opts;
   });
-
   const rep = document.getElementById('repBranch');
-  if (rep && !rep.options.length) {
-    rep.innerHTML = '<option value="all">📊 All Branches</option>' + html;
-  }
+  if (rep) rep.innerHTML = '<option value="all">📊 All Branches</option>' + opts;
 }
 
-// ─── ምድቦች → selects ───
 async function ensureCategorySelects() {
-  B.categories = state.tenantData?.categories?.length
+  B.categories = (state.tenantData?.categories?.length)
     ? state.tenantData.categories : DEFAULT_CATEGORIES;
-
-  const html = B.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const opts = B.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   ['qsCategory', 'expCategory'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && !el.options.length) el.innerHTML = html;
+    if (el) el.innerHTML = opts;
   });
 }
 
@@ -519,11 +500,10 @@ async function refreshHome() {
   const today = todayStr();
   await Promise.all([loadSales(true), loadExpenses(true)]);
 
-  const sales = B.sales.filter(s => s.date === today && s.type !== 'expense');
-  const exps  = B.expenses.filter(e => e.date === today);
-
-  const sTotal = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
-  const eTotal = exps.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  const sTotal = B.sales.filter(s => s.date === today)
+    .reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const eTotal = B.expenses.filter(e => e.date === today)
+    .reduce((a, e) => a + (Number(e.amount) || 0), 0);
 
   setText('homeSales', money(sTotal));
   setText('homeExpenses', money(eTotal));
@@ -538,19 +518,33 @@ async function renderItems() {
   const list = document.getElementById('itemsList');
   if (!list) return;
 
+  const q = (document.getElementById('itemsSearchInput')?.value || '').toLowerCase();
+  const filtered = B.items.filter(i =>
+    !q || (i.name || '').toLowerCase().includes(q) ||
+    (i.category || '').toLowerCase().includes(q));
+
   const totalQty = B.items.reduce((a, i) => a + (Number(i.stock) || 0), 0);
   const totalVal = B.items.reduce((a, i) => a + (Number(i.stock) || 0) * (Number(i.price) || 0), 0);
   setText('itemsTotalQty', totalQty.toLocaleString('en-US'));
   setText('itemsTotalValue', money(totalVal));
 
-  if (!B.items.length) {
-    list.innerHTML = `<div class="empty-state"><div class="emoji">🍞</div><p>እቃ አልተጨመረም</p></div>`;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / B.itemsPerPage));
+  if (B.itemsPage > totalPages) B.itemsPage = totalPages;
+  const start = (B.itemsPage - 1) * B.itemsPerPage;
+  const pageItems = filtered.slice(start, start + B.itemsPerPage);
+
+  setText('itemsPageInfo', `${filtered.length} total | Page ${B.itemsPage} of ${totalPages}`);
+  const prev = document.getElementById('itemsPrev'), next = document.getElementById('itemsNext');
+  if (prev) prev.disabled = B.itemsPage <= 1;
+  if (next) next.disabled = B.itemsPage >= totalPages;
+
+  if (!pageItems.length) {
+    list.innerHTML = `<div class="empty-state"><div class="emoji">🍞</div><p>እቃ አልተገኘም</p></div>`;
     return;
   }
 
-  // በምድብ መከፋፈል (collapsible)
   const byCat = {};
-  B.items.forEach(i => {
+  pageItems.forEach(i => {
     const c = i.category || 'ሌላ';
     (byCat[c] = byCat[c] || []).push(i);
   });
@@ -563,13 +557,13 @@ async function renderItems() {
         <div class="category-header" onclick="toggleCategory(this)">
           <div class="category-header-left">
             <span class="category-arrow">▶</span>
-            <span class="category-name">${esc(cat)}</span>
+            <span class="category-name">📁 ${esc(cat)}</span>
             <span class="category-count">${items.length}</span>
           </div>
           <span class="category-total">${catQty} qty</span>
         </div>
         <div class="category-body">
-          ${items.map(i => itemRowHTML(i)).join('')}
+          ${items.map(itemRowHTML).join('')}
         </div>
       </div>
     `;
@@ -577,24 +571,34 @@ async function renderItems() {
 }
 
 function itemRowHTML(i) {
-  const low = Number(i.stock) <= (state.lowStockThreshold || B.lowStockThreshold || 10);
+  const low = Number(i.stock) <= (state.lowStockThreshold || 10);
   return `
     <div class="item-row">
       <div class="item-row-name">
-        ${esc(i.name)}
+        🍞 ${esc(i.name)}
         <div style="font-size:11px;color:var(--text-muted);">
-          ${low ? '⚠️ ' : ''}${Number(i.stock) || 0} in stock
+          ${low ? '⚠️' : '✅'} Stock: ${Number(i.stock) || 0}
         </div>
       </div>
       <div class="item-row-price">${money(i.price)} ETB</div>
+      <button class="btn btn-outline btn-sm" onclick="editItem('${escJs(i.id)}')">✏️</button>
       <button class="btn btn-outline btn-sm" onclick="deleteItem('${escJs(i.id)}')">🗑️</button>
     </div>
   `;
 }
 
-// ─── Add Item Modal ───
-function openAddItemModal() {
+function itemsPage(delta) {
+  B.itemsPage = Math.max(1, (B.itemsPage || 1) + delta);
+  renderItems();
+}
+
+function toggleCategory(el) { el.parentElement.classList.toggle('open'); }
+
+// ─── Add/Edit Item Modal ───
+function openAddItemModal(item = null) {
+  B.editingItemId = item?.id || null;
   let modal = document.getElementById('addItemModal');
+
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'addItemModal';
@@ -602,7 +606,7 @@ function openAddItemModal() {
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h3>➕ Add Item</h3>
+          <h3 id="addItemTitle">➕ Add Item</h3>
           <button class="modal-close" onclick="closeAddItemModal()">×</button>
         </div>
         <div class="modal-body">
@@ -632,17 +636,24 @@ function openAddItemModal() {
     `;
     document.body.appendChild(modal);
 
-    const bHtml = B.branches.map(b =>
-      `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
-    document.getElementById('newItemBranch').innerHTML = bHtml;
+    document.getElementById('newItemBranch').innerHTML =
+      B.branches.map(b => `<option value="${esc(b.id || b.name)}">${esc(b.name)}</option>`).join('');
     document.getElementById('newItemCategory').innerHTML =
       B.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   }
+
+  document.getElementById('addItemTitle').textContent = item ? '✏️ Edit Item' : '➕ Add Item';
+  document.getElementById('newItemName').value = item?.name || '';
+  document.getElementById('newItemPrice').value = item?.price ?? '';
+  document.getElementById('newItemStock').value = item?.stock ?? '';
+  if (item?.category) document.getElementById('newItemCategory').value = item.category;
+
   modal.classList.add('open');
 }
 
 function closeAddItemModal() {
   document.getElementById('addItemModal')?.classList.remove('open');
+  B.editingItemId = null;
 }
 
 async function saveItem() {
@@ -656,13 +667,19 @@ async function saveItem() {
   if (price <= 0) return showToast('ትክክለኛ ዋጋ አስገባ', 'error');
 
   try {
-    await addDoc(col('items'), {
-      name, price, stock, category, branch,
-      createdBy: auth.currentUser?.uid || null,
-      createdAt: serverTimestamp(),
-    });
+    if (B.editingItemId) {
+      await updateDoc(doc(db, 'tenants', state.tenantId, 'items', B.editingItemId),
+        { name, price, stock, category, branch, updatedAt: serverTimestamp() });
+      showToast('እቃ ተስተካክሏል ✏️');
+    } else {
+      await addDoc(col('items'), {
+        name, price, stock, category, branch,
+        createdBy: auth.currentUser?.uid || null,
+        createdAt: serverTimestamp(),
+      });
+      showToast('እቃ ተጨምሯል ✅');
+    }
     closeAddItemModal();
-    showToast('እቃ ተጨምሯል ✅');
     await renderItems();
     await refreshSaleProducts();
   } catch (e) {
@@ -670,19 +687,18 @@ async function saveItem() {
   }
 }
 
+function editItem(id) {
+  const item = B.items.find(i => i.id === id);
+  if (item) openAddItemModal(item);
+}
+
 async function deleteItem(id) {
   if (!confirm('ይህን እቃ ማጥፋት ትፈልጋለህ?')) return;
   try {
-    await deleteDoc(doc(db, 'tenants', tenantId(), 'items', id));
+    await deleteDoc(doc(db, 'tenants', state.tenantId, 'items', id));
     showToast('ተጠፍቷል 🗑️');
     await renderItems();
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
-}
-
-function toggleCategory(el) {
-  el.parentElement.classList.toggle('open');
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -697,9 +713,8 @@ function renderSaleProducts() {
   const host = document.getElementById('saleProducts');
   if (!host) return;
   const q = (document.getElementById('saleSearch')?.value || '').toLowerCase();
-
   const filtered = B.items.filter(i =>
-    !q || (i.name || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
+    !q || (i.name || '').toLowerCase().includes(q));
 
   if (!filtered.length) {
     host.innerHTML = `<div class="empty-state"><div class="emoji">🍞</div><p>ምርት አልተገኘም</p></div>`;
@@ -709,6 +724,7 @@ function renderSaleProducts() {
   host.innerHTML = filtered.map(i => `
     <div class="product-card" onclick="addToCart('${escJs(i.id)}')">
       <div class="p-name">${esc(i.name)}</div>
+      <div class="p-stock" style="font-size:11px;color:var(--text-muted);">Stock: ${Number(i.stock) || 0}</div>
       <div class="p-price">${money(i.price)} ETB</div>
     </div>
   `).join('');
@@ -717,13 +733,12 @@ function renderSaleProducts() {
 function addToCart(itemId) {
   const item = B.items.find(i => i.id === itemId);
   if (!item) return;
-
   const existing = B.cart.find(c => c.itemId === itemId);
+
   if (existing) {
-    if (existing.qty + 1 > (Number(item.stock) || 0)) {
+    if (existing.qty + 1 > (Number(item.stock) || 0))
       return showToast('ክምችት አልበቃም', 'warning');
-    }
-    existing.qty += 1;
+    existing.qty++;
   } else {
     if ((Number(item.stock) || 0) < 1) return showToast('ክምችት አልበቃም', 'warning');
     B.cart.push({ itemId, name: item.name, price: Number(item.price) || 0, qty: 1 });
@@ -734,16 +749,15 @@ function addToCart(itemId) {
 function changeCartQty(itemId, delta) {
   const line = B.cart.find(c => c.itemId === itemId);
   if (!line) return;
-  const item = B.items.find(i => i.id === itemId);
-  const max = Number(item?.stock) || 0;
-
+  const max = Number(B.items.find(i => i.id === itemId)?.stock) || 0;
   line.qty += delta;
-  if (line.qty <= 0) {
-    B.cart = B.cart.filter(c => c.itemId !== itemId);
-  } else if (line.qty > max) {
-    line.qty = max;
-    showToast('ከክምችት በላይ አይቻልም', 'warning');
-  }
+  if (line.qty <= 0) B.cart = B.cart.filter(c => c.itemId !== itemId);
+  else if (line.qty > max) { line.qty = max; showToast('ከክምችት በላይ አይቻልም', 'warning'); }
+  renderCart();
+}
+
+function removeFromCart(itemId) {
+  B.cart = B.cart.filter(c => c.itemId !== itemId);
   renderCart();
 }
 
@@ -753,8 +767,7 @@ function renderCart() {
 
   if (!B.cart.length) {
     host.innerHTML = `<div class="empty-state"><div class="emoji">🛒</div><p>ምርት አልተመረጠም</p></div>`;
-    renderSaleTotal();
-    return;
+    renderSaleTotal(); return;
   }
 
   host.innerHTML = B.cart.map(c => `
@@ -775,20 +788,13 @@ function renderCart() {
   renderSaleTotal();
 }
 
-function removeFromCart(itemId) {
-  B.cart = B.cart.filter(c => c.itemId !== itemId);
-  renderCart();
-}
-
 function setPaymentType(type, btn) {
   B.paymentType = type;
   document.querySelectorAll('.payment-type-btn[data-pay]').forEach(b => b.classList.remove('active'));
   btn?.classList.add('active');
 }
 
-function cartTotal() {
-  return B.cart.reduce((a, c) => a + c.price * c.qty, 0);
-}
+function cartTotal() { return B.cart.reduce((a, c) => a + c.price * c.qty, 0); }
 
 function renderSaleTotal() {
   const total = cartTotal();
@@ -799,12 +805,12 @@ function renderSaleTotal() {
 
 function clearCart() {
   B.cart = [];
-  const paid = document.getElementById('salePaid');
-  if (paid) paid.value = '0';
+  const p = document.getElementById('salePaid');
+  if (p) p.value = '0';
   renderCart();
 }
 
-async function completeSale() {
+async function completeSale(event) {
   if (!B.cart.length) return showToast('ጋሪ ባዶ ነው', 'warning');
 
   const total = cartTotal();
@@ -819,27 +825,18 @@ async function completeSale() {
 
   try {
     const batch = writeBatch(db);
-
-    // 1. ሽያጭ መመዝገብ
-    const saleRef = doc(col('sales'));
-    batch.set(saleRef, {
+    batch.set(doc(col('sales')), {
       date, branch,
       items: B.cart.map(c => ({ itemId: c.itemId, name: c.name, price: c.price, qty: c.qty })),
-      total, paid,
-      unpaid: Math.max(0, total - paid),
-      paymentType: B.paymentType,
-      type: 'sale',
+      total, paid, unpaid: Math.max(0, total - paid),
+      paymentType: B.paymentType, type: 'sale',
       soldBy: auth.currentUser?.uid || null,
       createdAt: serverTimestamp(),
     });
-
-    // 2. ክምችት መቀነስ
     B.cart.forEach(c => {
-      batch.update(doc(db, 'tenants', tenantId(), 'items', c.itemId), {
-        stock: increment(-c.qty),
-      });
+      batch.update(doc(db, 'tenants', state.tenantId, 'items', c.itemId),
+        { stock: increment(-c.qty) });
     });
-
     await batch.commit();
 
     showToast('ሽያጭ ተመዝግቧል ✅');
@@ -867,21 +864,16 @@ async function saveQuickSale() {
 
   try {
     await addDoc(col('sales'), {
-      date, branch, category,
-      items: [],
+      date, branch, category, items: [],
       total: amount, paid: amount, unpaid: 0,
-      paymentType: 'cash',
-      type: 'quick',
+      paymentType: 'cash', type: 'quick',
       soldBy: auth.currentUser?.uid || null,
       createdAt: serverTimestamp(),
     });
     document.getElementById('qsAmount').value = '';
     showToast('ገቢ ተመዝግቧል ✅');
     await refreshHome();
-    await refreshReports();
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -891,12 +883,9 @@ async function refreshPurchaseSelect() {
   await loadItems();
   const sel = document.getElementById('purItem');
   if (!sel) return;
-  if (!B.items.length) {
-    sel.innerHTML = '<option value="">— እቃ የለም —</option>';
-    return;
-  }
-  sel.innerHTML = B.items.map(i =>
-    `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
+  sel.innerHTML = B.items.length
+    ? B.items.map(i => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('')
+    : '<option value="">— እቃ የለም —</option>';
 }
 
 async function savePurchase() {
@@ -912,19 +901,14 @@ async function savePurchase() {
 
   try {
     const batch = writeBatch(db);
-
     batch.set(doc(col('purchases')), {
-      date, itemId,
-      itemName: item?.name || '',
+      date, itemId, itemName: item?.name || '',
       qty, cost: cost * qty, unitCost: cost,
       createdBy: auth.currentUser?.uid || null,
       createdAt: serverTimestamp(),
     });
-
-    batch.update(doc(db, 'tenants', tenantId(), 'items', itemId), {
-      stock: increment(qty),
-    });
-
+    batch.update(doc(db, 'tenants', state.tenantId, 'items', itemId),
+      { stock: increment(qty) });
     await batch.commit();
 
     showToast('ግዢ ተመዝግቧል ✅');
@@ -934,31 +918,24 @@ async function savePurchase() {
     await loadPurchases(true);
     await renderPurchases();
     await refreshHome();
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 async function renderPurchases() {
   await loadPurchases(true);
   const host = document.getElementById('purchasesList');
   if (!host) return;
-
   const recent = B.purchases.slice(0, 15);
-  if (!recent.length) {
-    host.innerHTML = `<div class="empty-state"><div class="emoji">📥</div><p>ግዢ አልተመዘገበም</p></div>`;
-    return;
-  }
-
-  host.innerHTML = recent.map(p => `
-    <div class="item-row">
-      <div class="item-row-name">
-        ${esc(p.itemName || '—')}
-        <div style="font-size:11px;color:var(--text-muted);">${esc(p.date)} • ${p.qty} qty</div>
-      </div>
-      <div class="item-row-price">${money(p.cost)} ETB</div>
-    </div>
-  `).join('');
+  host.innerHTML = recent.length
+    ? recent.map(p => `
+        <div class="item-row">
+          <div class="item-row-name">
+            📥 ${esc(p.itemName || '—')}
+            <div style="font-size:11px;color:var(--text-muted);">${esc(p.date)} • ${p.qty} qty</div>
+          </div>
+          <div class="item-row-price">${money(p.cost)} ETB</div>
+        </div>`).join('')
+    : `<div class="empty-state"><div class="emoji">📥</div><p>ግዢ አልተመዘገበም</p></div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -985,9 +962,7 @@ async function saveExpense() {
     await loadExpenses(true);
     await renderExpenses();
     await refreshHome();
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 function setExpenseFilter(f, btn) {
@@ -1002,36 +977,29 @@ async function renderExpenses() {
   const host = document.getElementById('expensesList');
   if (!host) return;
 
-  const today = todayStr();
-  const month = thisMonthStr();
-
+  const today = todayStr(), month = thisMonthStr();
   let list = B.expenses;
   if (B.expenseFilter === 'recent') list = B.expenses.slice(0, 15);
   else if (B.expenseFilter === 'date') list = B.expenses.filter(e => e.date === today);
   else if (B.expenseFilter === 'month') list = B.expenses.filter(e => (e.date || '').startsWith(month));
 
-  const monthTotal = B.expenses
-    .filter(e => (e.date || '').startsWith(month))
+  const monthTotal = B.expenses.filter(e => (e.date || '').startsWith(month))
     .reduce((a, e) => a + (Number(e.amount) || 0), 0);
   const allTotal = B.expenses.reduce((a, e) => a + (Number(e.amount) || 0), 0);
 
   setText('expMonthTotal', money(monthTotal));
   setText('expAllTotal', money(allTotal));
 
-  if (!list.length) {
-    host.innerHTML = `<div class="empty-state"><div class="emoji">💸</div><p>ወጪ አልተመዘገበም</p></div>`;
-    return;
-  }
-
-  host.innerHTML = list.map(e => `
-    <div class="item-row">
-      <div class="item-row-name">
-        ${esc(e.category || '—')}
-        <div style="font-size:11px;color:var(--text-muted);">${esc(e.date)}${e.note ? ' • ' + esc(e.note) : ''}</div>
-      </div>
-      <div class="item-row-price" style="color:var(--danger);">${money(e.amount)} ETB</div>
-    </div>
-  `).join('');
+  host.innerHTML = list.length
+    ? list.map(e => `
+        <div class="item-row">
+          <div class="item-row-name">
+            📁 ${esc(e.category || '—')}
+            <div style="font-size:11px;color:var(--text-muted);">${esc(e.date)}${e.note ? ' • ' + esc(e.note) : ''}</div>
+          </div>
+          <div class="item-row-price" style="color:var(--danger);">${money(e.amount)} ETB</div>
+        </div>`).join('')
+    : `<div class="empty-state"><div class="emoji">💸</div><p>ወጪ አልተመዘገበም</p></div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1044,10 +1012,7 @@ function setReportPeriod(p, btn) {
   refreshReports();
 }
 
-function setReportBranch(v) {
-  B.reportBranch = v;
-  refreshReports();
-}
+function setReportBranch(v) { B.reportBranch = v; refreshReports(); }
 
 function periodMatch(dateStr) {
   if (!dateStr) return false;
@@ -1057,12 +1022,17 @@ function periodMatch(dateStr) {
 }
 
 function branchMatch(rec) {
-  if (B.reportBranch === 'all') return true;
-  return rec.branch === B.reportBranch;
+  return B.reportBranch === 'all' || rec.branch === B.reportBranch;
 }
 
 async function refreshReports() {
   await Promise.all([loadSales(true), loadExpenses(true)]);
+
+  // ርዕስ
+  const label = B.reportPeriod === 'daily' ? `Daily (${todayStr()})`
+    : B.reportPeriod === 'monthly' ? `Monthly (${thisMonthStr()})`
+    : `Yearly (${thisYearStr()})`;
+  setText('repPeriodLabel', label);
 
   const sales = B.sales.filter(s => periodMatch(s.date) && branchMatch(s));
   const exps = B.expenses.filter(e => periodMatch(e.date) && branchMatch(e));
@@ -1079,10 +1049,9 @@ async function refreshReports() {
   setText('repExpenses', money(expense));
   setText('repProfit', money(revenue - expense));
   setText('repUnpaid', money(unpaid));
-  setText('repCash', money(cash));
-  setText('repTransfer', money(transfer));
+  setText('repCash', `${money(cash)} ETB`);
+  setText('repTransfer', `${money(transfer)} ETB`);
 
-  // Top selling items
   const map = {};
   sales.forEach(s => (s.items || []).forEach(it => {
     const key = it.itemId || it.name;
@@ -1102,7 +1071,7 @@ async function refreshReports() {
             <td style="padding:8px;">${t.qty}</td>
             <td style="padding:8px;">${money(t.revenue)}</td>
           </tr>`).join('')
-      : `<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);">መረጃ የለም</td></tr>`;
+      : `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">መረጃ የለም</td></tr>`;
   }
 }
 
@@ -1112,7 +1081,6 @@ function exportCSV() {
     const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
     if (cells.length) rows.push(cells);
   });
-
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1124,28 +1092,26 @@ function exportCSV() {
   showToast('CSV ተዘጋጅቷል 📥');
 }
 
-function printReport() {
-  window.print();
-}
+function printReport() { window.print(); }
 
 // ═══════════════════════════════════════════════════════
 // ⚙️ SETTINGS
 // ═══════════════════════════════════════════════════════
 async function renderSettings() {
   const t = state.tenantData || {};
-  const nameEl = document.getElementById('setName');
-  const phoneEl = document.getElementById('setPhone');
-  const lowEl = document.getElementById('setLowStock');
-  if (nameEl) nameEl.value = t.name || '';
-  if (phoneEl) phoneEl.value = t.phone || '';
-  if (lowEl) lowEl.value = t.lowStockThreshold || 10;
+  const n = document.getElementById('setName');
+  const p = document.getElementById('setPhone');
+  const l = document.getElementById('setLowStock');
+  if (n) n.value = t.name || '';
+  if (p) p.value = t.phone || '';
+  if (l) l.value = t.lowStockThreshold || 10;
 
   const host = document.getElementById('branchesList');
   if (host) {
     host.innerHTML = B.branches.length
       ? B.branches.map(b => `
           <div class="item-row">
-            <div class="item-row-name">${esc(b.name)}</div>
+            <div class="item-row-name">🏢 ${esc(b.name)}</div>
             ${B.branches.length > 1
               ? `<button class="btn btn-outline btn-sm" onclick="deleteBranch('${escJs(b.id || b.name)}')">🗑️</button>` : ''}
           </div>`).join('')
@@ -1159,15 +1125,13 @@ async function saveSettings() {
   const lowStockThreshold = Number(document.getElementById('setLowStock')?.value) || 10;
 
   try {
-    await updateDoc(doc(db, 'tenants', tenantId()), { name, phone, lowStockThreshold });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { name, phone, lowStockThreshold });
     state.tenantData = { ...(state.tenantData || {}), name, phone, lowStockThreshold };
     state.lowStockThreshold = lowStockThreshold;
     const hdr = document.getElementById('hdrBusinessName');
     if (hdr && name) hdr.textContent = name;
     showToast('ቅንብሮች ተቀምጠዋል ✅');
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 async function addBranch() {
@@ -1175,100 +1139,76 @@ async function addBranch() {
   if (!name) return;
   const branches = [...(state.tenantData?.branches || [])];
   branches.push({ id: 'br_' + Date.now(), name: name.trim() });
-
   try {
-    await updateDoc(doc(db, 'tenants', tenantId()), { branches });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { branches });
     state.tenantData = { ...(state.tenantData || {}), branches };
     B.branches = branches;
-    // selects እንደገና መሙላት
-    ['saleBranch', 'qsBranch', 'expBranch', 'repBranch'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = '';
-    });
     await ensureBranchSelects();
     await renderSettings();
     showToast('ቅርንጫፍ ተጨምሯል ✅');
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteBranch(id) {
   if (!confirm('ቅርንጫፍ ማጥፋት ትፈልጋለህ?')) return;
   const branches = (state.tenantData?.branches || []).filter(b => (b.id || b.name) !== id);
   try {
-    await updateDoc(doc(db, 'tenants', tenantId()), { branches });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { branches });
     state.tenantData = { ...(state.tenantData || {}), branches };
     B.branches = branches;
-    ['saleBranch', 'qsBranch', 'expBranch', 'repBranch'].forEach(k => {
-      const el = document.getElementById(k);
-      if (el) el.innerHTML = '';
-    });
     await ensureBranchSelects();
     await renderSettings();
     showToast('ተጠፍቷል 🗑️');
-  } catch (e) {
-    showToast('ስህተት: ' + e.message, 'error');
-  }
+  } catch (e) { showToast('ስህተት: ' + e.message, 'error'); }
 }
 
 async function setTheme(mode, btn) {
-  document.querySelectorAll('.payment-type-btn').forEach(b => {
-    if (b.textContent.includes('Light') || b.textContent.includes('Dark')) {
-      b.classList.remove('active');
-    }
-  });
+  document.querySelectorAll('.payment-type-btn[data-theme]')
+    .forEach(b => b.classList.remove('active'));
   btn?.classList.add('active');
 
   if (mode === 'dark') document.body.classList.add('dark-mode');
   else document.body.classList.remove('dark-mode');
 
   try {
-    await updateDoc(doc(db, 'tenants', tenantId()), { darkMode: mode === 'dark' });
+    await updateDoc(doc(db, 'tenants', state.tenantId), { darkMode: mode === 'dark' });
   } catch (e) { console.error('theme save failed', e); }
 }
 
 // ═══════════════════════════════════════════════════════
-// 🧭 PAGE HOOK (ከ core.js ይጠራል)
+// 🧭 PAGE HOOK
 // ═══════════════════════════════════════════════════════
 async function onPageChange(panelId) {
   try {
     switch (panelId) {
       case 'home':      await refreshHome(); break;
+      case 'more':      break;
       case 'items':     await renderItems(); break;
-      case 'newSale':   await refreshSaleProducts(); break;
+      case 'newSale':   await refreshSaleProducts(); await renderCart(); break;
       case 'quickSale': await ensureCategorySelects(); await ensureBranchSelects(); break;
       case 'purchases': await refreshPurchaseSelect(); await renderPurchases(); break;
       case 'expenses':  await ensureCategorySelects(); await ensureBranchSelects(); await renderExpenses(); break;
-      case 'reports':   await ensureBranchSelects(); await refreshReports(); break;
+      case 'reports':   await ensureBranchSelects();
+                        document.querySelectorAll('.report-type-tab[data-p]')
+                          .forEach(b => b.classList.toggle('active', b.dataset.p === B.reportPeriod));
+                        await refreshReports(); break;
       case 'settings':  await renderSettings(); break;
-      default: break;
     }
   } catch (e) {
-    console.error('[bakery] page change error:', e);
+    console.error('[bakery]', e);
     showToast('ስህተት: ' + e.message, 'error');
   }
 }
 
 async function renderItemsIfVisible() {
-  if (document.getElementById('items')?.classList.contains('active')) {
-    await renderItems();
-  }
-  if (document.getElementById('newSale')?.classList.contains('active')) {
-    await refreshSaleProducts();
-  }
+  if (document.getElementById('items')?.classList.contains('active')) await renderItems();
+  if (document.getElementById('newSale')?.classList.contains('active')) await refreshSaleProducts();
 }
 
-// ─── helper ───
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 
-// ─── cleanup (ሲወጣ ይጠራል) ───
 function cleanup() {
-  B.cart = [];
-  B.items = []; B.sales = []; B.purchases = []; B.expenses = [];
+  B.cart = []; B.items = []; B.sales = []; B.purchases = []; B.expenses = [];
   B.loaded = { items: false, sales: false, purchases: false, expenses: false };
 }
 
@@ -1279,15 +1219,15 @@ export const BakeryModule = {
   name: 'Bakery',
   icon: '🍞',
   navItems,
-  panels: Object.keys(panelsHTML).map(id => ({ id, html: panelsHTML[id] })),
+  panels: [],        // ← ገጾች በ init() ይጫናሉ (core.js እንደገና እንዳይጭን)
   init,
   onPageChange,
   cleanup,
 };
 
-// ─── globals (inline onclick ከ HTML ጋር) ───
+// ─── globals ───
 Object.assign(window, {
-  openAddItemModal, closeAddItemModal, saveItem, deleteItem, toggleCategory,
+  openAddItemModal, closeAddItemModal, saveItem, deleteItem, editItem, toggleCategory, itemsPage,
   addToCart, changeCartQty, removeFromCart, setPaymentType, renderSaleTotal,
   clearCart, completeSale, saveQuickSale, savePurchase, saveExpense,
   setExpenseFilter, setReportPeriod, setReportBranch, exportCSV, printReport,
