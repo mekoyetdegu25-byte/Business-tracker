@@ -116,6 +116,13 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('loginScreen').classList.add('hidden');
     await loadUserAndTenant(user);
   } else {
+    // Splash ስክሪኑን መደበቅ
+    const splash = document.getElementById('splashScreen');
+    if(splash) {
+      splash.style.display = 'none'; 
+      splash.classList.add('fade-out');
+    }
+    
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('mainApp').classList.remove('show');
     document.getElementById('blockScreen').classList.add('hidden');
