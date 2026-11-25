@@ -20,7 +20,6 @@ export const MODULES = {
   restaurant: RestaurantModule,
   supermarket: SupermarketModule,
   // 🔜 ወደፊት የሚጨመሩ ዘርፎች
-  // supermarket: SupermarketModule,
   // retail: RetailModule,
 };
 
