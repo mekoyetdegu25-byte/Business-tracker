@@ -26,15 +26,15 @@ let openCategories = new Set();
 export const BakeryModule = {
   name: 'Bakery',
   icon: '🍞',
-  navItems: [
-    { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true }, // ለሞባይል ብቻ
-    { id: 'panel1', label: 'Items (Stock)', icon: '🍞' },
+    navItems: [
+    { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true },
     { id: 'panel2', label: 'New Sale', icon: '🛒' },
-    { id: 'panelQuickSale', label: 'Quick Sale', icon: '⚡' },
-    { id: 'panelPurchases', label: 'Purchases', icon: '📥' },
-    { id: 'panel4', label: 'Expenses', icon: '💸' },
+    { id: 'panelQuickSale', label: 'Quick', icon: '⚡' },
+    { id: 'panel1', label: 'Items', icon: '🍞' },
     { id: 'panel6', label: 'Reports', icon: '📊' },
-    { id: 'panel8', label: 'Settings', icon: '⚙️' }
+    { id: 'panel8', label: 'Settings', icon: '⚙️' },
+    { id: 'panelPurchases', label: 'Purchases', icon: '📥' },
+    { id: 'panel4', label: 'Expenses', icon: '💸' }
   ],
   panels: [
     { id: 'panelMobileHome', html: `
