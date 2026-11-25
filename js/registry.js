@@ -14,7 +14,7 @@ import { SalonModule } from './modules/salon.js';
 import { ElectronicsModule } from './modules/electronics.js';
 import { HardwareModule } from './modules/hardware.js';
 import { PrintingModule } from './modules/printing.js';
-
+import { FurnitureModule } from './modules/furniture.js';
 
 // ═══════════════════════════════════════════
 // 📦 ሁሉም ዘርፎች እዚህ ይመዘገባሉ
@@ -33,6 +33,7 @@ export const MODULES = {
   electronics: ElectronicsModule,
   hardware: HardwareModule,
   printing: PrintingModule,
+  furniture: FurnitureModule,
   
   //retail: RetailModule, 🔜 ወደፊት የሚጨመሩ ዘርፎች
   // retail: RetailModule,
