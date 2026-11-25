@@ -1,6 +1,6 @@
 // js/modules/pension.js
 import { db } from '../firebase.js';
-import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { collection, addDoc, query, where, serverTimestamp, doc, updateDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { state, esc, escJs, money, todayStr, thisMonthStr, thisYearStr, showToast } from '../core.js';
 
 // ═══════════════════════════════════════════
@@ -24,6 +24,65 @@ let expenseDateFilter = 'recent';
 let reportType = 'daily';
 
 let unsubBranches = null, unsubServices = null, unsubSales = null, unsubExpenses = null, unsubCustomers = null;
+
+const SERVICE_MODAL_ID = 'serviceModal';
+const PROFILE_MODAL_ID = 'customerProfileModal';
+const EDIT_CUSTOMER_MODAL_ID = 'editCustomerModal';
+
+const PENSION_MODALS_HTML = `
+<div class="modal-overlay" id="${SERVICE_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="serviceModalTitle">➕ Add Room</h3>
+      <button class="modal-close" onclick="window.closeServiceModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="serviceBranchSection" style="display:none;">
+        <label class="field-label" style="margin-top:0;">🏢 Branch *</label>
+        <select id="serviceBranch"></select>
+      </div>
+      <label class="field-label" style="margin-top:0;">📁 Room Type *</label>
+      <input list="serviceCategoryList" id="serviceCategory" placeholder="e.g. Standard, VIP">
+      <datalist id="serviceCategoryList">
+        <option value="Standard">
+        <option value="VIP">
+        <option value="Deluxe">
+      </datalist>
+      <label class="field-label">🛏️ Room Number / Name *</label>
+      <input type="text" id="serviceName" placeholder="e.g. Room 101">
+      <label class="field-label">💰 Price per Day (ETB) *</label>
+      <input type="number" id="servicePrice" placeholder="0.00" step="any">
+      <button class="btn btn-success" onclick="window.saveService()" id="saveServiceBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="${PROFILE_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>👤 Customer Profile</h3>
+      <button class="modal-close" onclick="window.closeCustomerProfile()">×</button>
+    </div>
+    <div class="modal-body" id="customerProfileBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="${EDIT_CUSTOMER_MODAL_ID}">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Edit Customer</h3>
+      <button class="modal-close" onclick="window.closeEditCustomerModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" style="margin-top:0;">👤 Customer Name *</label>
+      <input type="text" id="editCustName" placeholder="Customer name">
+      <label class="field-label">📞 Phone</label>
+      <input type="text" id="editCustPhone" placeholder="+251...">
+      <button class="btn btn-success" onclick="window.saveEditedCustomer()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+`;
 
 // ═══════════════════════════════════════════
 // 🧩 MODULE DEFINITION
@@ -65,7 +124,7 @@ export const PensionModule = {
     { id: 'panel1', html: `
       <div class="card">
         <div class="card-title"><span>🛏️ Rooms</span><button class="btn btn-primary btn-sm" onclick="window.openServiceModal()">➕ Add Room</button></div>
-        <div class="filter-bar"><input type="text" id="searchService" placeholder="🔍 Search room..." oninput="window.servicePage=1; window.renderServiceList()"></div>
+        <div class="filter-bar"><input type="text" id="searchService" placeholder="🔍 Search room..." oninput="window.pnServiceSearch()"></div>
         <div id="serviceListContainer"></div>
         <div class="pagination-controls" id="servicePagination"></div>
       </div>
@@ -99,14 +158,14 @@ export const PensionModule = {
     { id: 'panel3', html: `
       <div class="card">
         <div class="card-title"><span>📜 Orders</span></div>
-        <div class="filter-bar"><input type="text" id="searchOrders" placeholder="🔍 Search customer..." oninput="window.ordersPage=1; window.renderOrders()"><select id="orderBranchFilter" onchange="window.filterOrdersByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select></div>
+        <div class="filter-bar"><input type="text" id="searchOrders" placeholder="🔍 Search customer..." oninput="window.pnOrdersSearch()"><select id="orderBranchFilter" onchange="window.filterOrdersByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select></div>
         <div class="date-filter-chips" id="orderDateChips">
           <button class="date-chip active" onclick="window.setOrderDateFilter('recent', this)">Recent</button>
           <button class="date-chip" onclick="window.setOrderDateFilter('date', this)">Date</button>
           <button class="date-chip" onclick="window.setOrderDateFilter('month', this)">Month</button>
           <button class="date-chip" onclick="window.setOrderDateFilter('all', this)">All</button>
         </div>
-        <div id="orderDatePicker" style="display:none; margin-bottom:12px;"><input type="date" id="orderFilterDate" onchange="window.ordersPage=1; window.renderOrders()"><input type="month" id="orderFilterMonth" onchange="window.ordersPage=1; window.renderOrders()" style="display:none;"></div>
+        <div id="orderDatePicker" style="display:none; margin-bottom:12px;"><input type="date" id="orderFilterDate" onchange="window.pnOrdersSearch()"><input type="month" id="orderFilterMonth" onchange="window.pnOrdersSearch()" style="display:none;"></div>
         <div id="ordersList"></div>
         <div class="pagination-controls" id="ordersPagination"></div>
       </div>
@@ -114,7 +173,7 @@ export const PensionModule = {
     { id: 'panelCustomers', html: `
       <div class="card">
         <div class="card-title"><span>👥 Customers</span></div>
-        <div class="filter-bar"><input type="text" id="searchCustomers" placeholder="🔍 Search customer..." oninput="window.customersPage=1; window.renderCustomersList()"><select id="customerBranchFilter" onchange="window.filterCustomersByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select></div>
+        <div class="filter-bar"><input type="text" id="searchCustomers" placeholder="🔍 Search customer..." oninput="window.pnCustomersSearch()"><select id="customerBranchFilter" onchange="window.filterCustomersByBranch()" style="display:none; width:auto;"><option value="all">📊 All Branches</option></select></div>
         <div id="customersListContainer"></div>
         <div class="pagination-controls" id="customersPagination"></div>
       </div>
@@ -134,7 +193,7 @@ export const PensionModule = {
           <button class="btn btn-danger" onclick="window.addExpense()" style="margin-top:16px;">💾 Save Expense</button>
         </div>
         <h4 style="font-size:14px; font-weight:700; margin-bottom:12px;">📋 Recent Expenses</h4>
-        <div class="filter-bar"><input type="text" id="searchExpense" placeholder="🔍 Search..." oninput="window.expensesPage=1; window.renderExpenses()"></div>
+        <div class="filter-bar"><input type="text" id="searchExpense" placeholder="🔍 Search..." oninput="window.pnExpensesSearch()"></div>
         <div class="date-filter-chips">
           <button class="date-chip active" onclick="window.setExpenseDateFilter('recent', this)">Recent</button>
           <button class="date-chip" onclick="window.setExpenseDateFilter('date', this)">Date</button>
@@ -206,6 +265,17 @@ export const PensionModule = {
   // 🚀 INIT
   // ═══════════════════════════════════════════
   init: async (appState) => {
+    const modalHost = document.getElementById('globalModalContainer');
+    if (modalHost) {
+      if (
+        !document.getElementById(SERVICE_MODAL_ID) ||
+        !document.getElementById(PROFILE_MODAL_ID) ||
+        !document.getElementById(EDIT_CUSTOMER_MODAL_ID)
+      ) {
+        modalHost.insertAdjacentHTML('beforeend', PENSION_MODALS_HTML);
+      }
+    }
+
     window.renderServiceList = renderServiceList;
     window.renderPOSProducts = renderPOSProducts;
     window.addToCart = addToCart;
@@ -229,6 +299,7 @@ export const PensionModule = {
     window.setPaymentType = setPaymentType;
     window.recordPayment = recordPayment;
     window.editCustomer = editCustomer;
+    window.closeEditCustomerModal = closeEditCustomerModal;
     window.saveEditedCustomer = saveEditedCustomer;
     window.deleteCustomer = deleteCustomer;
     window.addExpense = addExpense;
@@ -244,10 +315,10 @@ export const PensionModule = {
     window.addBranch = addBranch;
     window.deleteBranch = deleteBranch;
 
-    window.servicePage = servicePage;
-    window.ordersPage = ordersPage;
-    window.customersPage = customersPage;
-    window.expensesPage = expensesPage;
+    window.pnServiceSearch = () => { servicePage = 1; renderServiceList(); };
+    window.pnOrdersSearch = () => { ordersPage = 1; renderOrders(); };
+    window.pnCustomersSearch = () => { customersPage = 1; renderCustomersList(); };
+    window.pnExpensesSearch = () => { expensesPage = 1; renderExpenses(); };
 
     const today = todayStr();
     if (document.getElementById('orderDate')) document.getElementById('orderDate').value = today;
@@ -279,7 +350,28 @@ export const PensionModule = {
     if (unsubSales) unsubSales();
     if (unsubExpenses) unsubExpenses();
     if (unsubCustomers) unsubCustomers();
-    const fnNames = ['renderServiceList','renderPOSProducts','addToCart','updateCartQty','removeFromCart','clearCart','updateUnpaidDisplay','completeOrder','openServiceModal','closeServiceModal','saveService','deleteService','toggleCategory','setOrderDateFilter','renderOrders','filterOrdersByBranch','filterCustomersByBranch','renderCustomersList','showCustomerProfile','closeCustomerProfile','setPaymentType','recordPayment','editCustomer','saveEditedCustomer','deleteCustomer','addExpense','changeExpenseDate','setExpenseDateFilter','renderExpenses','deleteExpense','setReportType','renderReports','exportReportCSV','printReport','saveSettings','addBranch','deleteBranch'];
+    unsubBranches = unsubServices = unsubSales = unsubExpenses = unsubCustomers = null;
+
+    document.getElementById(SERVICE_MODAL_ID)?.remove();
+    document.getElementById(PROFILE_MODAL_ID)?.remove();
+    document.getElementById(EDIT_CUSTOMER_MODAL_ID)?.remove();
+
+    allBranches = []; allServices = []; allSales = []; allExpenses = []; allCustomers = []; cart = [];
+    editingServiceId = null; editingCustomerName = null; currentCustomerName = null;
+    servicePage = 1; ordersPage = 1; customersPage = 1; expensesPage = 1;
+    openCategories = new Set(); orderDateFilter = 'recent'; expenseDateFilter = 'recent'; reportType = 'daily';
+
+    const fnNames = [
+      'renderServiceList', 'renderPOSProducts', 'addToCart', 'updateCartQty', 'removeFromCart',
+      'clearCart', 'updateUnpaidDisplay', 'completeOrder', 'openServiceModal', 'closeServiceModal',
+      'saveService', 'deleteService', 'toggleCategory', 'setOrderDateFilter', 'renderOrders',
+      'filterOrdersByBranch', 'filterCustomersByBranch', 'renderCustomersList', 'showCustomerProfile',
+      'closeCustomerProfile', 'setPaymentType', 'recordPayment', 'editCustomer', 'closeEditCustomerModal',
+      'saveEditedCustomer', 'deleteCustomer', 'addExpense', 'changeExpenseDate', 'setExpenseDateFilter',
+      'renderExpenses', 'deleteExpense', 'setReportType', 'renderReports', 'exportReportCSV',
+      'printReport', 'saveSettings', 'addBranch', 'deleteBranch', 'pnServiceSearch', 'pnOrdersSearch',
+      'pnCustomersSearch', 'pnExpensesSearch'
+    ];
     fnNames.forEach(fn => delete window[fn]);
   }
 };
@@ -288,28 +380,29 @@ export const PensionModule = {
 // 📥 DATA LOADING
 // ═══════════════════════════════════════════
 async function loadAllData(appState) {
-  if (!appState.tenantId) return;
+  const tenantId = appState?.tenantId || state.tenantId;
+  if (!tenantId) return;
 
-  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubBranches = onSnapshot(query(collection(db, 'branches'), where('tenantId', '==', tenantId)), snap => {
     allBranches = []; snap.forEach(d => allBranches.push({ id: d.id, ...d.data() }));
-    renderBranchSettings(appState);
-    updateBranchDropdowns(appState);
+    renderBranchSettings();
+    updateBranchDropdowns();
   });
-  unsubServices = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubServices = onSnapshot(query(collection(db, 'products'), where('tenantId', '==', tenantId)), snap => {
     allServices = []; snap.forEach(d => allServices.push({ id: d.id, ...d.data() }));
     allServices.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderServiceList(); renderPOSProducts(); updateServiceCategories();
   });
-  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubSales = onSnapshot(query(collection(db, 'sales'), where('tenantId', '==', tenantId)), snap => {
     allSales = []; snap.forEach(d => allSales.push({ id: d.id, ...d.data() }));
     allSales.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderOrders(); renderCustomersList(); renderReports(); updateMobileHome(); updateCustomerDatalist();
   });
-  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubExpenses = onSnapshot(query(collection(db, 'expenses'), where('tenantId', '==', tenantId)), snap => {
     allExpenses = []; snap.forEach(d => allExpenses.push({ id: d.id, ...d.data() }));
     renderExpenses(); renderReports(); updateMobileHome();
   });
-  unsubCustomers = onSnapshot(query(collection(db, 'customers'), where('tenantId', '==', appState.tenantId)), snap => {
+  unsubCustomers = onSnapshot(query(collection(db, 'customers'), where('tenantId', '==', tenantId)), snap => {
     allCustomers = []; snap.forEach(d => allCustomers.push({ id: d.id, ...d.data() }));
     renderCustomersList(); updateCustomerDatalist();
   });
@@ -336,13 +429,13 @@ function updateCustomerDatalist() {
 function updateServiceCategories() {
   const cats = [...new Set(allServices.map(s => s.category).filter(Boolean))];
   const dl = document.getElementById('serviceCategoryList');
-  if (dl) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  if (dl && cats.length > 0) dl.innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
 }
 
-function renderBranchSettings(appState) {
+function renderBranchSettings() {
   const card = document.getElementById('branchSettingsCard');
   if (!card) return;
-  if (appState.plan !== 'pro') { card.style.display = 'none'; return; }
+  if (state.plan !== 'pro') { card.style.display = 'none'; return; }
   card.style.display = 'block';
   const list = document.getElementById('branchesList');
   if (!list) return;
@@ -355,12 +448,12 @@ function renderBranchSettings(appState) {
   `).join('');
 }
 
-function updateBranchDropdowns(appState) {
-  const hasBranches = appState.plan === 'pro' && allBranches.length > 0;
+function updateBranchDropdowns() {
+  const hasBranches = state.plan === 'pro' && allBranches.length > 0;
   const options = allBranches.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
   const sections = ['posBranchSection', 'serviceBranchSection', 'expBranchSection', 'reportBranchSection', 'orderBranchFilter', 'customerBranchFilter'];
   sections.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasBranches ? 'block' : 'none'; });
-  const selects = ['orderBranch', 'serviceBranch', 'expBranch', 'reportBranch'];
+  const selects = ['orderBranch', 'serviceBranch', 'expBranch', 'reportBranch', 'orderBranchFilter', 'customerBranchFilter'];
   selects.forEach(id => {
     const el = document.getElementById(id);
     if (el && hasBranches) {
@@ -373,18 +466,21 @@ function updateBranchDropdowns(appState) {
 }
 
 async function addBranch() {
-  const appState = state;
-  if (appState.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
+  if (state.plan !== 'pro') return showToast('Pro plan ብቻ!', 'error');
   const name = document.getElementById('newBranchName').value.trim();
   if (!name) return showToast('የቅርንጫፍ ስም ያስፈልጋል', 'error');
   if (allBranches.find(b => b.name.toLowerCase() === name.toLowerCase())) return showToast('ይህ ቅርንጫፍ አስቀድሞ አለ', 'error');
-  try { await addDoc(collection(db, 'branches'), { tenantId: appState.tenantId, name, createdAt: serverTimestamp() }); document.getElementById('newBranchName').value = ''; showToast('✅ ቅርንጫፍ ተጨምሯል'); } catch(e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
+  try {
+    await addDoc(collection(db, 'branches'), { tenantId: state.tenantId, name, createdAt: serverTimestamp() });
+    document.getElementById('newBranchName').value = '';
+    showToast('✅ ቅርንጫፍ ተጨምሯል');
+  } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteBranch(id, name) {
   if (name === 'Main') return showToast('Main ማጥፋት አይቻልም', 'error');
   if (!confirm(`"${name}" ቅርንጫፍን ማጥፋት?`)) return;
-  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch(e) { showToast('❌ ስተት', 'error'); }
+  try { await deleteDoc(doc(db, 'branches', id)); showToast('✅ ተጠፍቷል'); } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 // ═══════════════════════════════════════════
@@ -400,6 +496,9 @@ function openServiceModal(id = null) {
     document.getElementById('serviceCategory').value = s.category || '';
     document.getElementById('serviceName').value = s.name || '';
     document.getElementById('servicePrice').value = s.price || '';
+    if (state.plan === 'pro' && s.branch && document.getElementById('serviceBranch')) {
+      document.getElementById('serviceBranch').value = s.branch;
+    }
     document.getElementById('saveServiceBtn').textContent = '💾 Update';
   } else {
     document.getElementById('serviceModalTitle').textContent = '➕ Add Room';
@@ -408,23 +507,30 @@ function openServiceModal(id = null) {
     document.getElementById('servicePrice').value = '';
     document.getElementById('saveServiceBtn').textContent = '💾 Save';
   }
-  document.getElementById('serviceModal').classList.add('open');
+  document.getElementById(SERVICE_MODAL_ID)?.classList.add('open');
 }
 
-function closeServiceModal() { document.getElementById('serviceModal').classList.remove('open'); editingServiceId = null; }
+function closeServiceModal() {
+  document.getElementById(SERVICE_MODAL_ID)?.classList.remove('open');
+  editingServiceId = null;
+}
 
 async function saveService() {
-  const appState = state;
   const category = document.getElementById('serviceCategory').value.trim();
   const name = document.getElementById('serviceName').value.trim();
   const price = parseFloat(document.getElementById('servicePrice').value);
-  const branch = appState.plan === 'pro' ? document.getElementById('serviceBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('serviceBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Room Type ያስፈልጋል', 'error');
   if (!name) return showToast('Room Number ያስፈልጋል', 'error');
   if (isNaN(price) || price <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   try {
-    if (editingServiceId) { await updateDoc(doc(db, 'products', editingServiceId), { category, name, price, branch }); showToast('✅ ተሻሽሏል'); }
-    else { await addDoc(collection(db, 'products'), { tenantId: appState.tenantId, category, name, price, branch, serviceType: 'pension', createdAt: serverTimestamp() }); showToast('✅ ተጨምሯል'); }
+    if (editingServiceId) {
+      await updateDoc(doc(db, 'products', editingServiceId), { category, name, price, branch });
+      showToast('✅ ተሻሽሏል');
+    } else {
+      await addDoc(collection(db, 'products'), { tenantId: state.tenantId, category, name, price, branch, serviceType: 'pension', createdAt: serverTimestamp() });
+      showToast('✅ ተጨምሯል');
+    }
     closeServiceModal();
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
@@ -449,21 +555,21 @@ function renderServiceList() {
   if (search) filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(search) || (s.category || '').toLowerCase().includes(search));
   if (filtered.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);"><div style="font-size:48px; margin-bottom:12px;">🛏️</div><div style="font-weight:600;">ምንም ክፍል የለም</div></div>`;
-    renderPagination('servicePagination', 0, window.servicePage, servicePerPage, (page) => { window.servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; window.servicePage = 1; renderServiceList(); });
+    renderPagination('servicePagination', 0, servicePage, servicePerPage, (page) => { servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; servicePage = 1; renderServiceList(); });
     return;
   }
   const totalPages = Math.ceil(filtered.length / servicePerPage);
-  if (window.servicePage > totalPages) window.servicePage = totalPages;
-  const start = (window.servicePage - 1) * servicePerPage;
+  if (servicePage > totalPages) servicePage = totalPages;
+  const start = (servicePage - 1) * servicePerPage;
   const paginated = filtered.slice(start, start + servicePerPage);
   const grouped = {};
   paginated.forEach(s => { const cat = s.category || 'Other'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(s); });
   container.innerHTML = Object.keys(grouped).sort().map(cat => {
-    const items = grouped[cat].sort((a,b) => a.name.localeCompare(b.name));
+    const items = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
     const isOpen = openCategories.has(cat) || (search && search.length > 0);
     return `<div class="category-collapsible ${isOpen ? 'open' : ''}"><div class="category-header" onclick="window.toggleCategory('${escJs(cat)}')"><div class="category-header-left"><span class="category-arrow">▶</span><span class="category-name">📁 ${esc(cat)}</span><span class="category-count">${items.length}</span></div></div><div class="category-body">${items.map(s => `<div class="item-row"><div class="item-row-name">🛏️ ${esc(s.name)}</div><div class="item-row-price">${money(s.price)} ETB <small style="font-size:11px; opacity:0.6;">/day</small></div><div style="display:flex; gap:4px;"><button class="action-btn btn-edit" onclick="event.stopPropagation(); window.openServiceModal('${s.id}')" style="background:rgba(59,130,246,0.1); color:var(--info); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">✏️</button><button class="action-btn btn-delete" onclick="event.stopPropagation(); window.deleteService('${s.id}')" style="background:rgba(239,68,68,0.1); color:var(--danger); padding:4px 8px; border-radius:6px; border:none; cursor:pointer;">🗑️</button></div></div>`).join('')}</div></div>`;
   }).join('');
-  renderPagination('servicePagination', filtered.length, window.servicePage, servicePerPage, (page) => { window.servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; window.servicePage = 1; renderServiceList(); });
+  renderPagination('servicePagination', filtered.length, servicePage, servicePerPage, (page) => { servicePage = page; renderServiceList(); }, (perPage) => { servicePerPage = perPage; servicePage = 1; renderServiceList(); });
 }
 
 // ═══════════════════════════════════════════
@@ -476,7 +582,7 @@ function renderPOSProducts() {
   let filtered = allServices;
   if (search) filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(search) || (s.category || '').toLowerCase().includes(search));
   if (filtered.length === 0) { listEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">ምንም ክፍል የለም</div>'; return; }
-  listEl.innerHTML = filtered.sort((a,b) => a.name.localeCompare(b.name)).map(s => `
+  listEl.innerHTML = filtered.sort((a, b) => a.name.localeCompare(b.name)).map(s => `
     <div class="product-card" onclick="window.addToCart('${s.id}')">
       <div><div class="p-name">${esc(s.name)}</div><div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${esc(s.category || '')}</div></div>
       <div class="p-price">${money(s.price)} <small style="font-size:10px;">/day</small></div>
@@ -530,13 +636,12 @@ function updateUnpaidDisplay() {
 }
 
 async function completeOrder() {
-  const appState = state;
   const customer = document.getElementById('orderCustomer').value.trim();
   const phone = document.getElementById('orderPhone').value.trim();
   const orderDate = document.getElementById('orderDate').value;
   const paid = parseFloat(document.getElementById('orderPaid').value) || 0;
   const paymentType = document.getElementById('orderPaymentType').value;
-  const branch = appState.plan === 'pro' ? document.getElementById('orderBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('orderBranch')?.value || 'Main') : 'Main';
   if (!customer) return showToast('የደንበኛ ስም ያስፈልጋል', 'error');
   if (!orderDate) return showToast('ቀን ያስፈልጋል', 'error');
   if (cart.length === 0) return showToast('Cart ባዶ ነው', 'error');
@@ -544,10 +649,10 @@ async function completeOrder() {
   if (paid > total) return showToast('የተከፈለው ከጠቅላላ መብለጥ አይችልም', 'error');
   try {
     if (!allCustomers.find(c => c.name === customer)) {
-      await setDoc(doc(db, 'customers', appState.tenantId + '_' + customer), { name: customer, phone, tenantId: appState.tenantId, createdAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, 'customers', state.tenantId + '_' + customer), { name: customer, phone, tenantId: state.tenantId, createdAt: serverTimestamp() }, { merge: true });
     }
     const items = cart.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty, total: c.price * c.qty }));
-    await addDoc(collection(db, 'sales'), { tenantId: appState.tenantId, customer, customerPhone: phone, date: orderDate, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, status: 'completed', createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'sales'), { tenantId: state.tenantId, customer, customerPhone: phone, date: orderDate, items, total, paidAmount: paid, unpaidAmount: total - paid, paymentType, branch, status: 'completed', createdAt: serverTimestamp() });
     showToast('✅ Order ተመዝግቧል');
     cart = []; renderCart();
     document.getElementById('orderCustomer').value = '';
@@ -571,20 +676,19 @@ function setOrderDateFilter(filter, btn) {
   if (filter === 'date') { picker.style.display = 'block'; dateInput.style.display = 'block'; monthInput.style.display = 'none'; }
   else if (filter === 'month') { picker.style.display = 'block'; dateInput.style.display = 'none'; monthInput.style.display = 'block'; }
   else { picker.style.display = 'none'; }
-  window.ordersPage = 1;
+  ordersPage = 1;
   renderOrders();
 }
 
-function filterOrdersByBranch() { window.ordersPage = 1; renderOrders(); }
-function filterCustomersByBranch() { window.customersPage = 1; renderCustomersList(); }
+function filterOrdersByBranch() { ordersPage = 1; renderOrders(); }
+function filterCustomersByBranch() { customersPage = 1; renderCustomersList(); }
 
 function renderOrders() {
   const el = document.getElementById('ordersList');
   if (!el) return;
-  const appState = state;
   const search = (document.getElementById('searchOrders')?.value || '').toLowerCase();
   let filtered = [...allSales];
-  const branchFilter = appState.plan === 'pro' ? (document.getElementById('orderBranchFilter')?.value || 'all') : 'all';
+  const branchFilter = state.plan === 'pro' ? (document.getElementById('orderBranchFilter')?.value || 'all') : 'all';
   if (branchFilter !== 'all') filtered = filtered.filter(o => o.branch === branchFilter);
   if (orderDateFilter === 'recent') {
     const today = todayStr();
@@ -601,12 +705,12 @@ function renderOrders() {
   if (search) filtered = filtered.filter(o => (o.customer || '').toLowerCase().includes(search));
   if (filtered.length === 0) {
     el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">📜 ምንም Order የለም</div>';
-    renderPagination('ordersPagination', 0, window.ordersPage, ordersPerPage, (page) => { window.ordersPage = page; renderOrders(); }, (perPage) => { ordersPerPage = perPage; window.ordersPage = 1; renderOrders(); });
+    renderPagination('ordersPagination', 0, ordersPage, ordersPerPage, (page) => { ordersPage = page; renderOrders(); }, (perPage) => { ordersPerPage = perPage; ordersPage = 1; renderOrders(); });
     return;
   }
   const totalPages = Math.ceil(filtered.length / ordersPerPage);
-  if (window.ordersPage > totalPages) window.ordersPage = totalPages;
-  const start = (window.ordersPage - 1) * ordersPerPage;
+  if (ordersPage > totalPages) ordersPage = totalPages;
+  const start = (ordersPage - 1) * ordersPerPage;
   const paginated = filtered.slice(start, start + ordersPerPage);
   el.innerHTML = paginated.map(o => {
     const itemsList = (o.items || []).map(i => `${esc(i.name)} × ${i.qty} = ${money(i.total)} ETB`).join('<br>');
@@ -622,7 +726,7 @@ function renderOrders() {
       </div>
     </div>`;
   }).join('');
-  renderPagination('ordersPagination', filtered.length, window.ordersPage, ordersPerPage, (page) => { window.ordersPage = page; renderOrders(); }, (perPage) => { ordersPerPage = perPage; window.ordersPage = 1; renderOrders(); });
+  renderPagination('ordersPagination', filtered.length, ordersPage, ordersPerPage, (page) => { ordersPage = page; renderOrders(); }, (perPage) => { ordersPerPage = perPage; ordersPage = 1; renderOrders(); });
 }
 
 // ═══════════════════════════════════════════
@@ -638,9 +742,8 @@ function getCustomerStats(name) {
 function renderCustomersList() {
   const el = document.getElementById('customersListContainer');
   if (!el) return;
-  const appState = state;
   const search = (document.getElementById('searchCustomers')?.value || '').toLowerCase();
-  const branchFilter = appState.plan === 'pro' ? (document.getElementById('customerBranchFilter')?.value || 'all') : 'all';
+  const branchFilter = state.plan === 'pro' ? (document.getElementById('customerBranchFilter')?.value || 'all') : 'all';
   const map = {};
   allCustomers.forEach(c => { map[c.name] = { name: c.name, phone: c.phone || '', id: c.id }; });
   allSales.forEach(s => { if (!s.customer) return; if (!map[s.customer]) map[s.customer] = { name: s.customer, phone: s.customerPhone || '', id: null }; });
@@ -650,14 +753,14 @@ function renderCustomersList() {
   if (list.length === 0) { el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">👥 ምንም ደንበኛ የለም</div>'; return; }
   list.sort((a, b) => { const sA = getCustomerStats(a.name); const sB = getCustomerStats(b.name); return sB.totalDebt - sA.totalDebt; });
   const totalPages = Math.ceil(list.length / customersPerPage);
-  if (window.customersPage > totalPages) window.customersPage = totalPages;
-  const start = (window.customersPage - 1) * customersPerPage;
+  if (customersPage > totalPages) customersPage = totalPages;
+  const start = (customersPage - 1) * customersPerPage;
   const paginated = list.slice(start, start + customersPerPage);
   el.innerHTML = paginated.map(c => {
     const stats = getCustomerStats(c.name);
     return `<div class="customer-card" onclick="window.showCustomerProfile('${escJs(c.name)}')"><div class="customer-row"><div class="customer-info"><div class="customer-name">👤 ${esc(c.name)}</div><div class="customer-meta">📞 ${esc(c.phone || '-')} | 🛏️ ${stats.orderCount} orders | 💰 ${money(stats.totalPaid)} paid</div></div>${stats.totalDebt > 0.01 ? `<div class="customer-debt-badge">⚠️ ${money(stats.totalDebt)}</div>` : '<div style="color:var(--success); font-size:20px;">✓</div>'}</div></div>`;
   }).join('');
-  renderPagination('customersPagination', list.length, window.customersPage, customersPerPage, (page) => { window.customersPage = page; renderCustomersList(); }, (perPage) => { customersPerPage = perPage; window.customersPage = 1; renderCustomersList(); });
+  renderPagination('customersPagination', list.length, customersPage, customersPerPage, (page) => { customersPage = page; renderCustomersList(); }, (perPage) => { customersPerPage = perPage; customersPage = 1; renderCustomersList(); });
 }
 
 function showCustomerProfile(name) {
@@ -666,34 +769,45 @@ function showCustomerProfile(name) {
   const custData = allCustomers.find(c => c.name === name) || {};
   const ordersHtml = stats.sales.length === 0
     ? '<p style="text-align:center; color:var(--text-muted); padding:20px;">ምንም order የለም</p>'
-    : [...stats.sales].sort((a,b) => new Date(b.date) - new Date(a.date)).map(o => {
+    : [...stats.sales].sort((a, b) => new Date(b.date) - new Date(a.date)).map(o => {
       const unpaid = (o.unpaidAmount || 0);
       return `<div class="history-item"><div class="history-row"><span class="history-date">📅 ${esc(o.date)}</span><span class="history-amount" style="color:var(--primary);">${money(o.total)} ETB</span></div><div class="history-items">${(o.items || []).map(i => `${esc(i.name)} × ${i.qty}`).join(' • ')}</div><div class="history-badge"><span style="color:var(--success); font-weight:600;">✅ Paid: ${money(o.paidAmount || 0)}</span>${unpaid > 0.01 ? ` | <span style="color:var(--danger); font-weight:600;">⚠️ Debt: ${money(unpaid)}</span>` : ''}</div></div>`;
     }).join('');
-  document.getElementById('customerProfileBody').innerHTML = `
-    <div class="profile-header"><div class="profile-avatar">👤</div><div class="profile-name">${esc(name)}</div><div class="profile-phone">📞 ${esc(custData.phone || '-')}</div></div>
-    <div class="profile-stats"><div class="profile-stat"><div class="label">Orders</div><div class="value">${stats.orderCount}</div></div><div class="profile-stat paid"><div class="label">Paid</div><div class="value">${money(stats.totalPaid)}</div></div><div class="profile-stat debt"><div class="label">Debt</div><div class="value">${money(stats.totalDebt)}</div></div></div>
-    ${stats.totalDebt > 0.01 ? `
-      <div class="payment-form">
-        <h4>💰 Record Payment</h4>
-        <label class="field-label" style="margin-top:0;">💳 Payment Type</label>
-        <div class="payment-type-selector"><button type="button" class="payment-type-btn active" id="payTypeCash" onclick="window.setPaymentType('cash')">💵 Cash</button><button type="button" class="payment-type-btn" id="payTypeTransfer" onclick="window.setPaymentType('transfer')">🏦 Transfer</button></div>
-        <input type="hidden" id="paymentType" value="cash">
-        <label class="field-label">Amount (ETB) *</label>
-        <input type="number" id="paymentAmount" placeholder="0.00" step="any" max="${stats.totalDebt}">
-        <label class="field-label">Date</label>
-        <input type="date" id="paymentDate" value="${todayStr()}">
-        <button class="btn btn-success" onclick="window.recordPayment('${escJs(name)}')" style="margin-top:12px;">💾 Record Payment</button>
-      </div>
-    ` : ''}
-    <div class="history-section"><h4>📜 Order History</h4>${ordersHtml}</div>
-    <div style="display:flex; gap:8px; margin-top:16px;"><button class="btn btn-outline" onclick="window.editCustomer('${escJs(name)}')" style="margin-top:0;">✏️ Edit</button><button class="btn btn-danger" onclick="window.deleteCustomer('${escJs(name)}')" style="margin-top:0;">🗑️ Delete</button></div>
-  `;
-  document.getElementById('customerProfileModal').classList.add('open');
+  const bodyEl = document.getElementById('customerProfileBody');
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="profile-header"><div class="profile-avatar">👤</div><div class="profile-name">${esc(name)}</div><div class="profile-phone">📞 ${esc(custData.phone || '-')}</div></div>
+      <div class="profile-stats"><div class="profile-stat"><div class="label">Orders</div><div class="value">${stats.orderCount}</div></div><div class="profile-stat paid"><div class="label">Paid</div><div class="value">${money(stats.totalPaid)}</div></div><div class="profile-stat debt"><div class="label">Debt</div><div class="value">${money(stats.totalDebt)}</div></div></div>
+      ${stats.totalDebt > 0.01 ? `
+        <div class="payment-form">
+          <h4>💰 Record Payment</h4>
+          <label class="field-label" style="margin-top:0;">💳 Payment Type</label>
+          <div class="payment-type-selector"><button type="button" class="payment-type-btn active" id="payTypeCash" onclick="window.setPaymentType('cash')">💵 Cash</button><button type="button" class="payment-type-btn" id="payTypeTransfer" onclick="window.setPaymentType('transfer')">🏦 Transfer</button></div>
+          <input type="hidden" id="paymentType" value="cash">
+          <label class="field-label">Amount (ETB) *</label>
+          <input type="number" id="paymentAmount" placeholder="0.00" step="any" max="${stats.totalDebt}">
+          <label class="field-label">Date</label>
+          <input type="date" id="paymentDate" value="${todayStr()}">
+          <button class="btn btn-success" onclick="window.recordPayment('${escJs(name)}')" style="margin-top:12px;">💾 Record Payment</button>
+        </div>
+      ` : ''}
+      <div class="history-section"><h4>📜 Order History</h4>${ordersHtml}</div>
+      <div style="display:flex; gap:8px; margin-top:16px;"><button class="btn btn-outline" onclick="window.editCustomer('${escJs(name)}')" style="margin-top:0;">✏️ Edit</button><button class="btn btn-danger" onclick="window.deleteCustomer('${escJs(name)}')" style="margin-top:0;">🗑️ Delete</button></div>
+    `;
+  }
+  document.getElementById(PROFILE_MODAL_ID)?.classList.add('open');
 }
 
-function closeCustomerProfile() { document.getElementById('customerProfileModal').classList.remove('open'); currentCustomerName = null; }
-function setPaymentType(type) { document.getElementById('paymentType').value = type; document.getElementById('payTypeCash').classList.toggle('active', type === 'cash'); document.getElementById('payTypeTransfer').classList.toggle('active', type === 'transfer'); }
+function closeCustomerProfile() {
+  document.getElementById(PROFILE_MODAL_ID)?.classList.remove('open');
+  currentCustomerName = null;
+}
+
+function setPaymentType(type) {
+  document.getElementById('paymentType').value = type;
+  document.getElementById('payTypeCash').classList.toggle('active', type === 'cash');
+  document.getElementById('payTypeTransfer').classList.toggle('active', type === 'transfer');
+}
 
 function recordPayment(name) {
   const amount = parseFloat(document.getElementById('paymentAmount').value);
@@ -715,7 +829,7 @@ function recordPayment(name) {
       }
       await addDoc(collection(db, 'payments'), { tenantId: state.tenantId, customer: name, amount, date, paymentType, createdAt: serverTimestamp() });
       showToast(`✅ ${money(amount)} ETB ተከፍሏል`);
-      document.getElementById('customerProfileModal').classList.remove('open');
+      closeCustomerProfile();
       setTimeout(() => showCustomerProfile(name), 300);
     } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
   })();
@@ -726,18 +840,22 @@ function editCustomer(name) {
   editingCustomerName = name;
   document.getElementById('editCustName').value = cust.name;
   document.getElementById('editCustPhone').value = cust.phone || '';
-  document.getElementById('customerProfileModal').classList.remove('open');
-  document.getElementById('editCustomerModal').classList.add('open');
+  closeCustomerProfile();
+  document.getElementById(EDIT_CUSTOMER_MODAL_ID)?.classList.add('open');
+}
+
+function closeEditCustomerModal() {
+  document.getElementById(EDIT_CUSTOMER_MODAL_ID)?.classList.remove('open');
+  editingCustomerName = null;
 }
 
 async function saveEditedCustomer() {
-  const appState = state;
   const name = document.getElementById('editCustName').value.trim();
   const phone = document.getElementById('editCustPhone').value.trim();
   if (!name) return showToast('ስም ያስፈልጋል', 'error');
   try {
     if (editingCustomerName) {
-      await setDoc(doc(db, 'customers', appState.tenantId + '_' + name), { name, phone, tenantId: appState.tenantId, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, 'customers', state.tenantId + '_' + name), { name, phone, tenantId: state.tenantId, updatedAt: serverTimestamp() }, { merge: true });
       if (editingCustomerName !== name) {
         const orders = allSales.filter(s => s.customer === editingCustomerName);
         for (const o of orders) await updateDoc(doc(db, 'sales', o.id), { customer: name, customerPhone: phone });
@@ -747,31 +865,33 @@ async function saveEditedCustomer() {
       }
     }
     showToast('✅ ተሻሽሏል');
-    document.getElementById('editCustomerModal').classList.remove('open');
-    editingCustomerName = null;
+    closeEditCustomerModal();
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
 async function deleteCustomer(name) {
   if (!confirm(`"${name}" ን ማጥፋት? (Orders አይጠፉም)`)) return;
-  try { await deleteDoc(doc(db, 'customers', state.tenantId + '_' + name)); showToast('✅ ተጠፍቷል'); document.getElementById('customerProfileModal').classList.remove('open'); } catch (e) { showToast('❌ ስህተት', 'error'); }
+  try {
+    await deleteDoc(doc(db, 'customers', state.tenantId + '_' + name));
+    showToast('✅ ተጠፍቷል');
+    closeCustomerProfile();
+  } catch (e) { showToast('❌ ስህተት', 'error'); }
 }
 
 // ═══════════════════════════════════════════
 // 💸 EXPENSES
 // ═══════════════════════════════════════════
 async function addExpense() {
-  const appState = state;
   const category = document.getElementById('expCategory').value.trim();
   const amount = parseFloat(document.getElementById('expAmount').value);
   const date = document.getElementById('expDate').value;
   const note = document.getElementById('expNote').value.trim();
-  const branch = appState.plan === 'pro' ? document.getElementById('expBranch').value : 'Main';
+  const branch = state.plan === 'pro' ? (document.getElementById('expBranch')?.value || 'Main') : 'Main';
   if (!category) return showToast('Category ያስፈልጋል', 'error');
   if (isNaN(amount) || amount <= 0) return showToast('ትክክል ያለው ዋጋ ያስፈልጋል', 'error');
   if (!date) return showToast('ቀን ያስፈልጋል', 'error');
   try {
-    await addDoc(collection(db, 'expenses'), { tenantId: appState.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'expenses'), { tenantId: state.tenantId, category, amount, date, note, branch, createdAt: serverTimestamp() });
     document.getElementById('expCategory').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
@@ -780,7 +900,7 @@ async function addExpense() {
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
 
-function changeExpenseDate() { window.expensesPage = 1; renderExpenses(); }
+function changeExpenseDate() { expensesPage = 1; renderExpenses(); }
 
 function setExpenseDateFilter(filter, btn) {
   expenseDateFilter = filter;
@@ -792,7 +912,7 @@ function setExpenseDateFilter(filter, btn) {
   if (filter === 'date') { picker.style.display = 'block'; dateInput.style.display = 'block'; monthInput.style.display = 'none'; }
   else if (filter === 'month') { picker.style.display = 'block'; dateInput.style.display = 'none'; monthInput.style.display = 'block'; }
   else { picker.style.display = 'none'; }
-  window.expensesPage = 1;
+  expensesPage = 1;
   renderExpenses();
 }
 
@@ -843,7 +963,6 @@ function setReportType(type, btn) {
 }
 
 function renderReports() {
-  const appState = state;
   if (!document.getElementById('repRevenue')) return;
   const dateInput = document.getElementById('reportDate');
   const monthInput = document.getElementById('reportMonth');
@@ -852,7 +971,7 @@ function renderReports() {
   if (dateInput.style.display !== 'none') { prefix = dateInput.value || todayStr(); label = `Daily (${prefix})`; }
   else if (monthInput.style.display !== 'none') { prefix = monthInput.value || thisMonthStr(); label = `Monthly (${prefix})`; }
   else { prefix = yearInput.value || thisYearStr(); label = `Yearly (${prefix})`; }
-  const branchFilter = appState.plan === 'pro' ? (document.getElementById('reportBranch')?.value || 'all') : 'all';
+  const branchFilter = state.plan === 'pro' ? (document.getElementById('reportBranch')?.value || 'all') : 'all';
   let periodSales = allSales.filter(o => (o.date || '').startsWith(prefix));
   let periodExpenses = allExpenses.filter(e => (e.date || '').startsWith(prefix));
   if (branchFilter !== 'all') { periodSales = periodSales.filter(o => o.branch === branchFilter); periodExpenses = periodExpenses.filter(e => e.branch === branchFilter); }
@@ -897,12 +1016,12 @@ function printReport() {
 // ⚙️ SETTINGS
 // ═══════════════════════════════════════════
 async function saveSettings() {
-  const appState = state;
   const name = document.getElementById('settingBizName').value.trim();
   const phone = document.getElementById('settingBizPhone').value.trim();
   try {
-    await updateDoc(doc(db, 'tenants', appState.tenantId), { name, phone });
-    document.getElementById('hdrBusinessName').textContent = name;
+    await updateDoc(doc(db, 'tenants', state.tenantId), { name, phone });
+    const hdr = document.getElementById('hdrBusinessName');
+    if (hdr && name) hdr.textContent = name;
     showToast('✅ ተቀምጧል');
   } catch (e) { showToast('❌ ስህተት: ' + e.message, 'error'); }
 }
