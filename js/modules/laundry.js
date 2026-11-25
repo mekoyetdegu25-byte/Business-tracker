@@ -34,15 +34,15 @@ export const LaundryModule = {
   name: 'Laundry',
   icon: '🧺',
   navItems: [
-    { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true },
-    { id: 'panel2', label: 'New Order', icon: '🧺' },
-    { id: 'panel3', label: 'Orders', icon: '📜' },
-    { id: 'panelCustomers', label: 'Customers', icon: '👥' },
-    { id: 'panel1', label: 'Price List', icon: '🏷️' },
-    { id: 'panel6', label: 'Reports', icon: '📊' },
-    { id: 'panel8', label: 'Settings', icon: '⚙️' },
-    { id: 'panel4', label: 'Expenses', icon: '💸' } // ከ6 በኋላ ስለሆነ በሞባይል አይታይም
-  ],
+  { id: 'panelMobileHome', label: 'Home', icon: '🏠', default: true },
+  { id: 'panel2', label: 'New Order', icon: '🧺' },
+  { id: 'panel3', label: 'Orders', icon: '📜' },
+  { id: 'panelCustomers', label: 'Customers', icon: '👥' },
+  { id: 'panel1', label: 'Price List', icon: '🏷️' },
+  { id: 'panel6', label: 'Reports', icon: '📊' },
+  { id: 'panel8', label: 'Settings', icon: '⚙️' },
+  { id: 'panel4', label: 'Expenses', icon: '💸' } // ከ6 በኋላ ስለሆነ በሞባይል አይታይም
+],
   panels: [
     { id: 'panelMobileHome', html: `
       <div class="mobile-summary-card">
