@@ -5,6 +5,7 @@ import { BakeryModule } from './modules/bakery.js';
 import { LaundryModule } from './modules/laundry.js';
 import { DrinksModule } from './modules/drinks.js';
 import { HotelModule } from './modules/hotel.js';
+import { PensionModule } from './modules/pension.js';
 
 // ═══════════════════════════════════════════
 // 📦 ሁሉም ዘርፎች እዚህ ይመዘገባሉ
@@ -14,6 +15,7 @@ export const MODULES = {
   laundry: LaundryModule,
   drinks: DrinksModule,
   hotel: HotelModule,
+  pension: PensionModule,
   // 🔜 ወደፊት የሚጨመሩ ዘርፎች (አሁን በ Comment ላይ ናቸው)
   // laundry: LaundryModule,
   // hotel: HotelModule,
