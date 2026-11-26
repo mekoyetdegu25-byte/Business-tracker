@@ -522,9 +522,9 @@ export async function mountExtraSettings(appState) {
     if (expEl) expEl.value = calcNextExpiry(cycle);
   };
 
-  async function compressImageFile(file, maxWidth = 960, quality = 0.72) {
+  async function compressImageFile(file, maxWidth = 720, quality = 0.6) {
   return new Promise((resolve) => {
-    if (!file || !file.type.startsWith('image/')) return resolve(file);
+    if (!file || !file.type.startsWith('image/')) return resolve({ blob: file, dataUrl: '' });
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -535,30 +535,19 @@ export async function mountExtraSettings(appState) {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
         canvas.toBlob(
-          (blob) => resolve(blob || file),
+          (blob) => resolve({ blob: blob || file, dataUrl }),
           'image/jpeg',
           quality
         );
       };
-      img.onerror = () => resolve(file);
+      img.onerror = () => resolve({ blob: file, dataUrl: '' });
       img.src = ev.target.result;
     };
-    reader.onerror = () => resolve(file);
+    reader.onerror = () => resolve({ blob: file, dataUrl: '' });
     reader.readAsDataURL(file);
   });
-}
-
-async function uploadWithTimeout(storageRef, blobOrFile, timeoutMs = 15000) {
-  return await Promise.race([
-    (async () => {
-      await uploadBytes(storageRef, blobOrFile, { contentType: blobOrFile.type || 'image/jpeg' });
-      return await getDownloadURL(storageRef);
-    })(),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Storage upload timed out. Check Firebase Storage Rules & connection.')), timeoutMs)
-    )
-  ]);
 }
 
 window.submitTenantPaymentRequest = async () => {
@@ -577,11 +566,24 @@ window.submitTenantPaymentRequest = async () => {
 
     let screenshotUrl = '';
     if (proofFile) {
-      const compressedBlob = await compressImageFile(proofFile);
-      const storage = getStorage(auth.app);
-      const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '.jpg')}`;
-      const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
-      screenshotUrl = await uploadWithTimeout(storageRef, compressedBlob, 15000);
+      const { blob, dataUrl } = await compressImageFile(proofFile);
+      try {
+        const storage = getStorage(auth.app);
+        const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '.jpg')}`;
+        const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
+        await Promise.race([
+          (async () => {
+            await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+            screenshotUrl = await getDownloadURL(storageRef);
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 8000))
+        ]);
+      } catch (storageErr) {
+        console.warn('Storage fallback to compressed image:', storageErr);
+        if (dataUrl && dataUrl.length < 750000) {
+          screenshotUrl = dataUrl;
+        }
+      }
     }
 
     await addDoc(collection(db, 'billingRequests'), {
@@ -604,12 +606,13 @@ window.submitTenantPaymentRequest = async () => {
     if (fileEl) fileEl.value = '';
     showToast('✅ የክፍያ ጥያቄ እና Screenshot ለ Admin ተልኳል');
   } catch (e) {
-    console.error('Payment request upload error:', e);
+    console.error('Payment request error:', e);
     showToast('❌ ስህተት: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = t('sendPayReqBtn'); }
   }
 };
+
 
 
   window.setAppLanguage = async (lang) => {
