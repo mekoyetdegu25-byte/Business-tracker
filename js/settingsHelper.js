@@ -522,9 +522,9 @@ export async function mountExtraSettings(appState) {
     if (expEl) expEl.value = calcNextExpiry(cycle);
   };
 
-  async function compressImageFile(file, maxWidth = 720, quality = 0.6) {
+  async function compressImageToDataUrl(file, maxWidth = 680, quality = 0.55) {
   return new Promise((resolve) => {
-    if (!file || !file.type.startsWith('image/')) return resolve({ blob: file, dataUrl: '' });
+    if (!file || !file.type.startsWith('image/')) return resolve('');
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -535,17 +535,12 @@ export async function mountExtraSettings(appState) {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        canvas.toBlob(
-          (blob) => resolve({ blob: blob || file, dataUrl }),
-          'image/jpeg',
-          quality
-        );
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
-      img.onerror = () => resolve({ blob: file, dataUrl: '' });
+      img.onerror = () => resolve('');
       img.src = ev.target.result;
     };
-    reader.onerror = () => resolve({ blob: file, dataUrl: '' });
+    reader.onerror = () => resolve('');
     reader.readAsDataURL(file);
   });
 }
@@ -562,27 +557,30 @@ window.submitTenantPaymentRequest = async () => {
   const btn = document.getElementById('subReqBtn');
 
   try {
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading...'; }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ በመላክ ላይ...'; }
 
     let screenshotUrl = '';
     if (proofFile) {
-      const { blob, dataUrl } = await compressImageFile(proofFile);
+      const compressedDataUrl = await compressImageToDataUrl(proofFile);
+      if (compressedDataUrl && compressedDataUrl.length < 850000) {
+        screenshotUrl = compressedDataUrl;
+      }
+
       try {
         const storage = getStorage(auth.app);
         const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '.jpg')}`;
         const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
-        await Promise.race([
+        const blob = await (await fetch(compressedDataUrl)).blob();
+        const uploadedUrl = await Promise.race([
           (async () => {
             await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
-            screenshotUrl = await getDownloadURL(storageRef);
+            return await getDownloadURL(storageRef);
           })(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 8000))
+          new Promise((resolve) => setTimeout(() => resolve(''), 6000))
         ]);
-      } catch (storageErr) {
-        console.warn('Storage fallback to compressed image:', storageErr);
-        if (dataUrl && dataUrl.length < 750000) {
-          screenshotUrl = dataUrl;
-        }
+        if (uploadedUrl) screenshotUrl = uploadedUrl;
+      } catch (_) {
+        // Storage ቢዘገይ ወይም ቢከለክል compressedDataUrl እንደ backup ይቀመጣል
       }
     }
 
