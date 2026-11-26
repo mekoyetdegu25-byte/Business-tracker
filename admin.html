@@ -9,7 +9,7 @@
     --primary: #1a365d; 
     --primary-light: #2c5282;
     --accent: #d4af37; 
-    --bg: #f8fafc; 
+    --bg: #f1f5f9; 
     --card: #ffffff; 
     --text: #1e293b; 
     --muted: #64748b; 
@@ -19,8 +19,15 @@
     --warning: #f59e0b;
     --info: #3b82f6;
   }
+  body.dark-mode {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --border: #334155;
+  }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); padding: 20px; }
+  body { background: var(--bg); color: var(--text); }
   
   /* LOGIN */
   #loginScreen { 
@@ -35,15 +42,13 @@
     box-shadow: 0 20px 40px rgba(0,0,0,0.3);
     border-top: 4px solid var(--accent);
   }
-  .login-box h1 { 
-    text-align: center; color: var(--primary); 
-    margin-bottom: 24px; font-size: 24px;
-  }
+  .login-box h1 { text-align: center; color: var(--primary); margin-bottom: 24px; font-size: 24px; }
+  body.dark-mode .login-box h1 { color: var(--accent); }
   
   input, select, textarea { 
-    width: 100%; padding: 12px; 
+    width: 100%; padding: 11px 12px; 
     border: 1.5px solid var(--border); border-radius: 8px; 
-    margin-bottom: 15px; font-size: 14px; 
+    margin-bottom: 14px; font-size: 14px; 
     outline: none; font-family: inherit;
     background: var(--bg);
     color: var(--text);
@@ -55,147 +60,172 @@
   }
   
   button { 
-    width: 100%; padding: 13px; border: none; border-radius: 8px; 
+    width: 100%; padding: 12px; border: none; border-radius: 8px; 
     background: var(--primary); color: white; 
     font-weight: bold; cursor: pointer; font-size: 14px;
     transition: all 0.2s;
   }
-  button:hover { opacity: 0.9; transform: translateY(-1px); }
-  button:active { transform: translateY(0); }
-  
-  /* APP */
-  #app { display: none; max-width: 1100px; margin: 0 auto; }
-  
-  .header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-bottom: 20px; padding: 16px 20px;
-    background: var(--card); border-radius: 12px;
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  button:hover { opacity: 0.92; }
+
+  /* APP SHELL (MOBILE + DESKTOP) */
+  #app { display: none; min-height: 100vh; flex-direction: column; }
+
+  /* TOP HEADER */
+  .top-header {
+    position: sticky; top: 0; z-index: 100;
+    background: #1a365d; color: #fff;
+    padding: 12px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   }
-  .header h1 { font-size: 22px; color: var(--primary); }
-  .btn-logout { 
-    width: auto; padding: 8px 20px; 
-    background: var(--danger); font-size: 13px;
+  .hdr-left { display: flex; align-items: center; gap: 10px; }
+  .hdr-avatar {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--accent); color: #1a365d;
+    font-weight: 800; display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
   }
-  
-  /* CARDS */
+  .hdr-title { font-size: 15px; font-weight: 800; }
+  .hdr-sub { font-size: 11px; opacity: 0.8; }
+  .hdr-actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn {
+    width: auto; padding: 7px 11px; border-radius: 8px;
+    background: rgba(255,255,255,0.14); color: #fff; font-size: 13px;
+  }
+  .btn-logout { width: auto; padding: 7px 14px; background: var(--danger); font-size: 12px; }
+
+  /* BODY LAYOUT */
+  .app-body { display: flex; flex: 1; }
+
+  /* DESKTOP SIDEBAR */
+  .sidebar {
+    display: none;
+    width: 230px; flex-shrink: 0;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 14px 10px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; border-radius: 10px;
+    cursor: pointer; font-size: 14px; font-weight: 600;
+    color: var(--text); margin-bottom: 6px;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { background: var(--bg); }
+  .nav-item.active { background: #1a365d; color: #fff; }
+  .nav-badge {
+    margin-left: auto; background: var(--danger); color: #fff;
+    font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 700;
+  }
+
+  /* MAIN PANEL AREA */
+  .main-content {
+    flex: 1; padding: 14px;
+    padding-bottom: 84px; /* ለሞባይል bottom nav ቦታ */
+    max-width: 100%;
+  }
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; }
+
+  /* MOBILE BOTTOM NAV */
+  .mobile-bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: var(--card); border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 6px 4px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+  }
+  .mobile-nav-btn {
+    background: transparent; color: var(--muted);
+    padding: 6px 2px; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10.5px; font-weight: 700; position: relative;
+  }
+  .mobile-nav-btn .ico { font-size: 17px; }
+  .mobile-nav-btn.active { color: var(--primary); background: rgba(26,54,93,0.08); }
+  body.dark-mode .mobile-nav-btn.active { color: var(--accent); background: rgba(212,175,55,0.12); }
+
+  /* CARDS & GRIDS */
   .card { 
     background: var(--card); border-radius: 12px; 
-    padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
-    margin-bottom: 20px; border: 1px solid var(--border); 
+    padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+    margin-bottom: 16px; border: 1px solid var(--border); 
   }
   .card h2 { 
-    font-size: 16px; margin-bottom: 20px; color: var(--primary); 
+    font-size: 15px; margin-bottom: 16px; color: var(--primary); 
     border-bottom: 2px solid var(--accent); 
-    padding-bottom: 8px; display: inline-block; 
+    padding-bottom: 6px; display: inline-block; 
   }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-  @media (max-width: 640px) { 
-    .grid, .grid-3 { grid-template-columns: 1fr; }
-    body { padding: 12px; }
+  body.dark-mode .card h2 { color: var(--accent); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; display: block; }
+
+  /* STATS */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); 
+    gap: 12px; margin-bottom: 16px;
   }
-  
-  label { 
-    font-size: 12px; font-weight: 700; 
-    color: var(--muted); margin-bottom: 4px; 
-    display: block;
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); 
+    border-radius: 12px; padding: 16px; text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
   }
-  
-  /* TENANT ITEMS */
+  .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .stat-card .stat-value { font-size: 24px; font-weight: 800; color: var(--primary); }
+  body.dark-mode .stat-card .stat-value { color: #f8fafc; }
+
+  /* TENANT & REQUEST ITEMS */
+  .cards-list-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .tenant-item { 
-    border: 1px solid var(--border); border-radius: 10px; 
-    padding: 16px; margin-bottom: 12px; 
-    background: var(--bg);
-    transition: all 0.2s;
+    border: 1px solid var(--border); border-radius: 12px; 
+    padding: 15px; background: var(--bg);
+    transition: all 0.2s; display: flex; flex-direction: column; justify-content: space-between;
   }
-  .tenant-item:hover { 
-    border-color: var(--primary); 
-    box-shadow: 0 2px 8px rgba(26,54,93,0.08);
-  }
-  .tenant-item h3 { 
-    font-size: 15px; color: var(--primary); 
-    margin-bottom: 6px; 
-    display: flex; align-items: center; 
-    gap: 6px; flex-wrap: wrap;
-  }
-  .tenant-item p { 
-    font-size: 12px; color: var(--muted); 
-    margin-bottom: 10px; 
-  }
+  .tenant-item:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(26,54,93,0.08); }
+  .tenant-item h3 { font-size: 15px; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  body.dark-mode .tenant-item h3 { color: #f8fafc; }
+  .tenant-item p { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
   
-  .badge { 
-    display: inline-block; padding: 3px 8px; 
-    border-radius: 12px; font-size: 10px; 
-    font-weight: bold; color: white; 
-  }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; color: white; }
   .bg-success { background: var(--success); }
   .bg-danger { background: var(--danger); }
   .bg-warning { background: var(--warning); }
   .bg-info { background: var(--info); }
   
-  .action-btns {
-    display: flex; gap: 6px; 
-    flex-wrap: wrap; margin-top: 10px;
-  }
-  .action-btns button {
-    width: auto; padding: 6px 12px; 
-    font-size: 12px; margin: 0;
-  }
-  
-  /* FILTERS */
-  .filters { 
-    display: grid; 
-    grid-template-columns: 2fr 1fr 1fr; 
-    gap: 10px; margin-bottom: 16px; 
-  }
-  @media (max-width: 640px) {
-    .filters { grid-template-columns: 1fr; }
-  }
-  
-  /* STATUS */
+  .action-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .action-btns button { width: auto; padding: 6px 11px; font-size: 11.5px; margin: 0; }
+
+  .filters { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+
   #createStatus, #supportStatus { 
-    text-align: center; margin-top: 12px; 
-    font-size: 13px; font-weight: bold; 
-    padding: 10px; border-radius: 8px; 
-    display: none;
+    text-align: center; margin-top: 12px; font-size: 13px; font-weight: bold; 
+    padding: 10px; border-radius: 8px; display: none;
   }
   #createStatus.show, #supportStatus.show { display: block; }
-  .status-success { background: rgba(16,185,129,0.1); color: var(--success); }
-  .status-error { background: rgba(239,68,68,0.1); color: var(--danger); }
-  .status-loading { background: rgba(245,158,11,0.1); color: var(--warning); }
-  
-  /* STATS */
-  .stats-grid {
-    display: grid; 
-    grid-template-columns: repeat(4, 1fr); 
-    gap: 12px; margin-bottom: 20px;
+  .status-success { background: rgba(16,185,129,0.12); color: var(--success); }
+  .status-error { background: rgba(239,68,68,0.12); color: var(--danger); }
+  .status-loading { background: rgba(245,158,11,0.12); color: var(--warning); }
+
+  .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); grid-column: 1 / -1; }
+  .empty-state .emoji { font-size: 42px; margin-bottom: 10px; }
+
+  /* 💻 TABLET & DESKTOP (>= 768px) */
+  @media (min-width: 768px) {
+    .sidebar { display: block; }
+    .mobile-bottom-nav { display: none; }
+    .main-content { padding: 22px; padding-bottom: 24px; }
+    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    .form-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .form-grid-3 { grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .filters { grid-template-columns: 2fr 1fr 1fr; }
+    .cards-list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   }
-  @media (max-width: 640px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
+
+  @media (min-width: 1200px) {
+    .cards-list-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
-  .stat-card {
-    background: var(--card); 
-    border: 1px solid var(--border); 
-    border-radius: 10px; padding: 16px; 
-    text-align: center;
-  }
-  .stat-card .stat-label {
-    font-size: 11px; color: var(--muted); 
-    text-transform: uppercase; 
-    font-weight: 700; margin-bottom: 4px;
-  }
-  .stat-card .stat-value {
-    font-size: 22px; font-weight: 800; 
-    color: var(--primary);
-  }
-  
-  .empty-state {
-    text-align: center; padding: 40px 20px; 
-    color: var(--muted);
-  }
-  .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -213,151 +243,216 @@
 
 <!-- MAIN APP -->
 <div id="app">
-  <div class="header">
-    <h1>👑 Admin Dashboard</h1>
-    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-  </div>
-
-  <!-- Stats Overview -->
-  <div class="stats-grid" id="statsGrid"></div>
-
-  <!-- Global Support Info -->
-  <div class="card">
-    <h2>🛟 Support Info (ለሁሉም ተጠቃሚዎች)</h2>
-    <div class="grid-3">
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div class="hdr-left">
+      <div class="hdr-avatar">👑</div>
       <div>
-        <label>📞 Admin Phone</label>
-        <input type="text" id="supPhone" placeholder="+251 9...">
-      </div>
-      <div>
-        <label>✈️ Telegram Username</label>
-        <input type="text" id="supTelegram" placeholder="@hanitech_support">
-      </div>
-      <div>
-        <label>📧 Support Email</label>
-        <input type="email" id="supEmail" placeholder="support@hanitech.com">
+        <div class="hdr-title">HaniTech Super Admin</div>
+        <div class="hdr-sub" id="adminEmailLabel">admin@hanitech.com</div>
       </div>
     </div>
-    <button onclick="saveSupportInfo()" style="background: var(--primary);">
-      💾 Save Support Info
+    <div class="hdr-actions">
+      <button class="icon-btn" onclick="toggleAdminTheme()" title="Theme">🌓</button>
+      <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="sidebar">
+      <div class="nav-item active" data-panel="panelDashboard" onclick="switchAdminTab('panelDashboard')">
+        <span>📊</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-panel="panelTenants" onclick="switchAdminTab('panelTenants')">
+        <span>🏢</span><span>Tenants</span>
+      </div>
+      <div class="nav-item" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
+        <span>➕</span><span>Create Tenant</span>
+      </div>
+      <div class="nav-item" data-panel="panelRequests" onclick="switchAdminTab('panelRequests')">
+        <span>🔑</span><span>Reset Requests</span>
+        <span class="nav-badge" id="reqBadgeSide" style="display:none;">0</span>
+      </div>
+      <div class="nav-item" data-panel="panelSupport" onclick="switchAdminTab('panelSupport')">
+        <span>🛟</span><span>Support Info</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT CONTENT AREA -->
+    <main class="main-content">
+      <!-- 1. DASHBOARD -->
+      <section class="admin-panel active" id="panelDashboard">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="card">
+          <h2>⚡ Quick Actions</h2>
+          <div class="form-grid">
+            <button onclick="switchAdminTab('panelCreate')" style="background:var(--success);">➕ አዲስ Tenant ፍጠር</button>
+            <button onclick="switchAdminTab('panelTenants')" style="background:var(--primary);">🏢 Tenants ዝርዝር እይ</button>
+            <button onclick="switchAdminTab('panelRequests')" style="background:var(--warning);">🔑 Password Requests እይ</button>
+            <button onclick="switchAdminTab('panelSupport')" style="background:var(--info);">🛟 Support Info አስተካክል</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TENANTS LIST -->
+      <section class="admin-panel" id="panelTenants">
+        <div class="card">
+          <h2>📋 የተፈጠሩ ተጠቃሚዎች (Tenants)</h2>
+          <div class="filters">
+            <input type="text" id="searchTenant" placeholder="🔍 Search tenant..." oninput="loadTenants()" style="margin-bottom:0;">
+            <select id="filterPlan" onchange="loadTenants()" style="margin-bottom:0;">
+              <option value="all">All Plans</option>
+              <option value="basic">Basic Only</option>
+              <option value="pro">Pro Only</option>
+            </select>
+            <select id="filterBizType" onchange="loadTenants()" style="margin-bottom:0;">
+              <option value="all">All Types</option>
+              <option value="laundry">🧺 Laundry</option>
+              <option value="hotel">🏨 Hotel</option>
+              <option value="restaurant">🍽️ Restaurant</option>
+              <option value="supermarket">🛒 Supermarket</option>
+              <option value="bakery">🍞 Bakery</option>
+              <option value="retail">🏪 Retail</option>
+              <option value="drinks">🍾 Drinks</option>
+              <option value="pension">🏠 Pension</option>
+              <option value="appointments">📅 Appointments</option>
+              <option value="clothes">👗 Clothes</option>
+              <option value="salon">✂️ Salon</option>
+              <option value="electronics">🔌 Electronics</option>
+              <option value="hardware">🧱 Hardware</option>
+              <option value="printing">🖨️ Printing</option>
+              <option value="furniture">🛋️ Furniture</option>
+            </select>
+          </div>
+          <div id="tenantList" class="cards-list-grid"></div>
+        </div>
+      </section>
+
+      <!-- 3. CREATE TENANT -->
+      <section class="admin-panel" id="panelCreate">
+        <div class="card">
+          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant)</h2>
+          <div class="form-grid">
+            <div>
+              <label>የንግድ ስም *</label>
+              <input type="text" id="newName" placeholder="e.g. ABC Hotel">
+            </div>
+            <div>
+              <label>ዘርፍ (Business Type) *</label>
+              <select id="newBizType">
+                <option value="laundry">🧺 Laundry</option>
+                <option value="hotel">🏨 Hotel</option>
+                <option value="restaurant">🍽️ Restaurant / Cafe</option>
+                <option value="supermarket">🛒 Supermarket</option>
+                <option value="bakery">🍞 Bakery</option>
+                <option value="retail">🏪 Retail Shop</option>
+                <option value="drinks">🍾 Drinks Distributor</option>
+                <option value="pension">🏠 Pension</option>
+                <option value="appointments">📅 Appointments & Orders</option>
+                <option value="clothes">👗 Clothes & Shoes</option>
+                <option value="salon">✂️ Salon & Beauty</option>
+                <option value="electronics">🔌 Electronics & Repair</option>
+                <option value="hardware">🧱 Hardware & Construction</option>
+                <option value="printing">🖨️ Printing, Copy & Stationery</option>
+                <option value="furniture">🛋️ Furniture & Woodwork</option>
+              </select>
+            </div>
+            <div>
+              <label>ፕላን (Plan)</label>
+              <select id="newPlan">
+                <option value="basic">🟢 Basic</option>
+                <option value="pro">🔵 Pro</option>
+              </select>
+            </div>
+            <div>
+              <label>ማብቂያ ቀን (Expiry Date) *</label>
+              <input type="date" id="newExpiry">
+            </div>
+            <div>
+              <label>💳 Credit Tab ይኑረው? (ለBasicም)</label>
+              <select id="newHasCredit">
+                <option value="false">❌ አይኑረው (Pro ብቻ)</option>
+                <option value="true">✅ ይኑረው</option>
+              </select>
+            </div>
+            <div>
+              <label>📦 Low Stock Threshold</label>
+              <input type="number" id="newLowStock" value="10">
+            </div>
+          </div>
+
+          <hr style="margin: 12px 0 16px 0; border: 0; border-top: 1px dashed var(--border);">
+
+          <div class="form-grid">
+            <div>
+              <label>Owner Email *</label>
+              <input type="email" id="newOwnerEmail" placeholder="owner@abc.com">
+            </div>
+            <div>
+              <label>Temp Password *</label>
+              <input type="text" id="newPassword" value="123456">
+            </div>
+          </div>
+
+          <button onclick="createTenant()" style="background: var(--success);">✨ Create Tenant & User</button>
+          <div id="createStatus"></div>
+        </div>
+      </section>
+
+      <!-- 4. PASSWORD REQUESTS -->
+      <section class="admin-panel" id="panelRequests">
+        <div class="card">
+          <h2>🔑 Password Reset Requests</h2>
+          <div id="passwordRequestsList" class="cards-list-grid">
+            <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. SUPPORT INFO -->
+      <section class="admin-panel" id="panelSupport">
+        <div class="card">
+          <h2>🛟 Support Info (ለሁሉም ተጠቃሚዎች)</h2>
+          <div class="form-grid form-grid-3">
+            <div>
+              <label>📞 Admin Phone</label>
+              <input type="text" id="supPhone" placeholder="+251 9...">
+            </div>
+            <div>
+              <label>✈️ Telegram Username</label>
+              <input type="text" id="supTelegram" placeholder="@hanitech_support">
+            </div>
+            <div>
+              <label>📧 Support Email</label>
+              <input type="email" id="supEmail" placeholder="support@hanitech.com">
+            </div>
+          </div>
+          <button onclick="saveSupportInfo()" style="background: var(--primary);">💾 Save Support Info</button>
+          <div id="supportStatus"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" data-panel="panelDashboard" onclick="switchAdminTab('panelDashboard')">
+      <span class="ico">📊</span><span>Home</span>
     </button>
-    <div id="supportStatus"></div>
-  </div>
-
-  <!-- Create Tenant -->
-  <div class="card">
-    <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant)</h2>
-    
-    <div class="grid">
-      <div>
-        <label>የንግድ ስም *</label>
-        <input type="text" id="newName" placeholder="e.g. ABC Hotel">
-      </div>
-      <div>
-        <label>ዘርፍ (Business Type) *</label>
-        <select id="newBizType">
-          <option value="laundry">🧺 Laundry</option>
-          <option value="hotel">🏨 Hotel</option>
-          <option value="restaurant">🍽️ Restaurant / Cafe</option>
-          <option value="supermarket">🛒 Supermarket</option>
-          <option value="bakery">🍞 Bakery</option>
-          <option value="retail">🏪 Retail Shop</option>
-          <option value="drinks">🍾 Drinks Distributor</option>
-          <option value="pension">🏠 Pension</option>
-          <option value="appointments">📅 Appointments & Orders</option>
-          <option value="clothes">👗 Clothes & Shoes</option>
-          <option value="salon">✂️ Salon & Beauty</option>
-          <option value="electronics">🔌 Electronics & Repair</option>
-          <option value="hardware">🧱 Hardware & Construction</option>
-          <option value="printing">🖨️ Printing, Copy & Stationery</option>
-          <option value="furniture">🛋️ Furniture & Woodwork</option>
-        </select>
-      </div>
-      <div>
-        <label>ፕላን (Plan)</label>
-        <select id="newPlan">
-          <option value="basic">🟢 Basic</option>
-          <option value="pro">🔵 Pro</option>
-        </select>
-      </div>
-      <div>
-        <label>ማብቂያ ቀን (Expiry Date) *</label>
-        <input type="date" id="newExpiry">
-      </div>
-      <div>
-        <label>💳 Credit Tab ይኑረው? (ለBasicም)</label>
-        <select id="newHasCredit">
-          <option value="false">❌ አይኑረው (Pro ብቻ)</option>
-          <option value="true">✅ ይኑረው</option>
-        </select>
-      </div>
-      <div>
-        <label>📦 Low Stock Threshold</label>
-        <input type="number" id="newLowStock" value="10">
-      </div>
-    </div>
-    
-    <hr style="margin: 15px 0; border: 0; border-top: 1px dashed var(--border);">
-    
-    <div class="grid">
-      <div>
-        <label>Owner Email *</label>
-        <input type="email" id="newOwnerEmail" placeholder="owner@abc.com">
-      </div>
-      <div>
-        <label>Temp Password *</label>
-        <input type="text" id="newPassword" value="123456">
-      </div>
-    </div>
-    
-    <button onclick="createTenant()" style="background: var(--success);">
-      ✨ Create Tenant & User
+    <button class="mobile-nav-btn" data-panel="panelTenants" onclick="switchAdminTab('panelTenants')">
+      <span class="ico">🏢</span><span>Tenants</span>
     </button>
-    <div id="createStatus"></div>
-  </div>
-
-  <!-- Password Requests -->
-  <div class="card">
-    <h2>🔑 Password Reset Requests</h2>
-    <div id="passwordRequestsList">
-      <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
-    </div>
-  </div>
-
-  <!-- Tenant List -->
-  <div class="card">
-    <h2>📋 የተፈጠሩ ተጠቃሚዎች</h2>
-    
-    <div class="filters">
-      <input type="text" id="searchTenant" placeholder="🔍 Search tenant..." 
-             oninput="loadTenants()" style="margin-bottom:0;">
-      <select id="filterPlan" onchange="loadTenants()" style="margin-bottom:0;">
-        <option value="all">All Plans</option>
-        <option value="basic">Basic Only</option>
-        <option value="pro">Pro Only</option>
-      </select>
-      <select id="filterBizType" onchange="loadTenants()" style="margin-bottom:0;">
-        <option value="all">All Types</option>
-        <option value="laundry">🧺 Laundry</option>
-        <option value="hotel">🏨 Hotel</option>
-        <option value="restaurant">🍽️ Restaurant</option>
-        <option value="supermarket">🛒 Supermarket</option>
-        <option value="bakery">🍞 Bakery</option>
-        <option value="retail">🏪 Retail</option>
-        <option value="drinks">🍾 Drinks</option>
-        <option value="pension">🏠 Pension</option>
-        <option value="appointments">📅 Appointments</option>
-        <option value="clothes">👗 Clothes</option>
-        <option value="salon">✂️ Salon</option>
-        <option value="electronics">🔌 Electronics</option>
-        <option value="hardware">🧱 Hardware</option>
-        <option value="printing">🖨️ Printing</option>
-        <option value="furniture">🛋️ Furniture</option>
-      </select>
-    </div>
-    
-    <div id="tenantList"></div>
-  </div>
+    <button class="mobile-nav-btn" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
+      <span class="ico">➕</span><span>Create</span>
+    </button>
+    <button class="mobile-nav-btn" data-panel="panelRequests" onclick="switchAdminTab('panelRequests')">
+      <span class="ico">🔑</span><span>Requests</span>
+    </button>
+    <button class="mobile-nav-btn" data-panel="panelSupport" onclick="switchAdminTab('panelSupport')">
+      <span class="ico">🛟</span><span>Support</span>
+    </button>
+  </nav>
 </div>
 
 <script type="module">
@@ -367,7 +462,7 @@ import {
   createUserWithEmailAndPassword, sendPasswordResetEmail 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { 
-  getFirestore, collection, addDoc, getDocs, query, where, 
+  getFirestore, collection, getDocs, query, where, 
   doc, setDoc, serverTimestamp, getDoc, updateDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
@@ -401,6 +496,19 @@ const BIZ_ICONS = {
   furniture: '🛋️'
 };
 
+window.switchAdminTab = function(panelId) {
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(panelId)?.classList.add('active');
+
+  document.querySelectorAll('.nav-item, .mobile-nav-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.panel === panelId);
+  });
+};
+
+window.toggleAdminTheme = function() {
+  document.body.classList.toggle('dark-mode');
+};
+
 window.login = async function() {
   const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value;
@@ -419,7 +527,8 @@ window.logout = function() { signOut(auth); };
 onAuthStateChanged(auth, (user) => {
   if (user && user.email === SUPER_ADMIN) {
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('adminEmailLabel').textContent = user.email;
     loadSupportInfo();
     loadTenants();
     loadPasswordRequests();
@@ -455,10 +564,10 @@ window.saveSupportInfo = async function() {
   status.innerText = '⏳ በማስቀመጥ ላይ...';
 
   try {
-    const info = { phone, telegram, email, updatedAt: serverTimestamp() };
-    await setDoc(doc(db, 'appSettings', 'support'), info, { merge: true });
+    await setDoc(doc(db, 'appSettings', 'support'), {
+      phone, telegram, email, updatedAt: serverTimestamp()
+    }, { merge: true });
 
-    // ለሁሉም ነባር ተጠቃሚዎች (Tenants) በቀጥታ እንዲታይ ማዘመን
     const tenantsSnap = await getDocs(collection(db, 'tenants'));
     const updates = [];
     tenantsSnap.forEach(tDoc => {
@@ -477,11 +586,10 @@ window.saveSupportInfo = async function() {
   }
 };
 
-
 // ═══════════════════════════════════════════
 // 📊 STATS
 // ═══════════════════════════════════════════
-async function loadStats(tenants) {
+function loadStats(tenants) {
   const statsGrid = document.getElementById('statsGrid');
   const today = new Date(); today.setHours(0,0,0,0);
   
@@ -530,9 +638,15 @@ window.createTenant = async function() {
     const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) + '_' + 
                      Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     
+    const supportInfo = {
+      phone: document.getElementById('supPhone')?.value.trim() || '',
+      telegram: document.getElementById('supTelegram')?.value.trim() || '',
+      email: document.getElementById('supEmail')?.value.trim() || ''
+    };
+
     await setDoc(doc(db, 'tenants', tenantId), {
       name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
-      maxEmployees: 2,
+      maxEmployees: 2, supportInfo,
       isSuspended: false, createdAt: serverTimestamp(),
       lowStockThreshold: lowStock, currency: 'ETB', language: 'am', darkMode: false
     });
@@ -574,7 +688,7 @@ window.createTenant = async function() {
 // ═══════════════════════════════════════════
 // 📋 TENANTS
 // ═══════════════════════════════════════════
-async function loadTenants() {
+window.loadTenants = async function() {
   const search = (document.getElementById('searchTenant')?.value || '').toLowerCase();
   const filterPlan = document.getElementById('filterPlan')?.value || 'all';
   const filterBizType = document.getElementById('filterBizType')?.value || 'all';
@@ -614,29 +728,31 @@ async function loadTenants() {
       
       const suspendBadge = t.isSuspended ? '<span class="badge bg-danger">⏸️ SUSPENDED</span>' : '';
       const creditBadge = t.hasCredit ? '<span class="badge bg-info">💳 CREDIT</span>' : '';
-      const empBadge = `<span class="badge bg-info">👥 Max Emp: ${maxEmp}</span>`;
+      const empBadge = `<span class="badge bg-info">👥 Max: ${maxEmp}</span>`;
       const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
       
       list.innerHTML += `
         <div class="tenant-item">
-          <h3>
-            ${esc(t.name || 'Unnamed')}
-            ${planBadge} ${expiryBadge} ${suspendBadge} ${creditBadge} ${empBadge}
-          </h3>
-          <p>
-            ${bizIcon} ${esc(t.businessType || '-')} 
-            | 📅 Exp: ${esc(t.expiryDate || '-')}
-            | 🆔 ${t.id}
-          </p>
+          <div>
+            <h3>
+              ${esc(t.name || 'Unnamed')}
+              ${planBadge} ${expiryBadge} ${suspendBadge} ${creditBadge} ${empBadge}
+            </h3>
+            <p>
+              ${bizIcon} ${esc(t.businessType || '-')} <br>
+              📅 Exp: ${esc(t.expiryDate || '-')} <br>
+              🆔 ${t.id}
+            </p>
+          </div>
           <div class="action-btns">
             <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
             <button onclick="renewTenant('${t.id}')" style="background:var(--info);">🔄 Renew</button>
-            <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp Limit (${maxEmp})</button>
+            <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp (${maxEmp})</button>
             <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
                     style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
               ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
             </button>
-            <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset Pass</button>
+            <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset</button>
             <button onclick="deleteTenant('${t.id}', '${escJs(t.name || '')}')" 
                     style="background:var(--danger);">🗑️ Delete</button>
           </div>
@@ -647,7 +763,7 @@ async function loadTenants() {
   if (count === 0) {
     list.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><div>ምንም ውጤት አልተገኘም</div></div>`;
   }
-}
+};
 
 window.setEmployeeLimit = async function(id, currentLimit) {
   const input = prompt('የሚፈቀደው ከፍተኛ የሰራተኛ ብዛት (ለምሳሌ 2፣ 5፣ 10):', String(currentLimit ?? 2));
@@ -739,10 +855,15 @@ window.deleteTenant = async function(id, name) {
 // ═══════════════════════════════════════════
 async function loadPasswordRequests() {
   const list = document.getElementById('passwordRequestsList');
+  const badgeSide = document.getElementById('reqBadgeSide');
   try {
     const snap = await getDocs(query(collection(db, 'passwordRequests'), where('status', '==', 'pending')));
+    if (badgeSide) {
+      badgeSide.textContent = String(snap.size);
+      badgeSide.style.display = snap.size > 0 ? 'inline-block' : 'none';
+    }
     if (snap.empty) {
-      list.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="emoji" style="font-size:32px;">✅</div><div style="font-size:13px;">ምንም ጥያቄ የለም</div></div>`;
+      list.innerHTML = `<div class="empty-state"><div class="emoji">✅</div><div>ምንም ጥያቄ የለም</div></div>`;
       return;
     }
     list.innerHTML = '';
@@ -751,8 +872,10 @@ async function loadPasswordRequests() {
       const date = r.requestedAt ? r.requestedAt.toDate().toLocaleString() : 'Unknown';
       list.innerHTML += `
         <div class="tenant-item">
-          <h3>📧 ${esc(r.email)}</h3>
-          <p>📅 ${date} | 🆔 ${d.id}</p>
+          <div>
+            <h3>📧 ${esc(r.email)}</h3>
+            <p>📅 ${date} <br> 🆔 ${d.id}</p>
+          </div>
           <div class="action-btns">
             <button onclick="approvePasswordReset('${d.id}', '${escJs(r.email)}')" style="background:var(--success);">✅ Approve</button>
             <button onclick="rejectPasswordReset('${d.id}')" style="background:var(--danger);">❌ Reject</button>
