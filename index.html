@@ -121,7 +121,7 @@
 <!-- ═══════════════════════════════════════════
      SCRIPT ENTRY
      ═══════════════════════════════════════════ -->
-     <script>
+<script>
   window.addEventListener('error', function(e) {
     var splash = document.getElementById('splashScreen');
     if (splash) {
@@ -134,10 +134,12 @@
   });
 </script>
 <script type="module" src="js/core.js"></script>
-<script type="module" src="js/core.js"></script>
+
 <!-- EXPIRY NOTIFICATION BANNER & AUTO-HOOK -->
 <script>
 (function() {
+  let scanTimer = null;
+
   function createBannerIfMissing() {
     if (document.getElementById('expiryAlertBanner')) return document.getElementById('expiryAlertBanner');
     const banner = document.createElement('div');
@@ -187,7 +189,7 @@
     banner.appendChild(textSpan);
     banner.appendChild(renewBtn);
 
-    const anchor = document.querySelector('#app, .app-container, .main-content, main') || document.body;
+    const anchor = document.querySelector('#mainApp .main-content-wrapper, #mainApp, #app, .app-container, .main-content, main') || document.body;
     anchor.insertBefore(banner, anchor.firstChild);
     return banner;
   }
@@ -246,28 +248,26 @@
       window.renderExpiryNotification(exp);
       return;
     }
-    const match = (document.body?.innerText || '').match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+    const mainApp = document.getElementById('mainApp');
+    const match = (mainApp?.innerText || '').match(/\b(20\d{2}-\d{2}-\d{2})\b/);
     if (match && match[1]) {
       window.renderExpiryNotification(match[1]);
     }
   }
 
+  function scheduleScan() {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(scanDomForExpiryDate, 150);
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     createBannerIfMissing();
     setTimeout(scanDomForExpiryDate, 800);
-  });
-
-  const observer = new MutationObserver(() => {
-    scanDomForExpiryDate();
-  });
-  window.addEventListener('DOMContentLoaded', () => {
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
+    const mainApp = document.getElementById('mainApp') || document.body;
+    const observer = new MutationObserver(scheduleScan);
+    observer.observe(mainApp, { childList: true, subtree: true });
   });
 })();
 </script>
-
-     
 </body>
 </html>
