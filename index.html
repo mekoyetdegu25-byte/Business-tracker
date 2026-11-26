@@ -135,6 +135,139 @@
 </script>
 <script type="module" src="js/core.js"></script>
 <script type="module" src="js/core.js"></script>
+<!-- EXPIRY NOTIFICATION BANNER & AUTO-HOOK -->
+<script>
+(function() {
+  function createBannerIfMissing() {
+    if (document.getElementById('expiryAlertBanner')) return document.getElementById('expiryAlertBanner');
+    const banner = document.createElement('div');
+    banner.id = 'expiryAlertBanner';
+    banner.style.cssText = [
+      'display:none',
+      'margin:10px 14px',
+      'padding:12px 14px',
+      'border-radius:10px',
+      'font-size:13px',
+      'font-weight:700',
+      'align-items:center',
+      'justify-content:space-between',
+      'gap:10px',
+      'flex-wrap:wrap',
+      'z-index:50'
+    ].join(';');
 
+    const textSpan = document.createElement('span');
+    textSpan.id = 'expiryAlertText';
+
+    const renewBtn = document.createElement('button');
+    renewBtn.type = 'button';
+    renewBtn.textContent = '💳 አሁን ያድሱ';
+    renewBtn.style.cssText = [
+      'width:auto',
+      'padding:7px 12px',
+      'font-size:12px',
+      'border-radius:8px',
+      'background:#1a365d',
+      'color:#ffffff',
+      'cursor:pointer',
+      'border:none',
+      'font-weight:700'
+    ].join(';');
+    renewBtn.onclick = function() {
+      if (typeof window.openSubscriptionBillingSection === 'function') {
+        window.openSubscriptionBillingSection();
+        return;
+      }
+      const target = document.getElementById('subReqCycle') || document.querySelector('[data-tab*="sub"], [data-section*="sub"], [id*="billing"]');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    banner.appendChild(textSpan);
+    banner.appendChild(renewBtn);
+
+    const anchor = document.querySelector('#app, .app-container, .main-content, main') || document.body;
+    anchor.insertBefore(banner, anchor.firstChild);
+    return banner;
+  }
+
+  window.renderExpiryNotification = function(expiryDateStr) {
+    const banner = createBannerIfMissing();
+    const textEl = document.getElementById('expiryAlertText');
+    if (!banner || !textEl) return;
+
+    if (!expiryDateStr) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const exp = new Date(expiryDateStr);
+    exp.setHours(0, 0, 0, 0);
+
+    if (isNaN(exp.getTime())) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 7) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = 'flex';
+
+    if (diffDays < 0) {
+      banner.style.background = 'rgba(239, 68, 68, 0.14)';
+      banner.style.border = '1px solid #ef4444';
+      banner.style.color = '#ef4444';
+      textEl.textContent = `🚨 የደንበኝነት ጊዜዎ ከ ${Math.abs(diffDays)} ቀን በፊት (${expiryDateStr}) አልፏል!`;
+    } else if (diffDays === 0) {
+      banner.style.background = 'rgba(245, 158, 11, 0.16)';
+      banner.style.border = '1px solid #f59e0b';
+      banner.style.color = '#d97706';
+      textEl.textContent = `⚠️ የደንበኝነት ጊዜዎ ዛሬ (${expiryDateStr}) ያበቃል!`;
+    } else {
+      banner.style.background = 'rgba(245, 158, 11, 0.14)';
+      banner.style.border = '1px solid #f59e0b';
+      banner.style.color = '#d97706';
+      textEl.textContent = `⏳ የደንበኝነት ጊዜዎ በ ${diffDays} ቀን ውስጥ (${expiryDateStr}) ያበቃል!`;
+    }
+  };
+
+  function scanDomForExpiryDate() {
+    const exp = window.state?.tenantData?.expiryDate || window.tenantData?.expiryDate;
+    if (exp) {
+      window.renderExpiryNotification(exp);
+      return;
+    }
+    const match = (document.body?.innerText || '').match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+    if (match && match[1]) {
+      window.renderExpiryNotification(match[1]);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    createBannerIfMissing();
+    setTimeout(scanDomForExpiryDate, 800);
+  });
+
+  const observer = new MutationObserver(() => {
+    scanDomForExpiryDate();
+  });
+  window.addEventListener('DOMContentLoaded', () => {
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  });
+})();
+</script>
+
+     
 </body>
 </html>
