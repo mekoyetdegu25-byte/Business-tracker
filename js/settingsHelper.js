@@ -522,53 +522,95 @@ export async function mountExtraSettings(appState) {
     if (expEl) expEl.value = calcNextExpiry(cycle);
   };
 
-  window.submitTenantPaymentRequest = async () => {
-    if (!tenantId) return;
-    const cycle = document.getElementById('subReqCycle')?.value || 'monthly';
-    const planKey = (state.tenantData?.plan || state.plan || 'basic').toLowerCase();
-    const amount = parseFloat(document.getElementById('subReqAmount')?.value) || (pricingConfig[planKey]?.[cycle] ?? 0);
-    const requestedExpiryDate = document.getElementById('subReqExpiry')?.value || calcNextExpiry(cycle);
-    const method = document.getElementById('subReqMethod')?.value || 'Telebirr';
-    const note = document.getElementById('subReqNote')?.value.trim() || '';
-    const proofFile = document.getElementById('subReqProofFile')?.files?.[0] || null;
-    const btn = document.getElementById('subReqBtn');
+  async function compressImageFile(file, maxWidth = 960, quality = 0.72) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) return resolve(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(blob || file),
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = ev.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
 
-    try {
-      if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading...'; }
+async function uploadWithTimeout(storageRef, blobOrFile, timeoutMs = 15000) {
+  return await Promise.race([
+    (async () => {
+      await uploadBytes(storageRef, blobOrFile, { contentType: blobOrFile.type || 'image/jpeg' });
+      return await getDownloadURL(storageRef);
+    })(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Storage upload timed out. Check Firebase Storage Rules & connection.')), timeoutMs)
+    )
+  ]);
+}
 
-      let screenshotUrl = '';
-      if (proofFile) {
-        const storage = getStorage(auth.app);
-        const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
-        await uploadBytes(storageRef, proofFile);
-        screenshotUrl = await getDownloadURL(storageRef);
-      }
+window.submitTenantPaymentRequest = async () => {
+  if (!tenantId) return;
+  const cycle = document.getElementById('subReqCycle')?.value || 'monthly';
+  const planKey = (state.tenantData?.plan || state.plan || 'basic').toLowerCase();
+  const amount = parseFloat(document.getElementById('subReqAmount')?.value) || (pricingConfig[planKey]?.[cycle] ?? 0);
+  const requestedExpiryDate = document.getElementById('subReqExpiry')?.value || calcNextExpiry(cycle);
+  const method = document.getElementById('subReqMethod')?.value || 'Telebirr';
+  const note = document.getElementById('subReqNote')?.value.trim() || '';
+  const proofFile = document.getElementById('subReqProofFile')?.files?.[0] || null;
+  const btn = document.getElementById('subReqBtn');
 
-      await addDoc(collection(db, 'billingRequests'), {
-        tenantId,
-        tenantName: state.tenantData?.name || tenantId,
-        plan: planKey,
-        cycle,
-        amount,
-        method,
-        requestedExpiryDate,
-        screenshotUrl,
-        note,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading...'; }
 
-      document.getElementById('subReqNote').value = '';
-      const fileEl = document.getElementById('subReqProofFile');
-      if (fileEl) fileEl.value = '';
-      showToast('✅ የክፍያ ጥያቄ እና Screenshot ለ Admin ተልኳል');
-    } catch (e) {
-      showToast('❌ ስህተት: ' + e.message, 'error');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = t('sendPayReqBtn'); }
+    let screenshotUrl = '';
+    if (proofFile) {
+      const compressedBlob = await compressImageFile(proofFile);
+      const storage = getStorage(auth.app);
+      const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '.jpg')}`;
+      const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
+      screenshotUrl = await uploadWithTimeout(storageRef, compressedBlob, 15000);
     }
-  };
+
+    await addDoc(collection(db, 'billingRequests'), {
+      tenantId,
+      tenantName: state.tenantData?.name || tenantId,
+      plan: planKey,
+      cycle,
+      amount,
+      method,
+      requestedExpiryDate,
+      screenshotUrl,
+      note,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+
+    const noteEl = document.getElementById('subReqNote');
+    if (noteEl) noteEl.value = '';
+    const fileEl = document.getElementById('subReqProofFile');
+    if (fileEl) fileEl.value = '';
+    showToast('✅ የክፍያ ጥያቄ እና Screenshot ለ Admin ተልኳል');
+  } catch (e) {
+    console.error('Payment request upload error:', e);
+    showToast('❌ ስህተት: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = t('sendPayReqBtn'); }
+  }
+};
+
 
   window.setAppLanguage = async (lang) => {
     state.language = lang;
