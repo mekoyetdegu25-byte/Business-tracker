@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Super Admin - HaniTech</title>
+<title>Super Admin - HaniTech Credit</title>
 <style>
   :root { 
     --primary: #1a365d; 
@@ -270,7 +270,7 @@
         <span>💰</span><span>Pricing Plans</span>
       </div>
       <div class="nav-item" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
-        <span>➕</span><span>Create Tenant</span>
+        <span>➕</span><span>Create Shop</span>
       </div>
       <div class="nav-item" data-panel="panelRequests" onclick="switchAdminTab('panelRequests')">
         <span>🔑</span><span>Reset Requests</span>
@@ -288,7 +288,7 @@
         <div class="card">
           <h2>⚡ Quick Actions</h2>
           <div class="form-grid">
-            <button onclick="switchAdminTab('panelCreate')" style="background:var(--success);">➕ አዲስ Tenant ፍጠር</button>
+            <button onclick="switchAdminTab('panelCreate')" style="background:var(--success);">➕ አዲስ ሱቅ ፍጠር</button>
             <button onclick="switchAdminTab('panelBilling')" style="background:var(--info);">💳 Bill Payment መዝግብ</button>
             <button onclick="switchAdminTab('panelPricing')" style="background:var(--primary);">💰 Basic & Pro ዋጋዎች</button>
             <button onclick="switchAdminTab('panelTenants')" style="background:var(--warning);">🏢 Subscriptions እይ</button>
@@ -296,12 +296,12 @@
         </div>
       </section>
 
-      <!-- 2. TENANTS & SUBSCRIPTIONS -->
+      <!-- 2. TENANTS / SHOPS & SUBSCRIPTIONS -->
       <section class="admin-panel" id="panelTenants">
         <div class="card">
-          <h2>📋 የተፈጠሩ ተጠቃሚዎች & Subscriptions</h2>
+          <h2>📋 የተፈጠሩ ሱቆች & Subscriptions</h2>
           <div class="filters">
-            <input type="text" id="searchTenant" placeholder="🔍 Search tenant..." oninput="loadTenants()" style="margin-bottom:0;">
+            <input type="text" id="searchTenant" placeholder="🔍 Search shop or phone..." oninput="loadTenants()" style="margin-bottom:0;">
             <select id="filterSubStatus" onchange="loadTenants()" style="margin-bottom:0;">
               <option value="all">All Statuses</option>
               <option value="active">✅ Active</option>
@@ -316,21 +316,9 @@
             </select>
             <select id="filterBizType" onchange="loadTenants()" style="margin-bottom:0;">
               <option value="all">All Types</option>
-              <option value="laundry">🧺 Laundry</option>
-              <option value="hotel">🏨 Hotel</option>
-              <option value="restaurant">🍽️ Restaurant</option>
-              <option value="supermarket">🛒 Supermarket</option>
-              <option value="bakery">🍞 Bakery</option>
+              <option value="credit">💳 Credit Shop</option>
               <option value="retail">🏪 Retail</option>
-              <option value="drinks">🍾 Drinks</option>
-              <option value="pension">🏠 Pension</option>
-              <option value="appointments">📅 Appointments</option>
-              <option value="clothes">👗 Clothes</option>
-              <option value="salon">✂️ Salon</option>
-              <option value="electronics">🔌 Electronics</option>
-              <option value="hardware">🧱 Hardware</option>
-              <option value="printing">🖨️ Printing</option>
-              <option value="furniture">🛋️ Furniture</option>
+              <option value="wholesale">📦 Wholesale</option>
             </select>
           </div>
           <div id="tenantList" class="cards-list-grid"></div>
@@ -343,7 +331,7 @@
           <h2>💳 Record Bill Payment & Extend Subscription</h2>
           <div class="form-grid form-grid-3">
             <div>
-              <label>Tenant *</label>
+              <label>Shop / Tenant *</label>
               <select id="payTenantSelect" onchange="autoFillAdminRenewFromTenant()"></select>
             </div>
             <div>
@@ -357,7 +345,7 @@
             </div>
             <div>
               <label>Amount (ETB) *</label>
-              <input type="number" id="payAmount" min="0" step="0.01" placeholder="e.g. 1500">
+              <input type="number" id="payAmount" min="0" step="0.01" placeholder="e.g. 500">
             </div>
             <div>
               <label>Payment Method *</label>
@@ -382,7 +370,7 @@
         </div>
 
         <div class="card">
-          <h2>📩 Tenant Payment / Renewal Requests (with Screenshot)</h2>
+          <h2>📩 Shop Payment / Renewal Requests (with Screenshot)</h2>
           <div id="tenantPaymentRequestsList" class="cards-list-grid">
             <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
           </div>
@@ -420,33 +408,25 @@
         </div>
       </section>
 
-      <!-- 5. CREATE TENANT -->
+      <!-- 5. CREATE SHOP / TENANT -->
       <section class="admin-panel" id="panelCreate">
         <div class="card">
-          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant + የክፍያ ጊዜ & ማብቂያ ቀን)</h2>
+          <h2>➕ አዲስ ሱቅ ፍጠር (Shop + የክፍያ ጊዜ & ማብቂያ ቀን)</h2>
           <div class="form-grid">
             <div>
-              <label>የንግድ ስም *</label>
-              <input type="text" id="newName" placeholder="e.g. ABC Hotel">
+              <label>የሱቅ ስም *</label>
+              <input type="text" id="newName" placeholder="e.g. Abebe Shop">
             </div>
             <div>
-              <label>ዘርፍ (Business Type) *</label>
+              <label>ስልክ ቁጥር *</label>
+              <input type="tel" id="newPhone" placeholder="0911223344">
+            </div>
+            <div>
+              <label>ዘርፍ (Business Type)</label>
               <select id="newBizType">
-                <option value="laundry">🧺 Laundry</option>
-                <option value="hotel">🏨 Hotel</option>
-                <option value="restaurant">🍽️ Restaurant / Cafe</option>
-                <option value="supermarket">🛒 Supermarket</option>
-                <option value="bakery">🍞 Bakery</option>
-                <option value="retail">🏪 Retail Shop</option>
-                <option value="drinks">🍾 Drinks Distributor</option>
-                <option value="pension">🏠 Pension</option>
-                <option value="appointments">📅 Appointments & Orders</option>
-                <option value="clothes">👗 Clothes & Shoes</option>
-                <option value="salon">✂️ Salon & Beauty</option>
-                <option value="electronics">🔌 Electronics & Repair</option>
-                <option value="hardware">🧱 Hardware & Construction</option>
-                <option value="printing">🖨️ Printing, Copy & Stationery</option>
-                <option value="furniture">🛋️ Furniture & Woodwork</option>
+                <option value="credit">💳 Credit Shop</option>
+                <option value="retail">🏪 Retail</option>
+                <option value="wholesale">📦 Wholesale</option>
               </select>
             </div>
             <div>
@@ -483,17 +463,6 @@
               </select>
             </div>
             <div>
-              <label>💳 Credit Tab ይኑረው? (ለBasicም)</label>
-              <select id="newHasCredit">
-                <option value="false">❌ አይኑረው (Pro ብቻ)</option>
-                <option value="true">✅ ይኑረው</option>
-              </select>
-            </div>
-            <div>
-              <label>📦 Low Stock Threshold</label>
-              <input type="number" id="newLowStock" value="10">
-            </div>
-            <div>
               <label>📝 የክፍያ / ምዝገባ ማስታወሻ (Note)</label>
               <input type="text" id="newPayNote" placeholder="e.g. Initial subscription">
             </div>
@@ -503,8 +472,8 @@
 
           <div class="form-grid">
             <div>
-              <label>Owner Email *</label>
-              <input type="email" id="newOwnerEmail" placeholder="owner@abc.com">
+              <label>Owner Email (ባዶ ከሆነ ስልክ@creditapp.com ይሆናል)</label>
+              <input type="email" id="newOwnerEmail" placeholder="optional@shop.com">
             </div>
             <div>
               <label>Temp Password *</label>
@@ -512,7 +481,7 @@
             </div>
           </div>
 
-          <button onclick="createTenant()" style="background: var(--success);">✨ Create Tenant & Record Payment</button>
+          <button onclick="createTenant()" style="background: var(--success);">✨ Create Shop & Record Payment</button>
           <div id="createStatus"></div>
         </div>
       </section>
@@ -591,12 +560,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDcA1t2fOA98U9KsngvDEih6TmEZb1-v0E",
-  authDomain: "hotel-tracker-c3571.firebaseapp.com",
-  projectId: "hotel-tracker-c3571",
-  storageBucket: "hotel-tracker-c3571.firebasestorage.app",
-  messagingSenderId: "1024629386649",
-  appId: "1:1024629386649:web:c689f920c780e400797708"
+  apiKey: "AIzaSyC3h__9_0HMC0ebr8sFV5_v1fqholtBVFg",
+  authDomain: "anitech-credit-app.firebaseapp.com",
+  projectId: "anitech-credit-app",
+  storageBucket: "anitech-credit-app.firebasestorage.app",
+  messagingSenderId: "860089315804",
+  appId: "1:860089315804:web:63955eea7b3c840990df19",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -634,15 +603,6 @@ function addDaysStr(days, fromDate = new Date()) {
   d.setDate(d.getDate() + (Number(days) || 30));
   return d.toISOString().split('T')[0];
 }
-
-const BIZ_ICONS = {
-  hotel: '🏨', restaurant: '🍽️', supermarket: '🛒',
-  bakery: '🍞', retail: '🏪', drinks: '🍾',
-  drinks_distributor: '🍾', laundry: '🧺', pension: '🏠',
-  appointments: '📅', clothes: '👗', salon: '✂️',
-  electronics: '🔌', hardware: '🧱', printing: '🖨️',
-  furniture: '🛋️'
-};
 
 window.switchAdminTab = function(panelId) {
   document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
@@ -830,10 +790,10 @@ window.saveSupportInfo = async function() {
       phone, telegram, email, updatedAt: serverTimestamp()
     }, { merge: true });
 
-    const tenantsSnap = await getDocs(collection(db, 'tenants'));
+    const shopsSnap = await getDocs(collection(db, 'shops'));
     const updates = [];
-    tenantsSnap.forEach(tDoc => {
-      updates.push(updateDoc(doc(db, 'tenants', tDoc.id), {
+    shopsSnap.forEach(sDoc => {
+      updates.push(updateDoc(doc(db, 'shops', sDoc.id), {
         supportInfo: { phone, telegram, email }
       }));
     });
@@ -853,7 +813,7 @@ window.saveSupportInfo = async function() {
 // ═══════════════════════════════════════════
 function getSubInfo(t) {
   const today = new Date(); today.setHours(0,0,0,0);
-  if (t.isSuspended) return { key: 'suspended', label: '⏸️ SUSPENDED', cls: 'bg-danger', days: null };
+  if (t.status === 'suspended' || t.isSuspended) return { key: 'suspended', label: '⏸️ SUSPENDED', cls: 'bg-danger', days: null };
   if (!t.expiryDate) return { key: 'active', label: '✅ ACTIVE', cls: 'bg-success', days: null };
   const exp = new Date(t.expiryDate); exp.setHours(0,0,0,0);
   const days = Math.ceil((exp - today) / (1000*60*60*24));
@@ -875,7 +835,7 @@ function renderStats() {
   const totalRevenue = cachedPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="stat-label">Total Tenants</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Shops</div><div class="stat-value">${total}</div></div>
     <div class="stat-card"><div class="stat-label">Active Subs</div><div class="stat-value" style="color:var(--success);">${activeCount}</div></div>
     <div class="stat-card"><div class="stat-label">Expiring (≤7d)</div><div class="stat-value" style="color:var(--warning);">${expiringCount}</div></div>
     <div class="stat-card"><div class="stat-label">Expired</div><div class="stat-value" style="color:var(--danger);">${expiredCount}</div></div>
@@ -893,10 +853,11 @@ function populateTenantSelect() {
 }
 
 // ═══════════════════════════════════════════
-// ➕ CREATE TENANT
+// ➕ CREATE SHOP / TENANT
 // ═══════════════════════════════════════════
 window.createTenant = async function() {
   const name = document.getElementById('newName').value.trim();
+  const phone = document.getElementById('newPhone').value.trim();
   const bizType = document.getElementById('newBizType').value;
   const plan = document.getElementById('newPlan').value;
   const cycle = document.getElementById('newBillingCycle').value;
@@ -904,151 +865,175 @@ window.createTenant = async function() {
   const expiry = document.getElementById('newExpiry').value;
   const payMethod = document.getElementById('newPayMethod').value;
   const payNote = document.getElementById('newPayNote').value.trim() || `Initial ${cycle} subscription`;
-  const hasCredit = document.getElementById('newHasCredit').value === 'true';
-  const lowStock = parseInt(document.getElementById('newLowStock').value) || 10;
-  const ownerEmail = document.getElementById('newOwnerEmail').value.trim();
+  const customEmail = document.getElementById('newOwnerEmail').value.trim();
   const password = document.getElementById('newPassword').value;
   const status = document.getElementById('createStatus');
-  
-  if (!name || !expiry || !ownerEmail || !password) {
-    status.className = 'show status-error'; status.innerText = '⚠️ ሁሉንም መስኮች ሙላ!'; return;
+
+  if (!name || !phone || !expiry || !password) {
+    status.className = 'show status-error'; status.innerText = '⚠️ የሱቅ ስም፣ ስልክ፣ ማብቂያ ቀን እና ፓስወርድ ያስፈልጋሉ!'; return;
   }
   if (password.length < 6) {
     status.className = 'show status-error'; status.innerText = '⚠️ ፓስወርድ ቢያንስ 6 ፊደላት መሆን አለበት'; return;
   }
-  
+
   status.className = 'show status-loading'; status.innerText = '⏳ በመፍጠር ላይ...';
-  
+
   try {
-    const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) + '_' + 
-                     Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    
+    const ownerEmail = customEmail || `${phone}@creditapp.com`;
     const supportInfo = {
       phone: document.getElementById('supPhone')?.value.trim() || '',
       telegram: document.getElementById('supTelegram')?.value.trim() || '',
       email: document.getElementById('supEmail')?.value.trim() || ''
     };
 
-    await setDoc(doc(db, 'tenants', tenantId), {
-      name, businessType: bizType, plan, billingCycle: cycle,
-      expiryDate: expiry, hasCredit, maxEmployees: 2, supportInfo,
-      lastPaymentAmount: initAmount, lastPaymentMethod: payMethod,
-      isSuspended: false, createdAt: serverTimestamp(),
-      lowStockThreshold: lowStock, currency: 'ETB', language: 'am', darkMode: false
-    });
-
-    if (initAmount > 0) {
-      await addDoc(collection(db, 'billingPayments'), {
-        tenantId, tenantName: name, plan, cycle, amount: initAmount,
-        method: payMethod, newExpiryDate: expiry,
-        note: payNote, type: 'initial', createdAt: serverTimestamp()
-      });
-    }
-    
     const secondaryApp = initializeApp(firebaseConfig, 'Sec-' + Date.now());
     const secAuth = getAuth(secondaryApp);
     const cred = await createUserWithEmailAndPassword(secAuth, ownerEmail, password);
     const uid = cred.user.uid;
     await signOut(secAuth);
     await deleteApp(secondaryApp);
-    
+
+    const paymentEntry = initAmount > 0
+      ? [{ date: new Date().toISOString().split('T')[0], amount: initAmount, cycle, method: payMethod, note: payNote }]
+      : [];
+
+    await setDoc(doc(db, 'shops', uid), {
+      shopId: uid,
+      name,
+      shopName: name,
+      phone,
+      ownerEmail,
+      businessType: bizType,
+      plan,
+      billingCycle: cycle,
+      expiryDate: expiry,
+      supportInfo,
+      lastPaymentAmount: initAmount,
+      lastPaymentMethod: payMethod,
+      paymentHistory: paymentEntry,
+      status: 'active',
+      isSuspended: false,
+      createdAt: serverTimestamp()
+    });
+
     await setDoc(doc(db, 'users', uid), {
-      email: ownerEmail, role: 'owner', tenantId: tenantId,
-      isTempPassword: true, createdAt: serverTimestamp()
+      email: ownerEmail,
+      phone,
+      role: 'owner',
+      shopId: uid,
+      shopName: name,
+      isTempPassword: true,
+      createdAt: serverTimestamp()
     });
-    
-    await setDoc(doc(db, 'branches', tenantId + '_Main'), {
-      name: 'Main', tenantId: tenantId
-    });
-    
+
+    if (initAmount > 0) {
+      await addDoc(collection(db, 'billingPayments'), {
+        tenantId: uid,
+        tenantName: name,
+        plan,
+        cycle,
+        amount: initAmount,
+        method: payMethod,
+        newExpiryDate: expiry,
+        note: payNote,
+        type: 'initial',
+        createdAt: serverTimestamp()
+      });
+    }
+
     status.className = 'show status-success';
-    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId} | Exp: ${expiry} | Paid: ${money(initAmount)} ETB</small>`;
-    
+    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">Shop: ${esc(name)} | Exp: ${esc(expiry)} | Paid: ${money(initAmount)} ETB</small>`;
+
     document.getElementById('newName').value = '';
+    document.getElementById('newPhone').value = '';
     document.getElementById('newOwnerEmail').value = '';
     document.getElementById('newPayNote').value = '';
     document.getElementById('newPassword').value = '123456';
     syncCreateTenantPricing();
-    
+
     await loadTenants();
     await loadBillingHistory();
     setTimeout(() => { status.className = ''; }, 5000);
-  } catch(e) {
+  } catch (e) {
     status.className = 'show status-error';
     let msg = e.message;
-    if (e.code === 'auth/email-already-in-use') msg = 'ይህ Email አስቀድሞ ተመዝግቧል';
+    if (e.code === 'auth/email-already-in-use') msg = 'ይህ ስልክ/Email አስቀድሞ ተመዝግቧል';
     status.innerText = '❌ ስህተት: ' + msg;
   }
 };
 
 // ═══════════════════════════════════════════
-// 📋 TENANTS & SUBSCRIPTION TRACKER
+// 📋 SHOPS & SUBSCRIPTION TRACKER
 // ═══════════════════════════════════════════
 window.loadTenants = async function() {
   const search = (document.getElementById('searchTenant')?.value || '').toLowerCase();
   const filterStatus = document.getElementById('filterSubStatus')?.value || 'all';
   const filterPlan = document.getElementById('filterPlan')?.value || 'all';
   const filterBizType = document.getElementById('filterBizType')?.value || 'all';
-  
-  const snap = await getDocs(collection(db, 'tenants'));
+
+  const snap = await getDocs(collection(db, 'shops'));
   cachedTenants = [];
-  snap.forEach(d => cachedTenants.push({ id: d.id, ...d.data() }));
+  snap.forEach(d => {
+    const raw = d.data();
+    cachedTenants.push({
+      id: d.id,
+      ...raw,
+      name: raw.name || raw.shopName || 'Unnamed'
+    });
+  });
   cachedTenants.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   renderStats();
   populateTenantSelect();
-  
+
   const list = document.getElementById('tenantList');
   list.innerHTML = '';
   let count = 0;
-  
+
   cachedTenants.forEach(t => {
     const sub = getSubInfo(t);
-    if (search && !(t.name || '').toLowerCase().includes(search)) return;
+    const haystack = `${t.name || ''} ${t.phone || ''} ${t.ownerEmail || ''}`.toLowerCase();
+    if (search && !haystack.includes(search)) return;
     if (filterStatus !== 'all' && sub.key !== filterStatus) return;
-    if (filterPlan !== 'all' && t.plan !== filterPlan) return;
-    if (filterBizType !== 'all' && t.businessType !== filterBizType) return;
-    
+    if (filterPlan !== 'all' && (t.plan || 'basic') !== filterPlan) return;
+    if (filterBizType !== 'all' && (t.businessType || 'credit') !== filterBizType) return;
+
     count++;
-    const maxEmp = t.maxEmployees ?? 2;
-    const planBadge = t.plan === 'pro' 
-      ? '<span class="badge bg-info">PRO</span>' 
+    const planBadge = t.plan === 'pro'
+      ? '<span class="badge bg-info">PRO</span>'
       : '<span class="badge bg-dark">BASIC</span>';
-    const creditBadge = t.hasCredit ? '<span class="badge bg-info">💳 CREDIT</span>' : '';
-    const empBadge = `<span class="badge bg-dark">👥 ${maxEmp}</span>`;
-    const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
-    
+    const suspendedFlag = t.status === 'suspended' || t.isSuspended;
+
     list.innerHTML += `
       <div class="tenant-item">
         <div>
           <h3>
-            ${esc(t.name || 'Unnamed')}
+            ${esc(t.name)}
             <span class="badge ${sub.cls}">${sub.label}</span>
-            ${planBadge} ${creditBadge} ${empBadge}
+            ${planBadge}
           </h3>
           <p>
-            ${bizIcon} ${esc(t.businessType || '-')} <br>
+            📞 ${esc(t.phone || '-')} • 🏷️ ${esc(t.businessType || 'credit')} <br>
             📅 Exp: <b>${esc(t.expiryDate || '-')}</b> <br>
             💰 Last Pay: <b>${money(t.lastPaymentAmount || 0)} ETB</b> (${esc(t.lastPaymentMethod || '-')}) <br>
-            🆔 ${t.id}
+            🆔 ${esc(t.id)}
           </p>
         </div>
         <div class="action-btns">
-          <button onclick="openQuickPay('${t.id}')" style="background:var(--success);">💳 Pay / Renew</button>
-          <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
-          <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp (${maxEmp})</button>
-          <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
-                  style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
-            ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
+          <button onclick="openQuickPay('${escJs(t.id)}')" style="background:var(--success);">💳 Pay / Renew</button>
+          <button onclick="editTenant('${escJs(t.id)}')" style="background:var(--primary);">✏️ Edit</button>
+          <button onclick="toggleSuspend('${escJs(t.id)}', ${suspendedFlag})" 
+                  style="background:${suspendedFlag ? 'var(--success)' : 'var(--warning)'};">
+            ${suspendedFlag ? '▶️ Activate' : '⏸️ Suspend'}
           </button>
-          <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset</button>
-          <button onclick="deleteTenant('${t.id}', '${escJs(t.name || '')}')" 
+          <button onclick="resetUserPassword('${escJs(t.id)}')" style="background:var(--accent); color:var(--primary);">🔑 Reset</button>
+          <button onclick="deleteTenant('${escJs(t.id)}', '${escJs(t.name)}')" 
                   style="background:var(--danger);">🗑️ Delete</button>
         </div>
       </div>
     `;
   });
-  
+
   if (count === 0) {
     list.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><div>ምንም ውጤት አልተገኘም</div></div>`;
   }
@@ -1075,7 +1060,7 @@ window.submitBillPayment = async function() {
 
   if (!tenantId || !newExpiry) {
     status.className = 'show status-error';
-    status.innerText = '⚠️ Tenant እና New Expiry Date ያስፈልጋሉ';
+    status.innerText = '⚠️ Shop እና New Expiry Date ያስፈልጋሉ';
     return;
   }
 
@@ -1084,12 +1069,17 @@ window.submitBillPayment = async function() {
 
   try {
     const tObj = cachedTenants.find(x => x.id === tenantId);
-    await updateDoc(doc(db, 'tenants', tenantId), {
+    const history = Array.isArray(tObj?.paymentHistory) ? [...tObj.paymentHistory] : [];
+    history.push({ date: new Date().toISOString().split('T')[0], amount, cycle, method, note });
+
+    await updateDoc(doc(db, 'shops', tenantId), {
       expiryDate: newExpiry,
       billingCycle: cycle,
+      status: 'active',
       isSuspended: false,
       lastPaymentAmount: amount,
-      lastPaymentMethod: method
+      lastPaymentMethod: method,
+      paymentHistory: history
     });
 
     await addDoc(collection(db, 'billingPayments'), {
@@ -1207,16 +1197,25 @@ window.approveBillingRequest = async function(reqId, tenantId, amount, method, c
   const finalExpiry = newExpiry || addDaysStr(days, baseDate);
 
   try {
-    await updateDoc(doc(db, 'tenants', tenantId), {
+    const history = Array.isArray(tObj?.paymentHistory) ? [...tObj.paymentHistory] : [];
+    history.push({ date: new Date().toISOString().split('T')[0], amount, cycle, method, note: note || 'Approved payment request' });
+
+    await updateDoc(doc(db, 'shops', tenantId), {
       expiryDate: finalExpiry,
       billingCycle: cycle,
+      status: 'active',
       isSuspended: false,
       lastPaymentAmount: amount,
-      lastPaymentMethod: method
+      lastPaymentMethod: method,
+      paymentHistory: history
     });
     await addDoc(collection(db, 'billingPayments'), {
-      tenantId, tenantName: tObj?.name || tenantId,
-      plan: tObj?.plan || 'basic', cycle, amount, method,
+      tenantId,
+      tenantName: tObj?.name || tenantId,
+      plan: tObj?.plan || 'basic',
+      cycle,
+      amount,
+      method,
       newExpiryDate: finalExpiry,
       note: note || 'Approved payment request',
       screenshotUrl: screenshotUrl || '',
@@ -1240,80 +1239,68 @@ window.rejectBillingRequest = async function(reqId) {
 };
 
 // ═══════════════════════════════════════════
-// 🎯 TENANT ACTIONS
+// 🎯 SHOP ACTIONS
 // ═══════════════════════════════════════════
-window.setEmployeeLimit = async function(id, currentLimit) {
-  const input = prompt('የሚፈቀደው ከፍተኛ የሰራተኛ ብዛት (ለምሳሌ 2፣ 5፣ 10):', String(currentLimit ?? 2));
-  if (input === null) return;
-  const num = parseInt(input, 10);
-  if (isNaN(num) || num < 0) return alert('⚠️ ትክክል ያለ ቁጥር ያስገቡ');
+window.editTenant = async function(id) {
   try {
-    await updateDoc(doc(db, 'tenants', id), { maxEmployees: num });
-    alert(`✅ የሰራተኛ ገደብ ወደ ${num} ተቀይሯል`);
+    const shopDoc = await getDoc(doc(db, 'shops', id));
+    if (!shopDoc.exists()) return alert('ሱቅ አልተገኘም');
+    const t = shopDoc.data();
+
+    const newName = prompt('የሱቅ ስም:', t.name || t.shopName || '');
+    if (newName === null) return;
+    const newExpiry = prompt('የማብቂያ ቀን (YYYY-MM-DD):', t.expiryDate || '');
+    if (newExpiry === null) return;
+    const newPlan = prompt('ፕላን (basic/pro):', t.plan || 'basic');
+    if (newPlan === null) return;
+    if (!['basic', 'pro'].includes(newPlan)) return alert('⚠️ ፕላን basic ወይም pro መሆን አለበት');
+
+    await updateDoc(doc(db, 'shops', id), { name: newName, shopName: newName, expiryDate: newExpiry, plan: newPlan });
+    alert('✅ ተሻሽሏል');
     loadTenants();
   } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-window.editTenant = async function(id) {
-  try {
-    const tenantDoc = await getDoc(doc(db, 'tenants', id));
-    if (!tenantDoc.exists()) return alert('Tenant አልተገኘም');
-    const t = tenantDoc.data();
-    
-    const newName = prompt('የንግድ ስም:', t.name);
-    if (newName === null) return;
-    const newExpiry = prompt('የማብቂያ ቀን (YYYY-MM-DD):', t.expiryDate);
-    if (newExpiry === null) return;
-    const newPlan = prompt('ፕላን (basic/pro):', t.plan);
-    if (newPlan === null) return;
-    if (!['basic', 'pro'].includes(newPlan)) return alert('⚠️ ፕላን basic ወይም pro መሆን አለበት');
-    
-    await updateDoc(doc(db, 'tenants', id), { name: newName, expiryDate: newExpiry, plan: newPlan });
-    alert('✅ ተሻሽሏል');
-    loadTenants();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
-};
-
 window.toggleSuspend = async function(id, currentStatus) {
-  if (!confirm(currentStatus ? 'ይህን tenant ማንቃት?' : 'ይህን tenant ማገድ?')) return;
+  if (!confirm(currentStatus ? 'ይህን ሱቅ ማንቃት?' : 'ይህን ሱቅ ማገድ?')) return;
   try {
-    await updateDoc(doc(db, 'tenants', id), { isSuspended: !currentStatus });
+    const nextSuspended = !currentStatus;
+    await updateDoc(doc(db, 'shops', id), {
+      isSuspended: nextSuspended,
+      status: nextSuspended ? 'suspended' : 'active'
+    });
     alert('✅ ተሻሽሏል');
     loadTenants();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-window.resetUserPassword = async function(tenantId) {
+window.resetUserPassword = async function(shopId) {
   try {
-    const usersSnap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', tenantId), where('role', '==', 'owner')));
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('shopId', '==', shopId), where('role', '==', 'owner')));
     if (usersSnap.empty) return alert('❌ Owner አልተገኘም');
     const ownerEmail = usersSnap.docs[0].data().email;
     if (!confirm(`የ "${ownerEmail}" ፓስወርድ ሪሴት ኢሜይል ይላክ?`)) return;
     await sendPasswordResetEmail(auth, ownerEmail);
     alert(`✅ የሪሴት ኢሜይል ወደ ${ownerEmail} ተልኳል`);
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
 window.deleteTenant = async function(id, name) {
-  if (!confirm(`🚨 "${name}" ን በእርግጥ ማጥፋት?\n\nሁሉም ዳታ (products, sales, users) ይጠፋል!`)) return;
+  if (!confirm(`🚨 "${name}" ን በእርግጥ ማጥፋት?\n\nሁሉም ተያያዥ ዳታ ይጠፋል!`)) return;
   if (!confirm('የመጨረሻ ማረጋገጫ? ይህ ተመላሽ አይደለም!')) return;
-  
+
   try {
-    const collections = [
-      'products', 'sales', 'expenses', 'purchases', 
-      'branches', 'customers', 'categories', 'rooms',
-      'quickSales', 'fixedExpenses', 'creditPayments', 'payments', 'employees', 'billingPayments', 'billingRequests'
-    ];
+    const collections = ['credits', 'creditPayments', 'sales', 'expenses', 'customers', 'billingPayments', 'billingRequests'];
     for (const colName of collections) {
-      const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', id)));
+      const snap = await getDocs(query(collection(db, colName), where('shopId', '==', id)));
       for (const d of snap.docs) await deleteDoc(doc(db, colName, d.id));
     }
-    const usersSnap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', id)));
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('shopId', '==', id)));
     for (const u of usersSnap.docs) await deleteDoc(doc(db, 'users', u.id));
-    await deleteDoc(doc(db, 'tenants', id));
-    alert('✅ Tenant ተጠፍቷል');
+    await deleteDoc(doc(db, 'shops', id));
+    alert('✅ ሱቁ ተጠፍቷል');
     loadTenants();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
 // ═══════════════════════════════════════════
@@ -1349,7 +1336,7 @@ async function loadPasswordRequests() {
         </div>
       `;
     });
-  } catch(e) {
+  } catch (e) {
     list.innerHTML = `<p style="color:var(--danger); font-size:13px;">ስህተት: ${esc(e.message)}</p>`;
   }
 }
@@ -1364,7 +1351,7 @@ window.approvePasswordReset = async function(reqId, email) {
     await updateDoc(doc(db, 'passwordRequests', reqId), { status: 'approved', approvedAt: serverTimestamp() });
     alert(`✅ የሪሴት ኢሜይል ወደ ${email} ተልኳል`);
     loadPasswordRequests();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
 window.rejectPasswordReset = async function(reqId) {
@@ -1373,7 +1360,7 @@ window.rejectPasswordReset = async function(reqId) {
     await updateDoc(doc(db, 'passwordRequests', reqId), { status: 'rejected', rejectedAt: serverTimestamp() });
     alert('✅ ውድቅ ተደርጓል');
     loadPasswordRequests();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
 };
 
 syncCreateTenantPricing();
