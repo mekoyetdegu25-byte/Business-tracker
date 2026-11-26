@@ -64,25 +64,6 @@ export function showToast(msg, type = 'success') {
     setTimeout(() => toast.remove(), 300); 
   }, 3000);
 }
-export function applyDesktopTabCards() {
-  if (window.innerWidth < 768) return; // የሞባይል አቀማመጥ አይነካም
-
-  const activePanel = document.querySelector('#modulePanels .panel.active');
-  if (!activePanel) return;
-
-  const candidates = activePanel.querySelectorAll(
-    '[id*="List"], [id*="list"], [id*="Items"], [id*="items"], [id*="Orders"], [id*="orders"], [id*="Grid"], [id*="grid"]'
-  );
-
-  candidates.forEach((el) => {
-    if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'BUTTON') return;
-    const childCount = el.children?.length || 0;
-    if (childCount >= 1 && !el.classList.contains('stats-grid')) {
-      el.classList.add('dt-auto-card-grid');
-    }
-  });
-}
-window.applyDesktopTabCards = applyDesktopTabCards;
 
 // ═══════════════════════════════════════════
 // 🔐 AUTH (መግቢያ እና መውጫ)
@@ -325,7 +306,6 @@ export function applyDesktopTabCards() {
   activePanel.querySelectorAll('.card').forEach((card) => {
     if (card.closest('#extraSettingsSectionsMount')) return;
 
-    // በካርዱ ውስጥ 2 ወይም ከዚያ በላይ ተደጋጋሚ ረድፎች ያሉትን container መፈለግ
     const containers = [card, ...card.querySelectorAll('div, tbody')];
     containers.forEach((box) => {
       if (
@@ -343,7 +323,6 @@ export function applyDesktopTabCards() {
           el.textContent.trim().length > 0
       );
 
-      // ቢያንስ 2 ተመሳሳይ ዝርዝር ንጥሎች ካሉት በ Card Grid አደራጀው
       if (children.length >= 2) {
         box.classList.add('dt-auto-card-grid');
       }
@@ -398,6 +377,7 @@ export function switchPage(panelId, btnEl) {
   if (state.module?.onPageChange) state.module.onPageChange(panelId);
 
   applyFullPageLanguage(state.language);
+  setTimeout(() => applyDesktopTabCards(), 150);
 }
 window.switchPage = switchPage;
 
