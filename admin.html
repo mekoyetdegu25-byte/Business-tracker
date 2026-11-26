@@ -91,8 +91,9 @@
     padding-bottom: 8px; display: inline-block; 
   }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
   @media (max-width: 640px) { 
-    .grid { grid-template-columns: 1fr; }
+    .grid, .grid-3 { grid-template-columns: 1fr; }
     body { padding: 12px; }
   }
   
@@ -154,25 +155,16 @@
   }
   
   /* STATUS */
-  #createStatus { 
+  #createStatus, #supportStatus { 
     text-align: center; margin-top: 12px; 
     font-size: 13px; font-weight: bold; 
     padding: 10px; border-radius: 8px; 
     display: none;
   }
-  #createStatus.show { display: block; }
-  #createStatus.success { 
-    background: rgba(16,185,129,0.1); 
-    color: var(--success); 
-  }
-  #createStatus.error { 
-    background: rgba(239,68,68,0.1); 
-    color: var(--danger); 
-  }
-  #createStatus.loading { 
-    background: rgba(245,158,11,0.1); 
-    color: var(--warning); 
-  }
+  #createStatus.show, #supportStatus.show { display: block; }
+  .status-success { background: rgba(16,185,129,0.1); color: var(--success); }
+  .status-error { background: rgba(239,68,68,0.1); color: var(--danger); }
+  .status-loading { background: rgba(245,158,11,0.1); color: var(--warning); }
   
   /* STATS */
   .stats-grid {
@@ -208,9 +200,7 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════
-     LOGIN
-     ═══════════════════════════════════════════ -->
+<!-- LOGIN -->
 <div id="loginScreen">
   <div class="login-box">
     <h1>👑 Super Admin</h1>
@@ -221,9 +211,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     MAIN APP
-     ═══════════════════════════════════════════ -->
+<!-- MAIN APP -->
 <div id="app">
   <div class="header">
     <h1>👑 Admin Dashboard</h1>
@@ -232,6 +220,29 @@
 
   <!-- Stats Overview -->
   <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Global Support Info -->
+  <div class="card">
+    <h2>🛟 Support Info (ለሁሉም ተጠቃሚዎች)</h2>
+    <div class="grid-3">
+      <div>
+        <label>📞 Admin Phone</label>
+        <input type="text" id="supPhone" placeholder="+251 9...">
+      </div>
+      <div>
+        <label>✈️ Telegram Username</label>
+        <input type="text" id="supTelegram" placeholder="@hanitech_support">
+      </div>
+      <div>
+        <label>📧 Support Email</label>
+        <input type="email" id="supEmail" placeholder="support@hanitech.com">
+      </div>
+    </div>
+    <button onclick="saveSupportInfo()" style="background: var(--primary);">
+      💾 Save Support Info
+    </button>
+    <div id="supportStatus"></div>
+  </div>
 
   <!-- Create Tenant -->
   <div class="card">
@@ -360,9 +371,6 @@ import {
   doc, setDoc, serverTimestamp, getDoc, updateDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
-// ═══════════════════════════════════════════
-// 🔥 FIREBASE
-// ═══════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyDcA1t2fOA98U9KsngvDEih6TmEZb1-v0E",
   authDomain: "hotel-tracker-c3571.firebaseapp.com",
@@ -377,9 +385,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const SUPER_ADMIN = "admin@hanitech.com";
 
-// ═══════════════════════════════════════════
-// 🛠️ UTILITIES
-// ═══════════════════════════════════════════
 function esc(s) { 
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); 
 }
@@ -396,29 +401,17 @@ const BIZ_ICONS = {
   furniture: '🛋️'
 };
 
-// ═══════════════════════════════════════════
-// 🔐 AUTH
-// ═══════════════════════════════════════════
 window.login = async function() {
   const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value;
   const errEl = document.getElementById('error');
   errEl.innerText = '';
   
-  if (!email || !pass) {
-    errEl.innerText = '⚠️ Email እና Password ያስፈልጋሉ';
-    return;
-  }
-  if (email !== SUPER_ADMIN) {
-    errEl.innerText = '❌ እርስዎ አድሚን አይደሉም!';
-    return;
-  }
+  if (!email || !pass) { errEl.innerText = '⚠️ Email እና Password ያስፈልጋሉ'; return; }
+  if (email !== SUPER_ADMIN) { errEl.innerText = '❌ እርስዎ አድሚን አይደሉም!'; return; }
   
-  try { 
-    await signInWithEmailAndPassword(auth, email, pass); 
-  } catch(e) { 
-    errEl.innerText = '❌ Email ወይም Password ስህተት'; 
-  }
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e) { errEl.innerText = '❌ Email ወይም Password ስህተት'; }
 };
 
 window.logout = function() { signOut(auth); };
@@ -427,6 +420,7 @@ onAuthStateChanged(auth, (user) => {
   if (user && user.email === SUPER_ADMIN) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    loadSupportInfo();
     loadTenants();
     loadPasswordRequests();
   } else {
@@ -436,44 +430,65 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // ═══════════════════════════════════════════
+// 🛟 SUPPORT INFO
+// ═══════════════════════════════════════════
+async function loadSupportInfo() {
+  try {
+    const snap = await getDoc(doc(db, 'appSettings', 'support'));
+    if (snap.exists()) {
+      const d = snap.data();
+      document.getElementById('supPhone').value = d.phone || '';
+      document.getElementById('supTelegram').value = d.telegram || '';
+      document.getElementById('supEmail').value = d.email || '';
+    }
+  } catch (e) { console.error(e); }
+}
+
+window.saveSupportInfo = async function() {
+  const phone = document.getElementById('supPhone').value.trim();
+  let telegram = document.getElementById('supTelegram').value.trim();
+  if (telegram && !telegram.startsWith('@')) telegram = '@' + telegram;
+  const email = document.getElementById('supEmail').value.trim();
+  const status = document.getElementById('supportStatus');
+
+  status.className = 'show status-loading';
+  status.innerText = '⏳ በማስቀመጥ ላይ...';
+
+  try {
+    await setDoc(doc(db, 'appSettings', 'support'), {
+      phone, telegram, email, updatedAt: serverTimestamp()
+    }, { merge: true });
+    status.className = 'show status-success';
+    status.innerText = '✅ Support Info ተቀምጧል! ለሁሉም ተጠቃሚዎች ይታያል።';
+    setTimeout(() => { status.className = ''; }, 4000);
+  } catch (e) {
+    status.className = 'show status-error';
+    status.innerText = '❌ ስህተት: ' + e.message;
+  }
+};
+
+// ═══════════════════════════════════════════
 // 📊 STATS
 // ═══════════════════════════════════════════
 async function loadStats(tenants) {
   const statsGrid = document.getElementById('statsGrid');
   const today = new Date(); today.setHours(0,0,0,0);
   
-  let total = tenants.length;
-  let proCount = 0;
-  let expiredCount = 0;
-  let suspendedCount = 0;
-  
+  let total = tenants.length, proCount = 0, expiredCount = 0, suspendedCount = 0;
   tenants.forEach(t => {
     if (t.plan === 'pro') proCount++;
     if (t.isSuspended) suspendedCount++;
     if (t.expiryDate) {
-      const expDate = new Date(t.expiryDate);
-      expDate.setHours(0,0,0,0);
+      const expDate = new Date(t.expiryDate); expDate.setHours(0,0,0,0);
       if (expDate < today) expiredCount++;
     }
   });
   
   statsGrid.innerHTML = `
-    <div class="stat-card">
-      <div class="stat-label">Total Tenants</div>
-      <div class="stat-value">${total}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Pro Plan</div>
-      <div class="stat-value" style="color:var(--success);">${proCount}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Expired</div>
-      <div class="stat-value" style="color:var(--danger);">${expiredCount}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Suspended</div>
-      <div class="stat-value" style="color:var(--warning);">${suspendedCount}</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">Total Tenants</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Pro Plan</div><div class="stat-value" style="color:var(--success);">${proCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Expired</div><div class="stat-value" style="color:var(--danger);">${expiredCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value" style="color:var(--warning);">${suspendedCount}</div></div>
   `;
 }
 
@@ -492,41 +507,25 @@ window.createTenant = async function() {
   const status = document.getElementById('createStatus');
   
   if (!name || !expiry || !ownerEmail || !password) {
-    status.className = 'show error';
-    status.innerText = '⚠️ ሁሉንም መስኮች ሙላ!';
-    return;
+    status.className = 'show status-error'; status.innerText = '⚠️ ሁሉንም መስኮች ሙላ!'; return;
   }
-  
   if (password.length < 6) {
-    status.className = 'show error';
-    status.innerText = '⚠️ ፓስወርድ ቢያንስ 6 ፊደላት መሆን አለበት';
-    return;
+    status.className = 'show status-error'; status.innerText = '⚠️ ፓስወርድ ቢያንስ 6 ፊደላት መሆን አለበት'; return;
   }
   
-  status.className = 'show loading';
-  status.innerText = '⏳ በመፍጠር ላይ...';
+  status.className = 'show status-loading'; status.innerText = '⏳ በመፍጠር ላይ...';
   
   try {
-    // 1. Unique tenant ID
     const tenantId = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) + '_' + 
                      Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     
-    // 2. Create Tenant Doc
     await setDoc(doc(db, 'tenants', tenantId), {
-      name, 
-      businessType: bizType, 
-      plan, 
-      expiryDate: expiry, 
-      hasCredit,
-      isSuspended: false, 
-      createdAt: serverTimestamp(),
-      lowStockThreshold: lowStock, 
-      currency: 'ETB', 
-      language: 'am',
-      darkMode: false
+      name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
+      maxEmployees: 2,
+      isSuspended: false, createdAt: serverTimestamp(),
+      lowStockThreshold: lowStock, currency: 'ETB', language: 'am', darkMode: false
     });
     
-    // 3. Create Auth User (secondary app)
     const secondaryApp = initializeApp(firebaseConfig, 'Sec-' + Date.now());
     const secAuth = getAuth(secondaryApp);
     const cred = await createUserWithEmailAndPassword(secAuth, ownerEmail, password);
@@ -534,36 +533,27 @@ window.createTenant = async function() {
     await signOut(secAuth);
     await deleteApp(secondaryApp);
     
-    // 4. Create User Doc
     await setDoc(doc(db, 'users', uid), {
-      email: ownerEmail, 
-      role: 'owner', 
-      tenantId: tenantId,
-      isTempPassword: true, 
-      createdAt: serverTimestamp()
+      email: ownerEmail, role: 'owner', tenantId: tenantId,
+      isTempPassword: true, createdAt: serverTimestamp()
     });
     
-    // 5. Default Branch
     await setDoc(doc(db, 'branches', tenantId + '_Main'), {
-      name: 'Main', 
-      tenantId: tenantId
+      name: 'Main', tenantId: tenantId
     });
     
-    status.className = 'show success';
+    status.className = 'show status-success';
     status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId}</small>`;
     
-    // Reset form
     document.getElementById('newName').value = '';
     document.getElementById('newOwnerEmail').value = '';
     document.getElementById('newExpiry').value = '';
     document.getElementById('newPassword').value = '123456';
     
     loadTenants();
-    
     setTimeout(() => { status.className = ''; }, 5000);
-    
   } catch(e) {
-    status.className = 'show error';
+    status.className = 'show status-error';
     let msg = e.message;
     if (e.code === 'auth/email-already-in-use') msg = 'ይህ Email አስቀድሞ ተመዝግቧል';
     status.innerText = '❌ ስህተት: ' + msg;
@@ -598,42 +588,29 @@ async function loadTenants() {
       if (filterBizType !== 'all' && t.businessType !== filterBizType) return;
       
       count++;
-      
+      const maxEmp = t.maxEmployees ?? 2;
       const planBadge = t.plan === 'pro' 
         ? '<span class="badge bg-success">PRO</span>' 
         : '<span class="badge bg-warning">BASIC</span>';
       
-      // Expiry status
       let expiryBadge = '';
       if (t.expiryDate) {
-        const expDate = new Date(t.expiryDate);
-        expDate.setHours(0,0,0,0);
+        const expDate = new Date(t.expiryDate); expDate.setHours(0,0,0,0);
         const days = Math.ceil((expDate - today) / (1000*60*60*24));
-        if (days < 0) {
-          expiryBadge = `<span class="badge bg-danger">🚨 ${Math.abs(days)} ቀን አልፏል</span>`;
-        } else if (days <= 5) {
-          expiryBadge = `<span class="badge bg-warning">⏳ ${days} ቀን ቀርቷል</span>`;
-        }
+        if (days < 0) expiryBadge = `<span class="badge bg-danger">🚨 ${Math.abs(days)} ቀን አልፏል</span>`;
+        else if (days <= 5) expiryBadge = `<span class="badge bg-warning">⏳ ${days} ቀን ቀርቷል</span>`;
       }
       
-      const suspendBadge = t.isSuspended 
-        ? '<span class="badge bg-danger">⏸️ SUSPENDED</span>' 
-        : '';
-      
-      const creditBadge = t.hasCredit 
-        ? '<span class="badge bg-info">💳 CREDIT</span>' 
-        : '';
-      
+      const suspendBadge = t.isSuspended ? '<span class="badge bg-danger">⏸️ SUSPENDED</span>' : '';
+      const creditBadge = t.hasCredit ? '<span class="badge bg-info">💳 CREDIT</span>' : '';
+      const empBadge = `<span class="badge bg-info">👥 Max Emp: ${maxEmp}</span>`;
       const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
       
       list.innerHTML += `
         <div class="tenant-item">
           <h3>
             ${esc(t.name || 'Unnamed')}
-            ${planBadge}
-            ${expiryBadge}
-            ${suspendBadge}
-            ${creditBadge}
+            ${planBadge} ${expiryBadge} ${suspendBadge} ${creditBadge} ${empBadge}
           </h3>
           <p>
             ${bizIcon} ${esc(t.businessType || '-')} 
@@ -643,6 +620,7 @@ async function loadTenants() {
           <div class="action-btns">
             <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
             <button onclick="renewTenant('${t.id}')" style="background:var(--info);">🔄 Renew</button>
+            <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp Limit (${maxEmp})</button>
             <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
                     style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
               ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
@@ -656,18 +634,22 @@ async function loadTenants() {
     });
   
   if (count === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="emoji">📭</div>
-        <div>ምንም ውጤት አልተገኘም</div>
-      </div>
-    `;
+    list.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><div>ምንም ውጤት አልተገኘም</div></div>`;
   }
 }
 
-// ═══════════════════════════════════════════
-// 🎯 TENANT ACTIONS
-// ═══════════════════════════════════════════
+window.setEmployeeLimit = async function(id, currentLimit) {
+  const input = prompt('የሚፈቀደው ከፍተኛ የሰራተኛ ብዛት (ለምሳሌ 2፣ 5፣ 10):', String(currentLimit ?? 2));
+  if (input === null) return;
+  const num = parseInt(input, 10);
+  if (isNaN(num) || num < 0) return alert('⚠️ ትክክል ያለ ቁጥር ያስገቡ');
+  try {
+    await updateDoc(doc(db, 'tenants', id), { maxEmployees: num });
+    alert(`✅ የሰራተኛ ገደብ ወደ ${num} ተቀይሯል`);
+    loadTenants();
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
+};
+
 window.editTenant = async function(id) {
   try {
     const tenantDoc = await getDoc(doc(db, 'tenants', id));
@@ -676,23 +658,13 @@ window.editTenant = async function(id) {
     
     const newName = prompt('የንግድ ስም:', t.name);
     if (newName === null) return;
-    
     const newExpiry = prompt('የማብቂያ ቀን (YYYY-MM-DD):', t.expiryDate);
     if (newExpiry === null) return;
-    
     const newPlan = prompt('ፕላን (basic/pro):', t.plan);
     if (newPlan === null) return;
+    if (!['basic', 'pro'].includes(newPlan)) return alert('⚠️ ፕላን basic ወይም pro መሆን አለበት');
     
-    if (!['basic', 'pro'].includes(newPlan)) {
-      return alert('⚠️ ፕላን basic ወይም pro መሆን አለበት');
-    }
-    
-    await updateDoc(doc(db, 'tenants', id), {
-      name: newName,
-      expiryDate: newExpiry,
-      plan: newPlan
-    });
-    
+    await updateDoc(doc(db, 'tenants', id), { name: newName, expiryDate: newExpiry, plan: newPlan });
     alert('✅ ተሻሽሏል');
     loadTenants();
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
@@ -702,12 +674,8 @@ window.renewTenant = async function(id) {
   const newDate = prompt('አዲስ የማብቂያ ቀን (YYYY-MM-DD):', 
     new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]);
   if (!newDate) return;
-  
   try {
-    await updateDoc(doc(db, 'tenants', id), { 
-      expiryDate: newDate, 
-      isSuspended: false 
-    });
+    await updateDoc(doc(db, 'tenants', id), { expiryDate: newDate, isSuspended: false });
     alert('✅ ተራዝሟል');
     loadTenants();
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
@@ -715,7 +683,6 @@ window.renewTenant = async function(id) {
 
 window.toggleSuspend = async function(id, currentStatus) {
   if (!confirm(currentStatus ? 'ይህን tenant ማንቃት?' : 'ይህን tenant ማገድ?')) return;
-  
   try {
     await updateDoc(doc(db, 'tenants', id), { isSuspended: !currentStatus });
     alert('✅ ተሻሽሏል');
@@ -725,21 +692,13 @@ window.toggleSuspend = async function(id, currentStatus) {
 
 window.resetUserPassword = async function(tenantId) {
   try {
-    const usersSnap = await getDocs(query(collection(db, 'users'), 
-      where('tenantId', '==', tenantId), 
-      where('role', '==', 'owner')));
-    
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', tenantId), where('role', '==', 'owner')));
     if (usersSnap.empty) return alert('❌ Owner አልተገኘም');
-    
     const ownerEmail = usersSnap.docs[0].data().email;
-    
     if (!confirm(`የ "${ownerEmail}" ፓስወርድ ሪሴት ኢሜይል ይላክ?`)) return;
-    
     await sendPasswordResetEmail(auth, ownerEmail);
     alert(`✅ የሪሴት ኢሜይል ወደ ${ownerEmail} ተልኳል`);
-  } catch(e) { 
-    alert('❌ ስህተት: ' + e.message); 
-  }
+  } catch(e) { alert('❌ ስህተት: ' + e.message); }
 };
 
 window.deleteTenant = async function(id, name) {
@@ -750,25 +709,15 @@ window.deleteTenant = async function(id, name) {
     const collections = [
       'products', 'sales', 'expenses', 'purchases', 
       'branches', 'customers', 'categories', 'rooms',
-      'quickSales', 'fixedExpenses', 'creditPayments'
+      'quickSales', 'fixedExpenses', 'creditPayments', 'payments', 'employees'
     ];
-    
     for (const colName of collections) {
       const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', id)));
-      for (const d of snap.docs) {
-        await deleteDoc(doc(db, colName, d.id));
-      }
+      for (const d of snap.docs) await deleteDoc(doc(db, colName, d.id));
     }
-    
-    // Delete users
     const usersSnap = await getDocs(query(collection(db, 'users'), where('tenantId', '==', id)));
-    for (const u of usersSnap.docs) {
-      await deleteDoc(doc(db, 'users', u.id));
-    }
-    
-    // Delete tenant
+    for (const u of usersSnap.docs) await deleteDoc(doc(db, 'users', u.id));
     await deleteDoc(doc(db, 'tenants', id));
-    
     alert('✅ Tenant ተጠፍቷል');
     loadTenants();
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
@@ -781,17 +730,10 @@ async function loadPasswordRequests() {
   const list = document.getElementById('passwordRequestsList');
   try {
     const snap = await getDocs(query(collection(db, 'passwordRequests'), where('status', '==', 'pending')));
-    
     if (snap.empty) {
-      list.innerHTML = `
-        <div class="empty-state" style="padding:20px;">
-          <div class="emoji" style="font-size:32px;">✅</div>
-          <div style="font-size:13px;">ምንም ጥያቄ የለም</div>
-        </div>
-      `;
+      list.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="emoji" style="font-size:32px;">✅</div><div style="font-size:13px;">ምንም ጥያቄ የለም</div></div>`;
       return;
     }
-    
     list.innerHTML = '';
     snap.forEach(d => {
       const r = d.data();
@@ -801,10 +743,8 @@ async function loadPasswordRequests() {
           <h3>📧 ${esc(r.email)}</h3>
           <p>📅 ${date} | 🆔 ${d.id}</p>
           <div class="action-btns">
-            <button onclick="approvePasswordReset('${d.id}', '${escJs(r.email)}')" 
-                    style="background:var(--success);">✅ Approve</button>
-            <button onclick="rejectPasswordReset('${d.id}')" 
-                    style="background:var(--danger);">❌ Reject</button>
+            <button onclick="approvePasswordReset('${d.id}', '${escJs(r.email)}')" style="background:var(--success);">✅ Approve</button>
+            <button onclick="rejectPasswordReset('${d.id}')" style="background:var(--danger);">❌ Reject</button>
           </div>
         </div>
       `;
@@ -816,20 +756,12 @@ async function loadPasswordRequests() {
 
 window.approvePasswordReset = async function(reqId, email) {
   if (!confirm(`የ "${email}" ፓስወርድ ሪሴት ኢሜይል ይላክ?`)) return;
-  
   try {
     const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
     if (usersSnap.empty) return alert('❌ ተጠቃሚ አልተገኘም');
-    
-    const userDoc = usersSnap.docs[0];
-    await updateDoc(doc(db, 'users', userDoc.id), { isTempPassword: true });
+    await updateDoc(doc(db, 'users', usersSnap.docs[0].id), { isTempPassword: true });
     await sendPasswordResetEmail(auth, email);
-    
-    await updateDoc(doc(db, 'passwordRequests', reqId), { 
-      status: 'approved', 
-      approvedAt: serverTimestamp() 
-    });
-    
+    await updateDoc(doc(db, 'passwordRequests', reqId), { status: 'approved', approvedAt: serverTimestamp() });
     alert(`✅ የሪሴት ኢሜይል ወደ ${email} ተልኳል`);
     loadPasswordRequests();
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
@@ -837,21 +769,13 @@ window.approvePasswordReset = async function(reqId, email) {
 
 window.rejectPasswordReset = async function(reqId) {
   if (!confirm('ጥያቄውን ውድቅ ማድረግ?')) return;
-  
   try {
-    await updateDoc(doc(db, 'passwordRequests', reqId), { 
-      status: 'rejected', 
-      rejectedAt: serverTimestamp() 
-    });
+    await updateDoc(doc(db, 'passwordRequests', reqId), { status: 'rejected', rejectedAt: serverTimestamp() });
     alert('✅ ውድቅ ተደርጓል');
     loadPasswordRequests();
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-// ═══════════════════════════════════════════
-// 🚀 INIT
-// ═══════════════════════════════════════════
-// Set default expiry = 30 days from now
 document.getElementById('newExpiry').value = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
 </script>
 </body>
