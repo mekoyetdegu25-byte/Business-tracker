@@ -260,16 +260,25 @@ async function mountModule(module) {
     : allNav;
   const visibleNav = allowedNav.length > 0 ? allowedNav : allNav;
 
+  // 💻 በ Desktop Sidebar ላይ "More / Settings (panel8)" ሁልጊዜ መጨረሻ ላይ እንዲቀመጥ
+  const isMoreItem = (item) =>
+    item.id === 'panel8' ||
+    /more|setting|ተጨማሪ|ቅንብር/i.test(item.label || '');
+  const desktopNav = [
+    ...visibleNav.filter(item => !isMoreItem(item)),
+    ...visibleNav.filter(item => isMoreItem(item))
+  ];
+
   // 1. የጎን ማውጫ (Sidebar) ማዘጋጀት
   const sidebar = document.getElementById('sidebarNav');
-  sidebar.innerHTML = visibleNav.map(item => `
+  sidebar.innerHTML = desktopNav.map(item => `
     <div class="menu-header ${item.default ? 'active' : ''}" 
          onclick="switchPage('${item.id}', this)" data-tab="${item.id}">
       <div class="m-left"><i>${item.icon}</i> <span>${esc(item.label)}</span></div>
     </div>
   `).join('');
 
-  // 2. የሞባይል የታችኛው ማውጫ (Mobile Bottom Nav) ማዘጋጀት
+  // 2. የሞባይል የታችኛው ማውጫ (Mobile Bottom Nav) - እንዳለ ይቆያል (አይነካም)
   const mobileNav = document.getElementById('mobileBottomNav');
   const mobileItems = visibleNav.slice(0, 5);
   mobileNav.innerHTML = mobileItems.map(item => `
@@ -289,13 +298,69 @@ async function mountModule(module) {
   // 4. ዘርፉ የራሱን ስራዎች (Data load, events) እንዲጀምር ማድረግ
   if (module.init) await module.init(state);
 
-  // 5. የጋራ ተጨማሪ Settings መጫን እና ቋንቋ ማስተካከል
+  // 5. የጋራ ተጨማሪ Settings መጫን
   mountExtraSettings(state);
 
   // 6. የመጀመሪያውን ገጽ ማሳየት
   const defaultItem = visibleNav.find(i => i.default) || visibleNav[0];
   if (defaultItem) switchPage(defaultItem.id, null);
   else applyFullPageLanguage(state.language);
+
+  // 7. በ Desktop/Tablet ላይ በቀኝ በኩል የሚጨመሩ ዝርዝሮች በ Card Grid እንዲቀመጡ መከታተያ
+  startDesktopCardObserver();
+}
+
+let desktopCardObserver = null;
+
+export function applyDesktopTabCards() {
+  if (window.innerWidth < 768) return; // 📱 ሞባይል አይነካም
+
+  const activePanel = document.querySelector('#modulePanels .panel.active');
+  if (!activePanel) return;
+
+  // 1. በቀኝ በኩል ያለው ዋና ፓነል ሙሉ ስፋት እንዲጠቀም
+  activePanel.style.maxWidth = '100%';
+
+  // 2. በካርድ ውስጥ ያሉ ዝርዝሮችን (Price List, Expenses, Orders, Customers, etc.) ወደ Card Grid መቀየር
+  activePanel.querySelectorAll('.card').forEach((card) => {
+    if (card.closest('#extraSettingsSectionsMount')) return;
+
+    // በካርዱ ውስጥ 2 ወይም ከዚያ በላይ ተደጋጋሚ ረድፎች ያሉትን container መፈለግ
+    const containers = [card, ...card.querySelectorAll('div, tbody')];
+    containers.forEach((box) => {
+      if (
+        box.classList.contains('dt-auto-card-grid') ||
+        box.classList.contains('stats-grid') ||
+        box.classList.contains('grid') ||
+        box.classList.contains('filters')
+      ) return;
+
+      const children = Array.from(box.children).filter(
+        (el) =>
+          el.tagName === 'DIV' &&
+          !el.classList.contains('card-title') &&
+          !el.querySelector('input, select, textarea') &&
+          el.textContent.trim().length > 0
+      );
+
+      // ቢያንስ 2 ተመሳሳይ ዝርዝር ንጥሎች ካሉት በ Card Grid አደራጀው
+      if (children.length >= 2) {
+        box.classList.add('dt-auto-card-grid');
+      }
+    });
+  });
+}
+window.applyDesktopTabCards = applyDesktopTabCards;
+
+function startDesktopCardObserver() {
+  if (desktopCardObserver) desktopCardObserver.disconnect();
+  const host = document.getElementById('modulePanels');
+  if (!host) return;
+  desktopCardObserver = new MutationObserver(() => {
+    applyDesktopTabCards();
+  });
+  desktopCardObserver.observe(host, { childList: true, subtree: true });
+  applyDesktopTabCards();
 }
 
 // ═══════════════════════════════════════════
