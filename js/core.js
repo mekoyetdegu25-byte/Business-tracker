@@ -3,7 +3,7 @@ import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getModule } from './registry.js';
-import { mountExtraSettings, refreshExtraSettings, cleanupExtraSettings } from './settingsHelper.js';
+import { mountExtraSettings, refreshExtraSettings, cleanupExtraSettings, applyFullPageLanguage } from './settingsHelper.js';
 
 // ═══════════════════════════════════════════
 // 🌐 GLOBAL STATE (የመተግበሪያው ሁኔታ)
@@ -13,6 +13,7 @@ export const state = {
   tenantId: null,
   tenantData: null,
   role: 'employee',
+  permissions: null,
   plan: 'basic',
   businessType: null,
   module: null,
@@ -139,6 +140,7 @@ onAuthStateChanged(auth, async (user) => {
     state.user = null;
     state.tenantId = null;
     state.tenantData = null;
+    state.permissions = null;
     state.language = 'am';
   }
 });
@@ -155,6 +157,7 @@ async function loadUserAndTenant(user) {
     const userData = userDoc.data();
     state.tenantId = userData.tenantId;
     state.role = (userData.role || 'employee').toLowerCase();
+    state.permissions = Array.isArray(userData.permissions) ? userData.permissions : null;
 
     // 2. የንግዱን (Tenant) መረጃ መጫን
     const tenantDoc = await getDoc(doc(db, 'tenants', state.tenantId));
@@ -232,9 +235,15 @@ function showBlockScreen(type, title, message) {
 // 🧩 MODULE MOUNTING (የዘርፍ ኮድ መጫኛ)
 // ═══════════════════════════════════════════
 async function mountModule(module) {
+  const allNav = module.navItems || [];
+  const allowedNav = (state.role !== 'owner' && Array.isArray(state.permissions))
+    ? allNav.filter(item => state.permissions.includes(item.id))
+    : allNav;
+  const visibleNav = allowedNav.length > 0 ? allowedNav : allNav;
+
   // 1. የጎን ማውጫ (Sidebar) ማዘጋጀት
   const sidebar = document.getElementById('sidebarNav');
-  sidebar.innerHTML = (module.navItems || []).map(item => `
+  sidebar.innerHTML = visibleNav.map(item => `
     <div class="menu-header ${item.default ? 'active' : ''}" 
          onclick="switchPage('${item.id}', this)" data-tab="${item.id}">
       <div class="m-left"><i>${item.icon}</i> <span>${esc(item.label)}</span></div>
@@ -243,7 +252,7 @@ async function mountModule(module) {
 
   // 2. የሞባይል የታችኛው ማውጫ (Mobile Bottom Nav) ማዘጋጀት
   const mobileNav = document.getElementById('mobileBottomNav');
-  const mobileItems = (module.navItems || []).slice(0, 5);
+  const mobileItems = visibleNav.slice(0, 5);
   mobileNav.innerHTML = mobileItems.map(item => `
     <button class="mobile-nav-item ${item.default ? 'active' : ''}" 
             data-tab="${item.id}" 
@@ -261,12 +270,13 @@ async function mountModule(module) {
   // 4. ዘርፉ የራሱን ስራዎች (Data load, events) እንዲጀምር ማድረግ
   if (module.init) await module.init(state);
 
-  // 5. የጋራ ተጨማሪ Settings (Support Info, Language, Employee Mgt, Backup/Restore, Password, Danger Zone) መጫን
+  // 5. የጋራ ተጨማሪ Settings መጫን እና ቋንቋ ማስተካከል
   mountExtraSettings(state);
 
   // 6. የመጀመሪያውን ገጽ ማሳየት
-  const defaultItem = (module.navItems || []).find(i => i.default);
+  const defaultItem = visibleNav.find(i => i.default) || visibleNav[0];
   if (defaultItem) switchPage(defaultItem.id, null);
+  else applyFullPageLanguage(state.language);
 }
 
 // ═══════════════════════════════════════════
@@ -302,6 +312,8 @@ export function switchPage(panelId, btnEl) {
   
   // ዘርፉ ገጽ ሲቀየር ማወቅ እንዲችል
   if (state.module?.onPageChange) state.module.onPageChange(panelId);
+
+  applyFullPageLanguage(state.language);
 }
 window.switchPage = switchPage;
 
