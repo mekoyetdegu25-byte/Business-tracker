@@ -53,7 +53,7 @@
     background: var(--bg);
     color: var(--text);
   }
-  input:focus, select:focus { 
+  input:focus, select:focus, textarea:focus { 
     border-color: var(--primary); 
     background: var(--card);
     box-shadow: 0 0 0 3px rgba(26,54,93,0.1);
@@ -67,10 +67,9 @@
   }
   button:hover { opacity: 0.92; }
 
-  /* APP SHELL (MOBILE + DESKTOP) */
+  /* APP SHELL */
   #app { display: none; min-height: 100vh; flex-direction: column; }
 
-  /* TOP HEADER */
   .top-header {
     position: sticky; top: 0; z-index: 100;
     background: #1a365d; color: #fff;
@@ -94,13 +93,11 @@
   }
   .btn-logout { width: auto; padding: 7px 14px; background: var(--danger); font-size: 12px; }
 
-  /* BODY LAYOUT */
   .app-body { display: flex; flex: 1; }
 
-  /* DESKTOP SIDEBAR */
   .sidebar {
     display: none;
-    width: 230px; flex-shrink: 0;
+    width: 235px; flex-shrink: 0;
     background: var(--card);
     border-right: 1px solid var(--border);
     padding: 14px 10px;
@@ -119,16 +116,14 @@
     font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 700;
   }
 
-  /* MAIN PANEL AREA */
   .main-content {
     flex: 1; padding: 14px;
-    padding-bottom: 84px; /* ለሞባይል bottom nav ቦታ */
+    padding-bottom: 84px;
     max-width: 100%;
   }
   .admin-panel { display: none; }
   .admin-panel.active { display: block; }
 
-  /* MOBILE BOTTOM NAV */
   .mobile-bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
     background: var(--card); border-top: 1px solid var(--border);
@@ -140,13 +135,12 @@
     background: transparent; color: var(--muted);
     padding: 6px 2px; border-radius: 8px;
     display: flex; flex-direction: column; align-items: center; gap: 3px;
-    font-size: 10.5px; font-weight: 700; position: relative;
+    font-size: 10.5px; font-weight: 700;
   }
   .mobile-nav-btn .ico { font-size: 17px; }
   .mobile-nav-btn.active { color: var(--primary); background: rgba(26,54,93,0.08); }
   body.dark-mode .mobile-nav-btn.active { color: var(--accent); background: rgba(212,175,55,0.12); }
 
-  /* CARDS & GRIDS */
   .card { 
     background: var(--card); border-radius: 12px; 
     padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
@@ -162,7 +156,6 @@
   .form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; display: block; }
 
-  /* STATS */
   .stats-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); 
     gap: 12px; margin-bottom: 16px;
@@ -173,10 +166,9 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.03);
   }
   .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-  .stat-card .stat-value { font-size: 24px; font-weight: 800; color: var(--primary); }
+  .stat-card .stat-value { font-size: 22px; font-weight: 800; color: var(--primary); }
   body.dark-mode .stat-card .stat-value { color: #f8fafc; }
 
-  /* TENANT & REQUEST ITEMS */
   .cards-list-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .tenant-item { 
     border: 1px solid var(--border); border-radius: 12px; 
@@ -193,17 +185,18 @@
   .bg-danger { background: var(--danger); }
   .bg-warning { background: var(--warning); }
   .bg-info { background: var(--info); }
+  .bg-dark { background: #334155; }
   
   .action-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .action-btns button { width: auto; padding: 6px 11px; font-size: 11.5px; margin: 0; }
 
   .filters { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
 
-  #createStatus, #supportStatus { 
+  #createStatus, #supportStatus, #billingStatus { 
     text-align: center; margin-top: 12px; font-size: 13px; font-weight: bold; 
     padding: 10px; border-radius: 8px; display: none;
   }
-  #createStatus.show, #supportStatus.show { display: block; }
+  #createStatus.show, #supportStatus.show, #billingStatus.show { display: block; }
   .status-success { background: rgba(16,185,129,0.12); color: var(--success); }
   .status-error { background: rgba(239,68,68,0.12); color: var(--danger); }
   .status-loading { background: rgba(245,158,11,0.12); color: var(--warning); }
@@ -211,15 +204,25 @@
   .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); grid-column: 1 / -1; }
   .empty-state .emoji { font-size: 42px; margin-bottom: 10px; }
 
-  /* 💻 TABLET & DESKTOP (>= 768px) */
+  /* MODAL */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 480px; padding: 20px; max-height: 90vh; overflow-y: auto;
+  }
+
   @media (min-width: 768px) {
     .sidebar { display: block; }
     .mobile-bottom-nav { display: none; }
     .main-content { padding: 22px; padding-bottom: 24px; }
-    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    .stats-grid { grid-template-columns: repeat(5, 1fr); }
     .form-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
     .form-grid-3 { grid-template-columns: repeat(3, 1fr); gap: 15px; }
-    .filters { grid-template-columns: 2fr 1fr 1fr; }
+    .filters { grid-template-columns: 2fr 1fr 1fr 1fr; }
     .cards-list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   }
 
@@ -243,7 +246,6 @@
 
 <!-- MAIN APP -->
 <div id="app">
-  <!-- TOP HEADER -->
   <div class="top-header">
     <div class="hdr-left">
       <div class="hdr-avatar">👑</div>
@@ -259,13 +261,16 @@
   </div>
 
   <div class="app-body">
-    <!-- DESKTOP SIDEBAR -->
     <aside class="sidebar">
       <div class="nav-item active" data-panel="panelDashboard" onclick="switchAdminTab('panelDashboard')">
         <span>📊</span><span>Dashboard</span>
       </div>
       <div class="nav-item" data-panel="panelTenants" onclick="switchAdminTab('panelTenants')">
-        <span>🏢</span><span>Tenants</span>
+        <span>🏢</span><span>Subscriptions</span>
+      </div>
+      <div class="nav-item" data-panel="panelBilling" onclick="switchAdminTab('panelBilling')">
+        <span>💳</span><span>Bill Payments</span>
+        <span class="nav-badge" id="payReqBadgeSide" style="display:none; background:var(--info);">0</span>
       </div>
       <div class="nav-item" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
         <span>➕</span><span>Create Tenant</span>
@@ -279,7 +284,6 @@
       </div>
     </aside>
 
-    <!-- RIGHT CONTENT AREA -->
     <main class="main-content">
       <!-- 1. DASHBOARD -->
       <section class="admin-panel active" id="panelDashboard">
@@ -288,19 +292,26 @@
           <h2>⚡ Quick Actions</h2>
           <div class="form-grid">
             <button onclick="switchAdminTab('panelCreate')" style="background:var(--success);">➕ አዲስ Tenant ፍጠር</button>
-            <button onclick="switchAdminTab('panelTenants')" style="background:var(--primary);">🏢 Tenants ዝርዝር እይ</button>
-            <button onclick="switchAdminTab('panelRequests')" style="background:var(--warning);">🔑 Password Requests እይ</button>
-            <button onclick="switchAdminTab('panelSupport')" style="background:var(--info);">🛟 Support Info አስተካክል</button>
+            <button onclick="switchAdminTab('panelBilling')" style="background:var(--info);">💳 Bill Payment መዝግብ</button>
+            <button onclick="switchAdminTab('panelTenants')" style="background:var(--primary);">🏢 Subscriptions እይ</button>
+            <button onclick="switchAdminTab('panelSupport')" style="background:var(--warning);">🛟 Support Info አስተካክል</button>
           </div>
         </div>
       </section>
 
-      <!-- 2. TENANTS LIST -->
+      <!-- 2. TENANTS & SUBSCRIPTIONS -->
       <section class="admin-panel" id="panelTenants">
         <div class="card">
-          <h2>📋 የተፈጠሩ ተጠቃሚዎች (Tenants)</h2>
+          <h2>📋 የተፈጠሩ ተጠቃሚዎች & Subscriptions</h2>
           <div class="filters">
             <input type="text" id="searchTenant" placeholder="🔍 Search tenant..." oninput="loadTenants()" style="margin-bottom:0;">
+            <select id="filterSubStatus" onchange="loadTenants()" style="margin-bottom:0;">
+              <option value="all">All Statuses</option>
+              <option value="active">✅ Active</option>
+              <option value="expiring">⏳ Expiring (≤7d)</option>
+              <option value="expired">🚨 Expired</option>
+              <option value="suspended">⏸️ Suspended</option>
+            </select>
             <select id="filterPlan" onchange="loadTenants()" style="margin-bottom:0;">
               <option value="all">All Plans</option>
               <option value="basic">Basic Only</option>
@@ -329,10 +340,60 @@
         </div>
       </section>
 
-      <!-- 3. CREATE TENANT -->
+      <!-- 3. BILL PAYMENTS & USER PAYMENT REQUESTS -->
+      <section class="admin-panel" id="panelBilling">
+        <div class="card">
+          <h2>💳 Record Bill Payment & Extend Subscription</h2>
+          <div class="form-grid form-grid-3">
+            <div>
+              <label>Tenant *</label>
+              <select id="payTenantSelect"></select>
+            </div>
+            <div>
+              <label>Amount (ETB) *</label>
+              <input type="number" id="payAmount" min="0" step="0.01" placeholder="e.g. 1500">
+            </div>
+            <div>
+              <label>Payment Method *</label>
+              <select id="payMethod">
+                <option value="Telebirr">📱 Telebirr</option>
+                <option value="CBE">🏦 CBE</option>
+                <option value="Bank Transfer">🏛️ Bank Transfer</option>
+                <option value="Cash">💵 Cash</option>
+              </select>
+            </div>
+            <div>
+              <label>New Expiry Date *</label>
+              <input type="date" id="payNewExpiry">
+            </div>
+            <div>
+              <label>Reference / Note</label>
+              <input type="text" id="payNote" placeholder="TXN ID or note...">
+            </div>
+          </div>
+          <button onclick="submitBillPayment()" style="background:var(--success);">💾 Save Payment & Renew</button>
+          <div id="billingStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>📩 Tenant Payment / Renewal Requests</h2>
+          <div id="tenantPaymentRequestsList" class="cards-list-grid">
+            <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>🧾 Payment History (የተከፈሉ ክፍያዎች ታሪክ)</h2>
+          <div id="billingHistoryList" class="cards-list-grid">
+            <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. CREATE TENANT -->
       <section class="admin-panel" id="panelCreate">
         <div class="card">
-          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant)</h2>
+          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant + ክፍያ & ማብቂያ ቀን)</h2>
           <div class="form-grid">
             <div>
               <label>የንግድ ስም *</label>
@@ -370,6 +431,19 @@
               <input type="date" id="newExpiry">
             </div>
             <div>
+              <label>💰 የመጀመሪያ ክፍያ (Initial Amount ETB)</label>
+              <input type="number" id="newInitAmount" min="0" step="0.01" value="0" placeholder="0.00">
+            </div>
+            <div>
+              <label>💳 የክፍያ ዘዴ (Payment Method)</label>
+              <select id="newPayMethod">
+                <option value="Telebirr">📱 Telebirr</option>
+                <option value="CBE">🏦 CBE</option>
+                <option value="Bank Transfer">🏛️ Bank Transfer</option>
+                <option value="Cash">💵 Cash</option>
+              </select>
+            </div>
+            <div>
               <label>💳 Credit Tab ይኑረው? (ለBasicም)</label>
               <select id="newHasCredit">
                 <option value="false">❌ አይኑረው (Pro ብቻ)</option>
@@ -380,6 +454,11 @@
               <label>📦 Low Stock Threshold</label>
               <input type="number" id="newLowStock" value="10">
             </div>
+          </div>
+
+          <div style="margin-top:4px;">
+            <label>📝 የክፍያ / ምዝገባ ማስታወሻ (Note)</label>
+            <input type="text" id="newPayNote" placeholder="e.g. Initial 1-month subscription">
           </div>
 
           <hr style="margin: 12px 0 16px 0; border: 0; border-top: 1px dashed var(--border);">
@@ -395,12 +474,12 @@
             </div>
           </div>
 
-          <button onclick="createTenant()" style="background: var(--success);">✨ Create Tenant & User</button>
+          <button onclick="createTenant()" style="background: var(--success);">✨ Create Tenant & Record Payment</button>
           <div id="createStatus"></div>
         </div>
       </section>
 
-      <!-- 4. PASSWORD REQUESTS -->
+      <!-- 5. PASSWORD REQUESTS -->
       <section class="admin-panel" id="panelRequests">
         <div class="card">
           <h2>🔑 Password Reset Requests</h2>
@@ -410,7 +489,7 @@
         </div>
       </section>
 
-      <!-- 5. SUPPORT INFO -->
+      <!-- 6. SUPPORT INFO -->
       <section class="admin-panel" id="panelSupport">
         <div class="card">
           <h2>🛟 Support Info (ለሁሉም ተጠቃሚዎች)</h2>
@@ -435,19 +514,18 @@
     </main>
   </div>
 
-  <!-- MOBILE BOTTOM NAV -->
   <nav class="mobile-bottom-nav">
     <button class="mobile-nav-btn active" data-panel="panelDashboard" onclick="switchAdminTab('panelDashboard')">
       <span class="ico">📊</span><span>Home</span>
     </button>
     <button class="mobile-nav-btn" data-panel="panelTenants" onclick="switchAdminTab('panelTenants')">
-      <span class="ico">🏢</span><span>Tenants</span>
+      <span class="ico">🏢</span><span>Subs</span>
+    </button>
+    <button class="mobile-nav-btn" data-panel="panelBilling" onclick="switchAdminTab('panelBilling')">
+      <span class="ico">💳</span><span>Billing</span>
     </button>
     <button class="mobile-nav-btn" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
       <span class="ico">➕</span><span>Create</span>
-    </button>
-    <button class="mobile-nav-btn" data-panel="panelRequests" onclick="switchAdminTab('panelRequests')">
-      <span class="ico">🔑</span><span>Requests</span>
     </button>
     <button class="mobile-nav-btn" data-panel="panelSupport" onclick="switchAdminTab('panelSupport')">
       <span class="ico">🛟</span><span>Support</span>
@@ -462,7 +540,7 @@ import {
   createUserWithEmailAndPassword, sendPasswordResetEmail 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { 
-  getFirestore, collection, getDocs, query, where, 
+  getFirestore, collection, addDoc, getDocs, query, where, 
   doc, setDoc, serverTimestamp, getDoc, updateDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
@@ -480,11 +558,17 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const SUPER_ADMIN = "admin@hanitech.com";
 
+let cachedTenants = [];
+let cachedPayments = [];
+
 function esc(s) { 
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); 
 }
 function escJs(s) { 
   return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); 
+}
+function money(n) {
+  return (Math.round((parseFloat(n) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const BIZ_ICONS = {
@@ -499,7 +583,6 @@ const BIZ_ICONS = {
 window.switchAdminTab = function(panelId) {
   document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
   document.getElementById(panelId)?.classList.add('active');
-
   document.querySelectorAll('.nav-item, .mobile-nav-btn').forEach(el => {
     el.classList.toggle('active', el.dataset.panel === panelId);
   });
@@ -531,6 +614,8 @@ onAuthStateChanged(auth, (user) => {
     document.getElementById('adminEmailLabel').textContent = user.email;
     loadSupportInfo();
     loadTenants();
+    loadBillingHistory();
+    loadTenantPaymentRequests();
     loadPasswordRequests();
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
@@ -587,38 +672,57 @@ window.saveSupportInfo = async function() {
 };
 
 // ═══════════════════════════════════════════
-// 📊 STATS
+// 📊 STATS & SUBSCRIPTION STATUS HELPER
 // ═══════════════════════════════════════════
-function loadStats(tenants) {
-  const statsGrid = document.getElementById('statsGrid');
+function getSubInfo(t) {
   const today = new Date(); today.setHours(0,0,0,0);
-  
-  let total = tenants.length, proCount = 0, expiredCount = 0, suspendedCount = 0;
-  tenants.forEach(t => {
-    if (t.plan === 'pro') proCount++;
-    if (t.isSuspended) suspendedCount++;
-    if (t.expiryDate) {
-      const expDate = new Date(t.expiryDate); expDate.setHours(0,0,0,0);
-      if (expDate < today) expiredCount++;
-    }
+  if (t.isSuspended) return { key: 'suspended', label: '⏸️ SUSPENDED', cls: 'bg-danger', days: null };
+  if (!t.expiryDate) return { key: 'active', label: '✅ ACTIVE', cls: 'bg-success', days: null };
+  const exp = new Date(t.expiryDate); exp.setHours(0,0,0,0);
+  const days = Math.ceil((exp - today) / (1000*60*60*24));
+  if (days < 0) return { key: 'expired', label: `🚨 EXPIRED (${Math.abs(days)}d)`, cls: 'bg-danger', days };
+  if (days <= 7) return { key: 'expiring', label: `⏳ EXPIRING (${days}d)`, cls: 'bg-warning', days };
+  return { key: 'active', label: `✅ ACTIVE (${days}d left)`, cls: 'bg-success', days };
+}
+
+function renderStats() {
+  const statsGrid = document.getElementById('statsGrid');
+  if (!statsGrid) return;
+  let total = cachedTenants.length, activeCount = 0, expiringCount = 0, expiredCount = 0;
+  cachedTenants.forEach(t => {
+    const s = getSubInfo(t);
+    if (s.key === 'active') activeCount++;
+    else if (s.key === 'expiring') expiringCount++;
+    else if (s.key === 'expired') expiredCount++;
   });
-  
+  const totalRevenue = cachedPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
   statsGrid.innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Tenants</div><div class="stat-value">${total}</div></div>
-    <div class="stat-card"><div class="stat-label">Pro Plan</div><div class="stat-value" style="color:var(--success);">${proCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Active Subs</div><div class="stat-value" style="color:var(--success);">${activeCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Expiring (≤7d)</div><div class="stat-value" style="color:var(--warning);">${expiringCount}</div></div>
     <div class="stat-card"><div class="stat-label">Expired</div><div class="stat-value" style="color:var(--danger);">${expiredCount}</div></div>
-    <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value" style="color:var(--warning);">${suspendedCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Collected (ETB)</div><div class="stat-value" style="color:var(--info);">${money(totalRevenue)}</div></div>
   `;
 }
 
+function populateTenantSelect() {
+  const sel = document.getElementById('payTenantSelect');
+  if (!sel) return;
+  sel.innerHTML = cachedTenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)} (${esc(t.expiryDate || '-')})</option>`).join('');
+}
+
 // ═══════════════════════════════════════════
-// ➕ CREATE TENANT
+// ➕ CREATE TENANT (WITH PAYMENT & EXPIRY)
 // ═══════════════════════════════════════════
 window.createTenant = async function() {
   const name = document.getElementById('newName').value.trim();
   const bizType = document.getElementById('newBizType').value;
   const plan = document.getElementById('newPlan').value;
   const expiry = document.getElementById('newExpiry').value;
+  const initAmount = parseFloat(document.getElementById('newInitAmount').value) || 0;
+  const payMethod = document.getElementById('newPayMethod').value;
+  const payNote = document.getElementById('newPayNote').value.trim() || 'Initial subscription payment';
   const hasCredit = document.getElementById('newHasCredit').value === 'true';
   const lowStock = parseInt(document.getElementById('newLowStock').value) || 10;
   const ownerEmail = document.getElementById('newOwnerEmail').value.trim();
@@ -647,9 +751,18 @@ window.createTenant = async function() {
     await setDoc(doc(db, 'tenants', tenantId), {
       name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
       maxEmployees: 2, supportInfo,
+      lastPaymentAmount: initAmount, lastPaymentMethod: payMethod,
       isSuspended: false, createdAt: serverTimestamp(),
       lowStockThreshold: lowStock, currency: 'ETB', language: 'am', darkMode: false
     });
+
+    if (initAmount > 0) {
+      await addDoc(collection(db, 'billingPayments'), {
+        tenantId, tenantName: name, amount: initAmount,
+        method: payMethod, newExpiryDate: expiry,
+        note: payNote, type: 'initial', createdAt: serverTimestamp()
+      });
+    }
     
     const secondaryApp = initializeApp(firebaseConfig, 'Sec-' + Date.now());
     const secAuth = getAuth(secondaryApp);
@@ -668,14 +781,16 @@ window.createTenant = async function() {
     });
     
     status.className = 'show status-success';
-    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId}</small>`;
+    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId} | Exp: ${expiry}</small>`;
     
     document.getElementById('newName').value = '';
     document.getElementById('newOwnerEmail').value = '';
-    document.getElementById('newExpiry').value = '';
+    document.getElementById('newInitAmount').value = '0';
+    document.getElementById('newPayNote').value = '';
     document.getElementById('newPassword').value = '123456';
     
-    loadTenants();
+    await loadTenants();
+    await loadBillingHistory();
     setTimeout(() => { status.className = ''; }, 5000);
   } catch(e) {
     status.className = 'show status-error';
@@ -686,85 +801,251 @@ window.createTenant = async function() {
 };
 
 // ═══════════════════════════════════════════
-// 📋 TENANTS
+// 📋 TENANTS & SUBSCRIPTION TRACKER
 // ═══════════════════════════════════════════
 window.loadTenants = async function() {
   const search = (document.getElementById('searchTenant')?.value || '').toLowerCase();
+  const filterStatus = document.getElementById('filterSubStatus')?.value || 'all';
   const filterPlan = document.getElementById('filterPlan')?.value || 'all';
   const filterBizType = document.getElementById('filterBizType')?.value || 'all';
   
   const snap = await getDocs(collection(db, 'tenants'));
-  const allTenants = [];
-  snap.forEach(d => allTenants.push({ id: d.id, ...d.data() }));
-  
-  loadStats(allTenants);
+  cachedTenants = [];
+  snap.forEach(d => cachedTenants.push({ id: d.id, ...d.data() }));
+  cachedTenants.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+  renderStats();
+  populateTenantSelect();
   
   const list = document.getElementById('tenantList');
   list.innerHTML = '';
-  
-  const today = new Date(); today.setHours(0,0,0,0);
   let count = 0;
   
-  allTenants
-    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-    .forEach(t => {
-      if (search && !(t.name || '').toLowerCase().includes(search)) return;
-      if (filterPlan !== 'all' && t.plan !== filterPlan) return;
-      if (filterBizType !== 'all' && t.businessType !== filterBizType) return;
-      
-      count++;
-      const maxEmp = t.maxEmployees ?? 2;
-      const planBadge = t.plan === 'pro' 
-        ? '<span class="badge bg-success">PRO</span>' 
-        : '<span class="badge bg-warning">BASIC</span>';
-      
-      let expiryBadge = '';
-      if (t.expiryDate) {
-        const expDate = new Date(t.expiryDate); expDate.setHours(0,0,0,0);
-        const days = Math.ceil((expDate - today) / (1000*60*60*24));
-        if (days < 0) expiryBadge = `<span class="badge bg-danger">🚨 ${Math.abs(days)} ቀን አልፏል</span>`;
-        else if (days <= 5) expiryBadge = `<span class="badge bg-warning">⏳ ${days} ቀን ቀርቷል</span>`;
-      }
-      
-      const suspendBadge = t.isSuspended ? '<span class="badge bg-danger">⏸️ SUSPENDED</span>' : '';
-      const creditBadge = t.hasCredit ? '<span class="badge bg-info">💳 CREDIT</span>' : '';
-      const empBadge = `<span class="badge bg-info">👥 Max: ${maxEmp}</span>`;
-      const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
-      
-      list.innerHTML += `
-        <div class="tenant-item">
-          <div>
-            <h3>
-              ${esc(t.name || 'Unnamed')}
-              ${planBadge} ${expiryBadge} ${suspendBadge} ${creditBadge} ${empBadge}
-            </h3>
-            <p>
-              ${bizIcon} ${esc(t.businessType || '-')} <br>
-              📅 Exp: ${esc(t.expiryDate || '-')} <br>
-              🆔 ${t.id}
-            </p>
-          </div>
-          <div class="action-btns">
-            <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
-            <button onclick="renewTenant('${t.id}')" style="background:var(--info);">🔄 Renew</button>
-            <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp (${maxEmp})</button>
-            <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
-                    style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
-              ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
-            </button>
-            <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset</button>
-            <button onclick="deleteTenant('${t.id}', '${escJs(t.name || '')}')" 
-                    style="background:var(--danger);">🗑️ Delete</button>
-          </div>
+  cachedTenants.forEach(t => {
+    const sub = getSubInfo(t);
+    if (search && !(t.name || '').toLowerCase().includes(search)) return;
+    if (filterStatus !== 'all' && sub.key !== filterStatus) return;
+    if (filterPlan !== 'all' && t.plan !== filterPlan) return;
+    if (filterBizType !== 'all' && t.businessType !== filterBizType) return;
+    
+    count++;
+    const maxEmp = t.maxEmployees ?? 2;
+    const planBadge = t.plan === 'pro' 
+      ? '<span class="badge bg-info">PRO</span>' 
+      : '<span class="badge bg-dark">BASIC</span>';
+    const creditBadge = t.hasCredit ? '<span class="badge bg-info">💳 CREDIT</span>' : '';
+    const empBadge = `<span class="badge bg-dark">👥 ${maxEmp}</span>`;
+    const bizIcon = BIZ_ICONS[t.businessType] || '🏢';
+    
+    list.innerHTML += `
+      <div class="tenant-item">
+        <div>
+          <h3>
+            ${esc(t.name || 'Unnamed')}
+            <span class="badge ${sub.cls}">${sub.label}</span>
+            ${planBadge} ${creditBadge} ${empBadge}
+          </h3>
+          <p>
+            ${bizIcon} ${esc(t.businessType || '-')} <br>
+            📅 Exp: <b>${esc(t.expiryDate || '-')}</b> <br>
+            💰 Last Pay: <b>${money(t.lastPaymentAmount || 0)} ETB</b> (${esc(t.lastPaymentMethod || '-')}) <br>
+            🆔 ${t.id}
+          </p>
         </div>
-      `;
-    });
+        <div class="action-btns">
+          <button onclick="openQuickPay('${t.id}')" style="background:var(--success);">💳 Pay / Renew</button>
+          <button onclick="editTenant('${t.id}')" style="background:var(--primary);">✏️ Edit</button>
+          <button onclick="setEmployeeLimit('${t.id}', ${maxEmp})" style="background:#6366f1;">👥 Emp (${maxEmp})</button>
+          <button onclick="toggleSuspend('${t.id}', ${t.isSuspended || false})" 
+                  style="background:${t.isSuspended ? 'var(--success)' : 'var(--warning)'};">
+            ${t.isSuspended ? '▶️ Activate' : '⏸️ Suspend'}
+          </button>
+          <button onclick="resetUserPassword('${t.id}')" style="background:var(--accent); color:var(--primary);">🔑 Reset</button>
+          <button onclick="deleteTenant('${t.id}', '${escJs(t.name || '')}')" 
+                  style="background:var(--danger);">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+  });
   
   if (count === 0) {
     list.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><div>ምንም ውጤት አልተገኘም</div></div>`;
   }
 };
 
+window.openQuickPay = function(tenantId) {
+  switchAdminTab('panelBilling');
+  const sel = document.getElementById('payTenantSelect');
+  if (sel) sel.value = tenantId;
+  const t = cachedTenants.find(x => x.id === tenantId);
+  const baseDate = (t?.expiryDate && new Date(t.expiryDate) > new Date())
+    ? new Date(t.expiryDate)
+    : new Date();
+  baseDate.setDate(baseDate.getDate() + 30);
+  const expEl = document.getElementById('payNewExpiry');
+  if (expEl) expEl.value = baseDate.toISOString().split('T')[0];
+};
+
+// ═══════════════════════════════════════════
+// 💳 BILL PAYMENTS & HISTORY
+// ═══════════════════════════════════════════
+window.submitBillPayment = async function() {
+  const tenantId = document.getElementById('payTenantSelect').value;
+  const amount = parseFloat(document.getElementById('payAmount').value) || 0;
+  const method = document.getElementById('payMethod').value;
+  const newExpiry = document.getElementById('payNewExpiry').value;
+  const note = document.getElementById('payNote').value.trim() || 'Subscription renewal payment';
+  const status = document.getElementById('billingStatus');
+
+  if (!tenantId || !newExpiry) {
+    status.className = 'show status-error';
+    status.innerText = '⚠️ Tenant እና New Expiry Date ያስፈልጋሉ';
+    return;
+  }
+
+  status.className = 'show status-loading';
+  status.innerText = '⏳ በማስቀመጥ ላይ...';
+
+  try {
+    const tObj = cachedTenants.find(x => x.id === tenantId);
+    await updateDoc(doc(db, 'tenants', tenantId), {
+      expiryDate: newExpiry,
+      isSuspended: false,
+      lastPaymentAmount: amount,
+      lastPaymentMethod: method
+    });
+
+    await addDoc(collection(db, 'billingPayments'), {
+      tenantId,
+      tenantName: tObj?.name || tenantId,
+      amount,
+      method,
+      newExpiryDate: newExpiry,
+      note,
+      type: 'renewal',
+      createdAt: serverTimestamp()
+    });
+
+    document.getElementById('payAmount').value = '';
+    document.getElementById('payNote').value = '';
+    status.className = 'show status-success';
+    status.innerText = `✅ ክፍያ ተመዝግቧል! አዲስ ማብቂያ: ${newExpiry}`;
+
+    await loadTenants();
+    await loadBillingHistory();
+    setTimeout(() => { status.className = ''; }, 4000);
+  } catch (e) {
+    status.className = 'show status-error';
+    status.innerText = '❌ ስህተት: ' + e.message;
+  }
+};
+
+async function loadBillingHistory() {
+  const list = document.getElementById('billingHistoryList');
+  try {
+    const snap = await getDocs(collection(db, 'billingPayments'));
+    cachedPayments = [];
+    snap.forEach(d => cachedPayments.push({ id: d.id, ...d.data() }));
+    cachedPayments.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderStats();
+
+    if (cachedPayments.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="emoji">🧾</div><div>ምንም የክፍያ ታሪክ የለም</div></div>`;
+      return;
+    }
+
+    list.innerHTML = cachedPayments.slice(0, 24).map(p => {
+      const dt = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString() : '-';
+      return `
+        <div class="tenant-item">
+          <div>
+            <h3>💰 ${money(p.amount)} ETB <span class="badge bg-success">${esc(p.method || 'Cash')}</span></h3>
+            <p>
+              🏢 <b>${esc(p.tenantName || p.tenantId)}</b> <br>
+              📅 Paid: ${dt} | New Exp: <b>${esc(p.newExpiryDate || '-')}</b> <br>
+              📝 ${esc(p.note || '-')}
+            </p>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<p style="color:var(--danger); font-size:13px;">ስህተት: ${esc(e.message)}</p>`;
+  }
+}
+
+async function loadTenantPaymentRequests() {
+  const list = document.getElementById('tenantPaymentRequestsList');
+  const badge = document.getElementById('payReqBadgeSide');
+  try {
+    const snap = await getDocs(query(collection(db, 'billingRequests'), where('status', '==', 'pending')));
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+
+    if (badge) {
+      badge.textContent = String(rows.length);
+      badge.style.display = rows.length > 0 ? 'inline-block' : 'none';
+    }
+
+    if (rows.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="emoji">✅</div><div>ምንም የክፍያ ጥያቄ የለም</div></div>`;
+      return;
+    }
+
+    list.innerHTML = rows.map(r => `
+      <div class="tenant-item">
+        <div>
+          <h3>🏢 ${esc(r.tenantName || r.tenantId)} <span class="badge bg-warning">PENDING</span></h3>
+          <p>
+            💰 Amount: <b>${money(r.amount || 0)} ETB</b> | Method: <b>${esc(r.method || '-')}</b> <br>
+            📅 Requested New Exp: <b>${esc(r.requestedExpiryDate || '-')}</b> <br>
+            📝 Ref/Note: ${esc(r.note || '-')}
+          </p>
+        </div>
+        <div class="action-btns">
+          <button onclick="approveBillingRequest('${r.id}', '${escJs(r.tenantId)}', ${Number(r.amount || 0)}, '${escJs(r.method || 'Cash')}', '${escJs(r.requestedExpiryDate || '')}', '${escJs(r.note || '')}')" style="background:var(--success);">✅ Approve & Renew</button>
+          <button onclick="rejectBillingRequest('${r.id}')" style="background:var(--danger);">❌ Reject</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = `<p style="color:var(--muted); font-size:13px;">No requests or rules pending.</p>`;
+  }
+}
+
+window.approveBillingRequest = async function(reqId, tenantId, amount, method, newExpiry, note) {
+  const finalExpiry = newExpiry || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+  try {
+    const tObj = cachedTenants.find(x => x.id === tenantId);
+    await updateDoc(doc(db, 'tenants', tenantId), {
+      expiryDate: finalExpiry, isSuspended: false,
+      lastPaymentAmount: amount, lastPaymentMethod: method
+    });
+    await addDoc(collection(db, 'billingPayments'), {
+      tenantId, tenantName: tObj?.name || tenantId,
+      amount, method, newExpiryDate: finalExpiry,
+      note: note || 'Approved payment request', type: 'request_approved',
+      createdAt: serverTimestamp()
+    });
+    await updateDoc(doc(db, 'billingRequests', reqId), { status: 'approved', approvedAt: serverTimestamp() });
+    alert(`✅ ክፍያ ጸድቋል! አዲስ ማብቂያ: ${finalExpiry}`);
+    await loadTenants();
+    await loadBillingHistory();
+    await loadTenantPaymentRequests();
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+window.rejectBillingRequest = async function(reqId) {
+  if (!confirm('የክፍያ ጥያቄውን ውድቅ ማድረግ?')) return;
+  try {
+    await updateDoc(doc(db, 'billingRequests', reqId), { status: 'rejected', rejectedAt: serverTimestamp() });
+    await loadTenantPaymentRequests();
+  } catch (e) { alert('❌ ስህተት: ' + e.message); }
+};
+
+// ═══════════════════════════════════════════
+// 🎯 TENANT ACTIONS
+// ═══════════════════════════════════════════
 window.setEmployeeLimit = async function(id, currentLimit) {
   const input = prompt('የሚፈቀደው ከፍተኛ የሰራተኛ ብዛት (ለምሳሌ 2፣ 5፣ 10):', String(currentLimit ?? 2));
   if (input === null) return;
@@ -797,17 +1078,6 @@ window.editTenant = async function(id) {
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-window.renewTenant = async function(id) {
-  const newDate = prompt('አዲስ የማብቂያ ቀን (YYYY-MM-DD):', 
-    new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]);
-  if (!newDate) return;
-  try {
-    await updateDoc(doc(db, 'tenants', id), { expiryDate: newDate, isSuspended: false });
-    alert('✅ ተራዝሟል');
-    loadTenants();
-  } catch(e) { alert('❌ ስህተት: ' + e.message); }
-};
-
 window.toggleSuspend = async function(id, currentStatus) {
   if (!confirm(currentStatus ? 'ይህን tenant ማንቃት?' : 'ይህን tenant ማገድ?')) return;
   try {
@@ -836,7 +1106,7 @@ window.deleteTenant = async function(id, name) {
     const collections = [
       'products', 'sales', 'expenses', 'purchases', 
       'branches', 'customers', 'categories', 'rooms',
-      'quickSales', 'fixedExpenses', 'creditPayments', 'payments', 'employees'
+      'quickSales', 'fixedExpenses', 'creditPayments', 'payments', 'employees', 'billingPayments', 'billingRequests'
     ];
     for (const colName of collections) {
       const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', id)));
@@ -910,7 +1180,9 @@ window.rejectPasswordReset = async function(reqId) {
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-document.getElementById('newExpiry').value = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+const defExp = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+document.getElementById('newExpiry').value = defExp;
+document.getElementById('payNewExpiry').value = defExp;
 </script>
 </body>
 </html>
