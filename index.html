@@ -175,45 +175,38 @@
       'border:none',
       'font-weight:700'
     ].join(';');
+
     renewBtn.onclick = function() {
-  if (typeof window.openSubscriptionBillingSection === 'function') {
-    window.openSubscriptionBillingSection();
-    return;
-  }
-
-  // 1. መጀመሪያ የ "ተመልካች" / Settings tab ወይም button ካለ እንዲከፈት እንሞክራለን
-  const settingsTrigger = Array.from(document.querySelectorAll('button, a, div, span')).find(el => {
-    const txt = (el.textContent || '').trim();
-    const idOrCls = ((el.id || '') + ' ' + (el.className || '')).toLowerCase();
-    return txt.includes('ተመልካች') || txt.toLowerCase().includes('settings') || idOrCls.includes('setting');
-  });
-  if (settingsTrigger && settingsTrigger !== renewBtn) {
-    settingsTrigger.click();
-  }
-
-  // 2. ትንሽ ጠብቆ የ Subscription / Billing ክፍል ካለ ወደዚያ scroll ያደርጋል
-  setTimeout(() => {
-    const target = document.getElementById('subReqCycle')
-      || document.getElementById('subReqBtn')
-      || Array.from(document.querySelectorAll('button, div, h2, h3, label')).find(el => {
-        const t = (el.textContent || '').toLowerCase();
-        return t.includes('subscription') || t.includes('billing') || t.includes('ክፍያ') || t.includes('renewal');
-      });
-
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (typeof window.showToast === 'function') {
-      window.showToast('ℹ️ እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው ያድሱ');
-    } else {
-      alert('እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው Subscription ያድሱ።');
-    }
-  }, 250);
-};
-
-      const target = document.getElementById('subReqCycle') || document.querySelector('[data-tab*="sub"], [data-section*="sub"], [id*="billing"]');
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof window.openSubscriptionBillingSection === 'function') {
+        window.openSubscriptionBillingSection();
+        return;
       }
+
+      const settingsTrigger = Array.from(document.querySelectorAll('button, a, div, span')).find(el => {
+        const txt = (el.textContent || '').trim();
+        const idOrCls = ((el.id || '') + ' ' + (el.className || '')).toLowerCase();
+        return txt.includes('ተመልካች') || txt.toLowerCase().includes('settings') || idOrCls.includes('setting');
+      });
+      if (settingsTrigger && settingsTrigger !== renewBtn) {
+        settingsTrigger.click();
+      }
+
+      setTimeout(() => {
+        const target = document.getElementById('subReqCycle')
+          || document.getElementById('subReqBtn')
+          || Array.from(document.querySelectorAll('button, div, h2, h3, label')).find(el => {
+            const t = (el.textContent || '').toLowerCase();
+            return t.includes('subscription') || t.includes('billing') || t.includes('ክፍያ') || t.includes('renewal');
+          });
+
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (typeof window.showToast === 'function') {
+          window.showToast('ℹ️ እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው ያድሱ');
+        } else {
+          alert('እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው Subscription ያድሱ።');
+        }
+      }, 250);
     };
 
     banner.appendChild(textSpan);
