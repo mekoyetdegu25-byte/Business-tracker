@@ -1012,3 +1012,45 @@ body.dark-mode .order-card-pickup { background: rgba(212,175,55,0.15); color: va
 .payment-type-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text-muted); cursor: pointer; transition: all 0.2s; font-family: inherit; text-align: center; }
 .payment-type-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .payment-type-btn:hover:not(.active) { background: var(--bg); }
+
+/* 📱 Mobile: አይነካም (እንዳለ ይቆያል) */
+
+/* 💻 Tablet & Desktop (768px እና ከዚያ በላይ) - በቀኝ በኩል ያሉ Tab መረጃዎች በ Card መልክ */
+@media (min-width: 768px) {
+  #modulePanels .panel.active {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  #modulePanels .panel.active > .full-span-card {
+    grid-column: 1 / -1;
+  }
+
+  #modulePanels .panel.active .dt-auto-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  #modulePanels .panel.active .dt-auto-card-grid > div,
+  #modulePanels .panel.active .dt-auto-card-grid > tr,
+  #modulePanels .panel.active .dt-auto-card-grid > .list-item,
+  #modulePanels .panel.active .dt-auto-card-grid > .item-row {
+    background: var(--card-bg, var(--card, #ffffff));
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  #modulePanels .panel.active {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
