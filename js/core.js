@@ -64,6 +64,25 @@ export function showToast(msg, type = 'success') {
     setTimeout(() => toast.remove(), 300); 
   }, 3000);
 }
+export function applyDesktopTabCards() {
+  if (window.innerWidth < 768) return; // የሞባይል አቀማመጥ አይነካም
+
+  const activePanel = document.querySelector('#modulePanels .panel.active');
+  if (!activePanel) return;
+
+  const candidates = activePanel.querySelectorAll(
+    '[id*="List"], [id*="list"], [id*="Items"], [id*="items"], [id*="Orders"], [id*="orders"], [id*="Grid"], [id*="grid"]'
+  );
+
+  candidates.forEach((el) => {
+    if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'BUTTON') return;
+    const childCount = el.children?.length || 0;
+    if (childCount >= 1 && !el.classList.contains('stats-grid')) {
+      el.classList.add('dt-auto-card-grid');
+    }
+  });
+}
+window.applyDesktopTabCards = applyDesktopTabCards;
 
 // ═══════════════════════════════════════════
 // 🔐 AUTH (መግቢያ እና መውጫ)
