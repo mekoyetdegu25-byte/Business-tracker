@@ -1055,4 +1055,36 @@ body.dark-mode .order-card-pickup { background: rgba(212,175,55,0.15); color: va
   }
 }
 
+/* 💻 Tablet & Desktop (>= 768px) - More Tab (#panel8) በ Card Grid እንዲቀመጥ */
+@media (min-width: 768px) {
+  #panel8.active {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    align-items: start !important;
+  }
+
+  /* ከ panel8 ውስጥ ያሉ ነባር ካርዶች */
+  #panel8.active > .card {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* #extraSettingsSectionsMount ውስጥ ያሉትን ካርዶች በ grid ረድፍ ውስጥ እንዲቀላቀሉ ማድረግ */
+  #panel8.active > #extraSettingsSectionsMount {
+    display: contents !important;
+  }
+
+  #panel8.active > #extraSettingsSectionsMount > .card {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* አንድ ካርድ ሲከፈት (expanded) ሰፋ ብሎ እንዲታይ ከፈለግክ */
+  #panel8.active .card:has(> div[id^="body_"][style*="display: block"]) {
+    grid-column: 1 / -1;
+  }
+}
 
