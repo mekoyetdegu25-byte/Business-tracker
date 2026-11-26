@@ -176,38 +176,54 @@
       'font-weight:700'
     ].join(';');
 
-    renewBtn.onclick = function() {
-      if (typeof window.openSubscriptionBillingSection === 'function') {
-        window.openSubscriptionBillingSection();
-        return;
-      }
+    renewBtn.onclick = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
 
-      const settingsTrigger = Array.from(document.querySelectorAll('button, a, div, span')).find(el => {
-        const txt = (el.textContent || '').trim();
-        const idOrCls = ((el.id || '') + ' ' + (el.className || '')).toLowerCase();
-        return txt.includes('ተመልካች') || txt.toLowerCase().includes('settings') || idOrCls.includes('setting');
-      });
-      if (settingsTrigger && settingsTrigger !== renewBtn) {
-        settingsTrigger.click();
-      }
+  if (typeof window.openSubscriptionBillingSection === 'function') {
+    window.openSubscriptionBillingSection();
+    return;
+  }
 
-      setTimeout(() => {
-        const target = document.getElementById('subReqCycle')
-          || document.getElementById('subReqBtn')
-          || Array.from(document.querySelectorAll('button, div, h2, h3, label')).find(el => {
-            const t = (el.textContent || '').toLowerCase();
-            return t.includes('subscription') || t.includes('billing') || t.includes('ክፍያ') || t.includes('renewal');
-          });
+  // 1. Settings ወይም Subscription የሚመስል tab/button ካለ እንዲከፈት እንጫነዋለን
+  const allTriggers = Array.from(document.querySelectorAll('#mobileBottomNav button, #mobileBottomNav a, #sidebarNav button, #sidebarNav a, #modernMobileMenu button, #modernMobileMenu a, button, a'));
+  const targetTrigger = allTriggers.find(el => {
+    if (el === renewBtn) return false;
+    const txt = (el.textContent || '').toLowerCase();
+    const attr = [
+      el.id || '',
+      el.className || '',
+      el.getAttribute('data-tab') || '',
+      el.getAttribute('data-panel') || '',
+      el.getAttribute('data-section') || '',
+      el.getAttribute('onclick') || ''
+    ].join(' ').toLowerCase();
 
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else if (typeof window.showToast === 'function') {
-          window.showToast('ℹ️ እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው ያድሱ');
-        } else {
-          alert('እባክዎ ከታች "ተመልካች" (Settings) ውስጥ ገብተው Subscription ያድሱ።');
-        }
-      }, 250);
-    };
+    return txt.includes('settings') || txt.includes('ተመልካች') || txt.includes('sub') || txt.includes('billing') || txt.includes('ክፍያ')
+      || attr.includes('setting') || attr.includes('sub') || attr.includes('billing');
+  });
+
+  if (targetTrigger) {
+    targetTrigger.click();
+  }
+
+  // 2. ክፍሉ ከተከፈተ በኋላ ወደ ቅጹ ይወርዳል (ካልተገኘ መልእክት ያሳያል)
+  setTimeout(() => {
+    const formTarget = document.getElementById('subReqCycle')
+      || document.getElementById('subReqBtn')
+      || document.querySelector('[id*="subReq"], [class*="subscription"], [class*="billing"]');
+
+    if (formTarget) {
+      formTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      formTarget.focus?.();
+    } else if (typeof window.showToast === 'function') {
+      window.showToast('ℹ️ እባክዎ ከታች ያለውን Settings / ተመልካች ነክተው Subscription ክፍል ይግቡ');
+    } else {
+      alert('እባክዎ ከታች ያለውን Settings / ተመልካች ነክተው Subscription ክፍል ይግቡ።');
+    }
+  }, 300);
+};
+
 
     banner.appendChild(textSpan);
     banner.appendChild(renewBtn);
