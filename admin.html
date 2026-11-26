@@ -29,7 +29,6 @@
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); }
   
-  /* LOGIN */
   #loginScreen { 
     position: fixed; inset: 0; 
     background: linear-gradient(135deg, #0f172a, #1a365d); 
@@ -67,7 +66,6 @@
   }
   button:hover { opacity: 0.92; }
 
-  /* APP SHELL */
   #app { display: none; min-height: 100vh; flex-direction: column; }
 
   .top-header {
@@ -179,6 +177,12 @@
   .tenant-item h3 { font-size: 15px; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   body.dark-mode .tenant-item h3 { color: #f8fafc; }
   .tenant-item p { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+
+  .proof-thumb {
+    width: 100%; max-height: 180px; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--border);
+    margin: 8px 0; cursor: pointer;
+  }
   
   .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; color: white; }
   .bg-success { background: var(--success); }
@@ -192,28 +196,17 @@
 
   .filters { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
 
-  #createStatus, #supportStatus, #billingStatus { 
+  #createStatus, #supportStatus, #billingStatus, #pricingStatus { 
     text-align: center; margin-top: 12px; font-size: 13px; font-weight: bold; 
     padding: 10px; border-radius: 8px; display: none;
   }
-  #createStatus.show, #supportStatus.show, #billingStatus.show { display: block; }
+  #createStatus.show, #supportStatus.show, #billingStatus.show, #pricingStatus.show { display: block; }
   .status-success { background: rgba(16,185,129,0.12); color: var(--success); }
   .status-error { background: rgba(239,68,68,0.12); color: var(--danger); }
   .status-loading { background: rgba(245,158,11,0.12); color: var(--warning); }
 
   .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); grid-column: 1 / -1; }
   .empty-state .emoji { font-size: 42px; margin-bottom: 10px; }
-
-  /* MODAL */
-  .modal-backdrop {
-    display: none; position: fixed; inset: 0; z-index: 2000;
-    background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; padding: 16px;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal-box {
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    width: 100%; max-width: 480px; padding: 20px; max-height: 90vh; overflow-y: auto;
-  }
 
   @media (min-width: 768px) {
     .sidebar { display: block; }
@@ -222,6 +215,7 @@
     .stats-grid { grid-template-columns: repeat(5, 1fr); }
     .form-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
     .form-grid-3 { grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .form-grid-4 { grid-template-columns: repeat(4, 1fr); gap: 14px; }
     .filters { grid-template-columns: 2fr 1fr 1fr 1fr; }
     .cards-list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   }
@@ -272,6 +266,9 @@
         <span>💳</span><span>Bill Payments</span>
         <span class="nav-badge" id="payReqBadgeSide" style="display:none; background:var(--info);">0</span>
       </div>
+      <div class="nav-item" data-panel="panelPricing" onclick="switchAdminTab('panelPricing')">
+        <span>💰</span><span>Pricing Plans</span>
+      </div>
       <div class="nav-item" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
         <span>➕</span><span>Create Tenant</span>
       </div>
@@ -293,8 +290,8 @@
           <div class="form-grid">
             <button onclick="switchAdminTab('panelCreate')" style="background:var(--success);">➕ አዲስ Tenant ፍጠር</button>
             <button onclick="switchAdminTab('panelBilling')" style="background:var(--info);">💳 Bill Payment መዝግብ</button>
-            <button onclick="switchAdminTab('panelTenants')" style="background:var(--primary);">🏢 Subscriptions እይ</button>
-            <button onclick="switchAdminTab('panelSupport')" style="background:var(--warning);">🛟 Support Info አስተካክል</button>
+            <button onclick="switchAdminTab('panelPricing')" style="background:var(--primary);">💰 Basic & Pro ዋጋዎች</button>
+            <button onclick="switchAdminTab('panelTenants')" style="background:var(--warning);">🏢 Subscriptions እይ</button>
           </div>
         </div>
       </section>
@@ -347,7 +344,16 @@
           <div class="form-grid form-grid-3">
             <div>
               <label>Tenant *</label>
-              <select id="payTenantSelect"></select>
+              <select id="payTenantSelect" onchange="autoFillAdminRenewFromTenant()"></select>
+            </div>
+            <div>
+              <label>Billing Cycle</label>
+              <select id="payCycleSelect" onchange="autoFillAdminRenewFromTenant()">
+                <option value="monthly">Monthly (30 days)</option>
+                <option value="quarterly">Quarterly (90 days)</option>
+                <option value="semiannual">Semi-Annual (180 days)</option>
+                <option value="annual">Annual (365 days)</option>
+              </select>
             </div>
             <div>
               <label>Amount (ETB) *</label>
@@ -376,7 +382,7 @@
         </div>
 
         <div class="card">
-          <h2>📩 Tenant Payment / Renewal Requests</h2>
+          <h2>📩 Tenant Payment / Renewal Requests (with Screenshot)</h2>
           <div id="tenantPaymentRequestsList" class="cards-list-grid">
             <p style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">በመጫን ላይ...</p>
           </div>
@@ -390,10 +396,34 @@
         </div>
       </section>
 
-      <!-- 4. CREATE TENANT -->
+      <!-- 4. PRICING PLANS (BASIC & PRO SEPARATE) -->
+      <section class="admin-panel" id="panelPricing">
+        <div class="card">
+          <h2>🟢 Basic Plan Pricing (ETB)</h2>
+          <div class="form-grid form-grid-4">
+            <div><label>Monthly (30d)</label><input type="number" id="basicMonthly" min="0" step="0.01" value="500"></div>
+            <div><label>Quarterly (90d)</label><input type="number" id="basicQuarterly" min="0" step="0.01" value="1400"></div>
+            <div><label>Semi-Annual (180d)</label><input type="number" id="basicSemiannual" min="0" step="0.01" value="2700"></div>
+            <div><label>Annual (365d)</label><input type="number" id="basicAnnual" min="0" step="0.01" value="5000"></div>
+          </div>
+
+          <h2 style="margin-top:10px;">🔵 Pro Plan Pricing (ETB)</h2>
+          <div class="form-grid form-grid-4">
+            <div><label>Monthly (30d)</label><input type="number" id="proMonthly" min="0" step="0.01" value="1000"></div>
+            <div><label>Quarterly (90d)</label><input type="number" id="proQuarterly" min="0" step="0.01" value="2800"></div>
+            <div><label>Semi-Annual (180d)</label><input type="number" id="proSemiannual" min="0" step="0.01" value="5400"></div>
+            <div><label>Annual (365d)</label><input type="number" id="proAnnual" min="0" step="0.01" value="10000"></div>
+          </div>
+
+          <button onclick="savePricingConfig()" style="background:var(--primary);">💾 Save Basic & Pro Prices</button>
+          <div id="pricingStatus"></div>
+        </div>
+      </section>
+
+      <!-- 5. CREATE TENANT -->
       <section class="admin-panel" id="panelCreate">
         <div class="card">
-          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant + ክፍያ & ማብቂያ ቀን)</h2>
+          <h2>➕ አዲስ ተጠቃሚ ፍጠር (Tenant + የክፍያ ጊዜ & ማብቂያ ቀን)</h2>
           <div class="form-grid">
             <div>
               <label>የንግድ ስም *</label>
@@ -421,18 +451,27 @@
             </div>
             <div>
               <label>ፕላን (Plan)</label>
-              <select id="newPlan">
+              <select id="newPlan" onchange="syncCreateTenantPricing()">
                 <option value="basic">🟢 Basic</option>
                 <option value="pro">🔵 Pro</option>
               </select>
             </div>
             <div>
-              <label>ማብቂያ ቀን (Expiry Date) *</label>
-              <input type="date" id="newExpiry">
+              <label>የክፍያ ጊዜ (Billing Cycle)</label>
+              <select id="newBillingCycle" onchange="syncCreateTenantPricing()">
+                <option value="monthly">Monthly (30 days)</option>
+                <option value="quarterly">Quarterly (90 days)</option>
+                <option value="semiannual">Semi-Annual (180 days)</option>
+                <option value="annual">Annual (365 days)</option>
+              </select>
             </div>
             <div>
-              <label>💰 የመጀመሪያ ክፍያ (Initial Amount ETB)</label>
-              <input type="number" id="newInitAmount" min="0" step="0.01" value="0" placeholder="0.00">
+              <label>💰 የተከፈለ መጠን (Amount ETB)</label>
+              <input type="number" id="newInitAmount" min="0" step="0.01" value="500">
+            </div>
+            <div>
+              <label>ማብቂያ ቀን (Expiry Date) *</label>
+              <input type="date" id="newExpiry">
             </div>
             <div>
               <label>💳 የክፍያ ዘዴ (Payment Method)</label>
@@ -454,11 +493,10 @@
               <label>📦 Low Stock Threshold</label>
               <input type="number" id="newLowStock" value="10">
             </div>
-          </div>
-
-          <div style="margin-top:4px;">
-            <label>📝 የክፍያ / ምዝገባ ማስታወሻ (Note)</label>
-            <input type="text" id="newPayNote" placeholder="e.g. Initial 1-month subscription">
+            <div>
+              <label>📝 የክፍያ / ምዝገባ ማስታወሻ (Note)</label>
+              <input type="text" id="newPayNote" placeholder="e.g. Initial subscription">
+            </div>
           </div>
 
           <hr style="margin: 12px 0 16px 0; border: 0; border-top: 1px dashed var(--border);">
@@ -479,7 +517,7 @@
         </div>
       </section>
 
-      <!-- 5. PASSWORD REQUESTS -->
+      <!-- 6. PASSWORD REQUESTS -->
       <section class="admin-panel" id="panelRequests">
         <div class="card">
           <h2>🔑 Password Reset Requests</h2>
@@ -489,7 +527,7 @@
         </div>
       </section>
 
-      <!-- 6. SUPPORT INFO -->
+      <!-- 7. SUPPORT INFO -->
       <section class="admin-panel" id="panelSupport">
         <div class="card">
           <h2>🛟 Support Info (ለሁሉም ተጠቃሚዎች)</h2>
@@ -524,11 +562,11 @@
     <button class="mobile-nav-btn" data-panel="panelBilling" onclick="switchAdminTab('panelBilling')">
       <span class="ico">💳</span><span>Billing</span>
     </button>
+    <button class="mobile-nav-btn" data-panel="panelPricing" onclick="switchAdminTab('panelPricing')">
+      <span class="ico">💰</span><span>Prices</span>
+    </button>
     <button class="mobile-nav-btn" data-panel="panelCreate" onclick="switchAdminTab('panelCreate')">
       <span class="ico">➕</span><span>Create</span>
-    </button>
-    <button class="mobile-nav-btn" data-panel="panelSupport" onclick="switchAdminTab('panelSupport')">
-      <span class="ico">🛟</span><span>Support</span>
     </button>
   </nav>
 </div>
@@ -558,6 +596,18 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const SUPER_ADMIN = "admin@hanitech.com";
 
+const CYCLE_DAYS = {
+  monthly: 30,
+  quarterly: 90,
+  semiannual: 180,
+  annual: 365
+};
+
+let pricingConfig = {
+  basic: { monthly: 500, quarterly: 1400, semiannual: 2700, annual: 5000 },
+  pro: { monthly: 1000, quarterly: 2800, semiannual: 5400, annual: 10000 }
+};
+
 let cachedTenants = [];
 let cachedPayments = [];
 
@@ -569,6 +619,12 @@ function escJs(s) {
 }
 function money(n) {
   return (Math.round((parseFloat(n) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function addDaysStr(days, fromDate = new Date()) {
+  const d = new Date(fromDate);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + (Number(days) || 30));
+  return d.toISOString().split('T')[0];
 }
 
 const BIZ_ICONS = {
@@ -607,11 +663,12 @@ window.login = async function() {
 
 window.logout = function() { signOut(auth); };
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user && user.email === SUPER_ADMIN) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('adminEmailLabel').textContent = user.email;
+    await loadPricingConfig();
     loadSupportInfo();
     loadTenants();
     loadBillingHistory();
@@ -622,6 +679,103 @@ onAuthStateChanged(auth, (user) => {
     document.getElementById('app').style.display = 'none';
   }
 });
+
+// ═══════════════════════════════════════════
+// 💰 PRICING CONFIG (BASIC & PRO)
+// ═══════════════════════════════════════════
+async function loadPricingConfig() {
+  try {
+    const snap = await getDoc(doc(db, 'appSettings', 'pricing'));
+    if (snap.exists()) {
+      const d = snap.data();
+      pricingConfig = {
+        basic: { ...pricingConfig.basic, ...(d.basic || {}) },
+        pro: { ...pricingConfig.pro, ...(d.pro || {}) }
+      };
+    }
+  } catch (e) { console.error(e); }
+
+  document.getElementById('basicMonthly').value = pricingConfig.basic.monthly;
+  document.getElementById('basicQuarterly').value = pricingConfig.basic.quarterly;
+  document.getElementById('basicSemiannual').value = pricingConfig.basic.semiannual;
+  document.getElementById('basicAnnual').value = pricingConfig.basic.annual;
+
+  document.getElementById('proMonthly').value = pricingConfig.pro.monthly;
+  document.getElementById('proQuarterly').value = pricingConfig.pro.quarterly;
+  document.getElementById('proSemiannual').value = pricingConfig.pro.semiannual;
+  document.getElementById('proAnnual').value = pricingConfig.pro.annual;
+
+  syncCreateTenantPricing();
+  autoFillAdminRenewFromTenant();
+}
+
+window.savePricingConfig = async function() {
+  const status = document.getElementById('pricingStatus');
+  status.className = 'show status-loading';
+  status.innerText = '⏳ በማስቀመጥ ላይ...';
+
+  pricingConfig = {
+    basic: {
+      monthly: parseFloat(document.getElementById('basicMonthly').value) || 0,
+      quarterly: parseFloat(document.getElementById('basicQuarterly').value) || 0,
+      semiannual: parseFloat(document.getElementById('basicSemiannual').value) || 0,
+      annual: parseFloat(document.getElementById('basicAnnual').value) || 0
+    },
+    pro: {
+      monthly: parseFloat(document.getElementById('proMonthly').value) || 0,
+      quarterly: parseFloat(document.getElementById('proQuarterly').value) || 0,
+      semiannual: parseFloat(document.getElementById('proSemiannual').value) || 0,
+      annual: parseFloat(document.getElementById('proAnnual').value) || 0
+    }
+  };
+
+  try {
+    await setDoc(doc(db, 'appSettings', 'pricing'), {
+      ...pricingConfig,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    syncCreateTenantPricing();
+    autoFillAdminRenewFromTenant();
+
+    status.className = 'show status-success';
+    status.innerText = '✅ የ Basic እና Pro ዋጋዎች ተቀምጠዋል!';
+    setTimeout(() => { status.className = ''; }, 4000);
+  } catch (e) {
+    status.className = 'show status-error';
+    status.innerText = '❌ ስህተት: ' + e.message;
+  }
+};
+
+window.syncCreateTenantPricing = function() {
+  const plan = document.getElementById('newPlan')?.value || 'basic';
+  const cycle = document.getElementById('newBillingCycle')?.value || 'monthly';
+  const days = CYCLE_DAYS[cycle] || 30;
+  const price = pricingConfig[plan]?.[cycle] ?? 0;
+
+  const amtEl = document.getElementById('newInitAmount');
+  const expEl = document.getElementById('newExpiry');
+  if (amtEl) amtEl.value = price;
+  if (expEl) expEl.value = addDaysStr(days, new Date());
+};
+
+window.autoFillAdminRenewFromTenant = function() {
+  const tenantId = document.getElementById('payTenantSelect')?.value;
+  const cycle = document.getElementById('payCycleSelect')?.value || 'monthly';
+  const days = CYCLE_DAYS[cycle] || 30;
+  const t = cachedTenants.find(x => x.id === tenantId);
+  const plan = t?.plan || 'basic';
+  const price = pricingConfig[plan]?.[cycle] ?? 0;
+
+  const baseDate = (t?.expiryDate && new Date(t.expiryDate) > new Date())
+    ? new Date(t.expiryDate)
+    : new Date();
+
+  const amtEl = document.getElementById('payAmount');
+  const expEl = document.getElementById('payNewExpiry');
+  if (amtEl) amtEl.value = price;
+  if (expEl) expEl.value = addDaysStr(days, baseDate);
+};
 
 // ═══════════════════════════════════════════
 // 🛟 SUPPORT INFO
@@ -709,20 +863,24 @@ function renderStats() {
 function populateTenantSelect() {
   const sel = document.getElementById('payTenantSelect');
   if (!sel) return;
-  sel.innerHTML = cachedTenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)} (${esc(t.expiryDate || '-')})</option>`).join('');
+  const prev = sel.value;
+  sel.innerHTML = cachedTenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)} (${esc((t.plan || 'basic').toUpperCase())} | Exp: ${esc(t.expiryDate || '-')})</option>`).join('');
+  if (prev && cachedTenants.some(t => t.id === prev)) sel.value = prev;
+  autoFillAdminRenewFromTenant();
 }
 
 // ═══════════════════════════════════════════
-// ➕ CREATE TENANT (WITH PAYMENT & EXPIRY)
+// ➕ CREATE TENANT
 // ═══════════════════════════════════════════
 window.createTenant = async function() {
   const name = document.getElementById('newName').value.trim();
   const bizType = document.getElementById('newBizType').value;
   const plan = document.getElementById('newPlan').value;
-  const expiry = document.getElementById('newExpiry').value;
+  const cycle = document.getElementById('newBillingCycle').value;
   const initAmount = parseFloat(document.getElementById('newInitAmount').value) || 0;
+  const expiry = document.getElementById('newExpiry').value;
   const payMethod = document.getElementById('newPayMethod').value;
-  const payNote = document.getElementById('newPayNote').value.trim() || 'Initial subscription payment';
+  const payNote = document.getElementById('newPayNote').value.trim() || `Initial ${cycle} subscription`;
   const hasCredit = document.getElementById('newHasCredit').value === 'true';
   const lowStock = parseInt(document.getElementById('newLowStock').value) || 10;
   const ownerEmail = document.getElementById('newOwnerEmail').value.trim();
@@ -749,8 +907,8 @@ window.createTenant = async function() {
     };
 
     await setDoc(doc(db, 'tenants', tenantId), {
-      name, businessType: bizType, plan, expiryDate: expiry, hasCredit,
-      maxEmployees: 2, supportInfo,
+      name, businessType: bizType, plan, billingCycle: cycle,
+      expiryDate: expiry, hasCredit, maxEmployees: 2, supportInfo,
       lastPaymentAmount: initAmount, lastPaymentMethod: payMethod,
       isSuspended: false, createdAt: serverTimestamp(),
       lowStockThreshold: lowStock, currency: 'ETB', language: 'am', darkMode: false
@@ -758,7 +916,7 @@ window.createTenant = async function() {
 
     if (initAmount > 0) {
       await addDoc(collection(db, 'billingPayments'), {
-        tenantId, tenantName: name, amount: initAmount,
+        tenantId, tenantName: name, plan, cycle, amount: initAmount,
         method: payMethod, newExpiryDate: expiry,
         note: payNote, type: 'initial', createdAt: serverTimestamp()
       });
@@ -781,13 +939,13 @@ window.createTenant = async function() {
     });
     
     status.className = 'show status-success';
-    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId} | Exp: ${expiry}</small>`;
+    status.innerHTML = `✅ በተሳካ ሁኔታ ተፈጥሯል!<br><small style="font-size:11px;">ID: ${tenantId} | Exp: ${expiry} | Paid: ${money(initAmount)} ETB</small>`;
     
     document.getElementById('newName').value = '';
     document.getElementById('newOwnerEmail').value = '';
-    document.getElementById('newInitAmount').value = '0';
     document.getElementById('newPayNote').value = '';
     document.getElementById('newPassword').value = '123456';
+    syncCreateTenantPricing();
     
     await loadTenants();
     await loadBillingHistory();
@@ -877,24 +1035,19 @@ window.openQuickPay = function(tenantId) {
   switchAdminTab('panelBilling');
   const sel = document.getElementById('payTenantSelect');
   if (sel) sel.value = tenantId;
-  const t = cachedTenants.find(x => x.id === tenantId);
-  const baseDate = (t?.expiryDate && new Date(t.expiryDate) > new Date())
-    ? new Date(t.expiryDate)
-    : new Date();
-  baseDate.setDate(baseDate.getDate() + 30);
-  const expEl = document.getElementById('payNewExpiry');
-  if (expEl) expEl.value = baseDate.toISOString().split('T')[0];
+  autoFillAdminRenewFromTenant();
 };
 
 // ═══════════════════════════════════════════
-// 💳 BILL PAYMENTS & HISTORY
+// 💳 BILL PAYMENTS & SCREENSHOT REQUESTS
 // ═══════════════════════════════════════════
 window.submitBillPayment = async function() {
   const tenantId = document.getElementById('payTenantSelect').value;
+  const cycle = document.getElementById('payCycleSelect').value;
   const amount = parseFloat(document.getElementById('payAmount').value) || 0;
   const method = document.getElementById('payMethod').value;
   const newExpiry = document.getElementById('payNewExpiry').value;
-  const note = document.getElementById('payNote').value.trim() || 'Subscription renewal payment';
+  const note = document.getElementById('payNote').value.trim() || `${cycle} renewal payment`;
   const status = document.getElementById('billingStatus');
 
   if (!tenantId || !newExpiry) {
@@ -910,6 +1063,7 @@ window.submitBillPayment = async function() {
     const tObj = cachedTenants.find(x => x.id === tenantId);
     await updateDoc(doc(db, 'tenants', tenantId), {
       expiryDate: newExpiry,
+      billingCycle: cycle,
       isSuspended: false,
       lastPaymentAmount: amount,
       lastPaymentMethod: method
@@ -918,6 +1072,8 @@ window.submitBillPayment = async function() {
     await addDoc(collection(db, 'billingPayments'), {
       tenantId,
       tenantName: tObj?.name || tenantId,
+      plan: tObj?.plan || 'basic',
+      cycle,
       amount,
       method,
       newExpiryDate: newExpiry,
@@ -961,7 +1117,7 @@ async function loadBillingHistory() {
           <div>
             <h3>💰 ${money(p.amount)} ETB <span class="badge bg-success">${esc(p.method || 'Cash')}</span></h3>
             <p>
-              🏢 <b>${esc(p.tenantName || p.tenantId)}</b> <br>
+              🏢 <b>${esc(p.tenantName || p.tenantId)}</b> (${esc((p.cycle || '').toUpperCase())}) <br>
               📅 Paid: ${dt} | New Exp: <b>${esc(p.newExpiryDate || '-')}</b> <br>
               📝 ${esc(p.note || '-')}
             </p>
@@ -992,39 +1148,56 @@ async function loadTenantPaymentRequests() {
       return;
     }
 
-    list.innerHTML = rows.map(r => `
-      <div class="tenant-item">
-        <div>
-          <h3>🏢 ${esc(r.tenantName || r.tenantId)} <span class="badge bg-warning">PENDING</span></h3>
-          <p>
-            💰 Amount: <b>${money(r.amount || 0)} ETB</b> | Method: <b>${esc(r.method || '-')}</b> <br>
-            📅 Requested New Exp: <b>${esc(r.requestedExpiryDate || '-')}</b> <br>
-            📝 Ref/Note: ${esc(r.note || '-')}
-          </p>
+    list.innerHTML = rows.map(r => {
+      const proofHtml = r.screenshotUrl
+        ? `<a href="${esc(r.screenshotUrl)}" target="_blank" rel="noopener"><img src="${esc(r.screenshotUrl)}" alt="Payment Proof" class="proof-thumb"></a>`
+        : '';
+      return `
+        <div class="tenant-item">
+          <div>
+            <h3>🏢 ${esc(r.tenantName || r.tenantId)} <span class="badge bg-warning">PENDING</span></h3>
+            <p>
+              💰 Amount: <b>${money(r.amount || 0)} ETB</b> | Method: <b>${esc(r.method || '-')}</b> <br>
+              ⏱️ Cycle: <b>${esc((r.cycle || 'monthly').toUpperCase())}</b> | New Exp: <b>${esc(r.requestedExpiryDate || '-')}</b> <br>
+              📝 Ref/Note: ${esc(r.note || '-')}
+            </p>
+            ${proofHtml}
+          </div>
+          <div class="action-btns">
+            <button onclick="approveBillingRequest('${r.id}', '${escJs(r.tenantId)}', ${Number(r.amount || 0)}, '${escJs(r.method || 'Cash')}', '${escJs(r.cycle || 'monthly')}', '${escJs(r.requestedExpiryDate || '')}', '${escJs(r.note || '')}', '${escJs(r.screenshotUrl || '')}')" style="background:var(--success);">✅ Approve & Renew</button>
+            <button onclick="rejectBillingRequest('${r.id}')" style="background:var(--danger);">❌ Reject</button>
+          </div>
         </div>
-        <div class="action-btns">
-          <button onclick="approveBillingRequest('${r.id}', '${escJs(r.tenantId)}', ${Number(r.amount || 0)}, '${escJs(r.method || 'Cash')}', '${escJs(r.requestedExpiryDate || '')}', '${escJs(r.note || '')}')" style="background:var(--success);">✅ Approve & Renew</button>
-          <button onclick="rejectBillingRequest('${r.id}')" style="background:var(--danger);">❌ Reject</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (e) {
     list.innerHTML = `<p style="color:var(--muted); font-size:13px;">No requests or rules pending.</p>`;
   }
 }
 
-window.approveBillingRequest = async function(reqId, tenantId, amount, method, newExpiry, note) {
-  const finalExpiry = newExpiry || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+window.approveBillingRequest = async function(reqId, tenantId, amount, method, cycle, newExpiry, note, screenshotUrl) {
+  const days = CYCLE_DAYS[cycle] || 30;
+  const tObj = cachedTenants.find(x => x.id === tenantId);
+  const baseDate = (tObj?.expiryDate && new Date(tObj.expiryDate) > new Date())
+    ? new Date(tObj.expiryDate)
+    : new Date();
+  const finalExpiry = newExpiry || addDaysStr(days, baseDate);
+
   try {
-    const tObj = cachedTenants.find(x => x.id === tenantId);
     await updateDoc(doc(db, 'tenants', tenantId), {
-      expiryDate: finalExpiry, isSuspended: false,
-      lastPaymentAmount: amount, lastPaymentMethod: method
+      expiryDate: finalExpiry,
+      billingCycle: cycle,
+      isSuspended: false,
+      lastPaymentAmount: amount,
+      lastPaymentMethod: method
     });
     await addDoc(collection(db, 'billingPayments'), {
       tenantId, tenantName: tObj?.name || tenantId,
-      amount, method, newExpiryDate: finalExpiry,
-      note: note || 'Approved payment request', type: 'request_approved',
+      plan: tObj?.plan || 'basic', cycle, amount, method,
+      newExpiryDate: finalExpiry,
+      note: note || 'Approved payment request',
+      screenshotUrl: screenshotUrl || '',
+      type: 'request_approved',
       createdAt: serverTimestamp()
     });
     await updateDoc(doc(db, 'billingRequests', reqId), { status: 'approved', approvedAt: serverTimestamp() });
@@ -1180,9 +1353,7 @@ window.rejectPasswordReset = async function(reqId) {
   } catch(e) { alert('❌ ስህተት: ' + e.message); }
 };
 
-const defExp = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
-document.getElementById('newExpiry').value = defExp;
-document.getElementById('payNewExpiry').value = defExp;
+syncCreateTenantPricing();
 </script>
 </body>
 </html>
