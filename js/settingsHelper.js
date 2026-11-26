@@ -14,11 +14,21 @@ let supportData = { phone: '', telegram: '', email: '' };
 let employeesList = [];
 let editingEmployeeId = null;
 
-const OPEN_SECTIONS = new Set(['secSupport']);
+const OPEN_SECTIONS = new Set(['secSupport', 'secSub']);
 const EXTRA_MOUNT_ID = 'extraSettingsSectionsMount';
 
 const I18N = {
   am: {
+    subTitle: '📅 የደንበኝነት ሁኔታ እና ክፍያ (Subscription & Billing)',
+    planLabel: 'ፕላን',
+    expiryLabel: 'የማብቂያ ቀን',
+    daysLeftLabel: 'ቀሪ ቀናት',
+    sendPayReqTitle: '💳 የክፍያ / የእድሳት ጥያቄ ይላኩ',
+    payAmountLbl: 'የተከፈለ መጠን (ETB) *',
+    payMethodLbl: 'የክፍያ ዘዴ',
+    payExpLbl: 'የሚፈለግ አዲስ ማብቂያ ቀን',
+    payNoteLbl: 'የክፍያ ማጣቀሻ / ማስታወሻ',
+    sendPayReqBtn: '📤 የክፍያ ጥያቄ ላክ',
     langTitle: '🌐 ቋንቋ (Language)',
     langLabel: 'የመተግበሪያ ቋንቋ ይምረጡ',
     supportTitle: '🛟 የድጋፍ መረጃ (Support Info)',
@@ -46,6 +56,16 @@ const I18N = {
     dangerBtn: '🗑️ ሁሉንም ዳታ ሪሴት አድርግ (Reset)'
   },
   en: {
+    subTitle: '📅 Subscription & Billing',
+    planLabel: 'Plan',
+    expiryLabel: 'Expiry Date',
+    daysLeftLabel: 'Days Remaining',
+    sendPayReqTitle: '💳 Submit Payment / Renewal Request',
+    payAmountLbl: 'Amount Paid (ETB) *',
+    payMethodLbl: 'Payment Method',
+    payExpLbl: 'Requested New Expiry Date',
+    payNoteLbl: 'Reference / Note',
+    sendPayReqBtn: '📤 Send Payment Request',
     langTitle: '🌐 Language',
     langLabel: 'Select Application Language',
     supportTitle: '🛟 Support Info',
@@ -74,74 +94,24 @@ const I18N = {
   }
 };
 
-// ሙሉ ገጹን ለመተርጎም የሚያገለግል የቃላት መዝገብ (English <-> Amharic)
 const PHRASE_MAP = [
-  ['Home', 'መነሻ'],
-  ['Dashboard', 'ዳሽቦርድ'],
-  ['Sell', 'ሽያጭ'],
-  ['POS / Sell', 'ሽያጭ'],
-  ['Quick Sale', 'ፈጣን ሽያጭ'],
-  ['Sales', 'ሽያጮች'],
-  ['Sales History', 'የሽያጭ ታሪክ'],
-  ['Orders', 'ትዕዛዞች'],
-  ['New Order', 'አዲስ ትዕዛዝ'],
-  ['Customers', 'ደንበኞች'],
-  ['Clients', 'ደንበኞች'],
-  ['Products', 'ምርቶች'],
-  ['Inventory', 'ክምችት'],
-  ['Stock', 'ክምችት'],
-  ['Items', 'እቃዎች'],
-  ['Menu', 'ሜኑ'],
-  ['Rooms', 'ክፍሎች'],
-  ['Bookings', 'ቦታ ማስያዝ'],
-  ['Guests', 'እንግዶች'],
-  ['Services', 'አገልግሎቶች'],
-  ['Appointments', 'ቀጠሮዎች'],
-  ['Expenses', 'ወጪዎች'],
-  ['Purchases', 'ግዢዎች'],
-  ['Payments', 'ክፍያዎች'],
-  ['Credit', 'ብድር'],
-  ['Reports', 'ሪፖርቶች'],
-  ['Analytics', 'ትንታኔ'],
-  ['Settings', 'ቅንብሮች'],
-  ['More', 'ተጨማሪ'],
-  ['Business Information', 'የንግድ መረጃ'],
-  ['Business Info', 'የንግድ መረጃ'],
-  ['Business Name', 'የንግድ ስም'],
-  ['Phone', 'ስልክ'],
-  ['Save Settings', 'ቅንብር አስቀምጥ'],
-  ['Branches', 'ቅርንጫፎች'],
-  ['Add', 'ጨምር'],
-  ['Save', 'አስቀምጥ'],
-  ['Cancel', 'ሰርዝ'],
-  ['Delete', 'አጥፋ'],
-  ['Edit', 'አስተካክል'],
-  ['Search', 'ፈልግ'],
-  ['Filter', 'አጣራ'],
-  ['Total', 'ጠቅላላ'],
-  ['Today', 'ዛሬ'],
-  ['This Month', 'በዚህ ወር'],
-  ['This Year', 'በዚህ ዓመት'],
-  ['Profit', 'ትርፍ'],
-  ['Revenue', 'ገቢ'],
-  ['Expense', 'ወጪ'],
-  ['Balance', 'ቀሪ'],
-  ['Paid', 'የተከፈለ'],
-  ['Unpaid', 'ያልተከፈለ'],
-  ['Pending', 'በመጠባበቅ ላይ'],
-  ['Completed', 'የተጠናቀቀ'],
-  ['Status', 'ሁኔታ'],
-  ['Date', 'ቀን'],
-  ['Amount', 'መጠን'],
-  ['Price', 'ዋጋ'],
-  ['Quantity', 'ብዛት'],
-  ['Category', 'ምድብ'],
-  ['Notes', 'ማስታወሻ'],
-  ['Account', 'አካውንት'],
-  ['Sign Out', 'ውጣ'],
-  ['Logout', 'ውጣ'],
-  ['Low Stock', 'ያለቀበት እቃ'],
-  ['Out of Stock', 'ከክምችት ያለቀ']
+  ['Home', 'መነሻ'], ['Dashboard', 'ዳሽቦርድ'], ['Sell', 'ሽያጭ'], ['POS / Sell', 'ሽያጭ'],
+  ['Quick Sale', 'ፈጣን ሽያጭ'], ['Sales', 'ሽያጮች'], ['Sales History', 'የሽያጭ ታሪክ'],
+  ['Orders', 'ትዕዛዞች'], ['New Order', 'አዲስ ትዕዛዝ'], ['Customers', 'ደንበኞች'],
+  ['Clients', 'ደንበኞች'], ['Products', 'ምርቶች'], ['Inventory', 'ክምችት'], ['Stock', 'ክምችት'],
+  ['Items', 'እቃዎች'], ['Menu', 'ሜኑ'], ['Rooms', 'ክፍሎች'], ['Bookings', 'ቦታ ማስያዝ'],
+  ['Guests', 'እንግዶች'], ['Services', 'አገልግሎቶች'], ['Appointments', 'ቀጠሮዎች'],
+  ['Expenses', 'ወጪዎች'], ['Purchases', 'ግዢዎች'], ['Payments', 'ክፍያዎች'], ['Credit', 'ብድር'],
+  ['Reports', 'ሪፖርቶች'], ['Analytics', 'ትንታኔ'], ['Settings', 'ቅንብሮች'], ['More', 'ተጨማሪ'],
+  ['Business Information', 'የንግድ መረጃ'], ['Business Info', 'የንግድ መረጃ'],
+  ['Business Name', 'የንግድ ስም'], ['Phone', 'ስልክ'], ['Save Settings', 'ቅንብር አስቀምጥ'],
+  ['Branches', 'ቅርንጫፎች'], ['Add', 'ጨምር'], ['Save', 'አስቀምጥ'], ['Cancel', 'ሰርዝ'],
+  ['Delete', 'አጥፋ'], ['Edit', 'አስተካክል'], ['Search', 'ፈልግ'], ['Total', 'ጠቅላላ'],
+  ['Today', 'ዛሬ'], ['This Month', 'በዚህ ወር'], ['This Year', 'በዚህ ዓመት'], ['Profit', 'ትርፍ'],
+  ['Revenue', 'ገቢ'], ['Expense', 'ወጪ'], ['Balance', 'ቀሪ'], ['Paid', 'የተከፈለ'],
+  ['Unpaid', 'ያልተከፈለ'], ['Date', 'ቀን'], ['Amount', 'መጠን'], ['Price', 'ዋጋ'],
+  ['Quantity', 'ብዛት'], ['Category', 'ምድብ'], ['Notes', 'ማስታወሻ'], ['Account', 'አካውንት'],
+  ['Sign Out', 'ውጣ'], ['Logout', 'ውጣ'], ['Price List', 'የዋጋ ዝርዝር']
 ];
 
 const enToAm = new Map(PHRASE_MAP.map(([en, am]) => [en.toLowerCase(), am]));
@@ -151,7 +121,6 @@ export function translateText(raw, targetLang) {
   if (!raw) return raw;
   const trimmed = raw.trim();
   if (!trimmed) return raw;
-
   if (targetLang === 'am') {
     const exact = enToAm.get(trimmed.toLowerCase());
     if (exact) return raw.replace(trimmed, exact);
@@ -175,7 +144,6 @@ export function translateText(raw, targetLang) {
 export function applyFullPageLanguage(lang) {
   const targetLang = lang || getLang();
   document.documentElement.lang = targetLang;
-
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       const parent = node.parentElement;
@@ -187,19 +155,12 @@ export function applyFullPageLanguage(lang) {
       return NodeFilter.FILTER_ACCEPT;
     }
   });
-
   const nodes = [];
   let n;
   while ((n = walker.nextNode())) nodes.push(n);
   nodes.forEach(textNode => {
     const translated = translateText(textNode.nodeValue, targetLang);
     if (translated !== textNode.nodeValue) textNode.nodeValue = translated;
-  });
-
-  document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-    if (el.closest('#' + EXTRA_MOUNT_ID)) return;
-    const ph = el.getAttribute('placeholder');
-    if (ph) el.setAttribute('placeholder', translateText(ph, targetLang));
   });
 }
 
@@ -236,12 +197,51 @@ function getModulePermissionItems() {
   return nav.filter(item => item.id !== 'panel8');
 }
 
+function getDaysRemainingText(expiryDate) {
+  if (!expiryDate) return '-';
+  const exp = new Date(expiryDate); exp.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.ceil((exp - today) / (1000*60*60*24));
+  if (diff < 0) return `🚨 Expired (${Math.abs(diff)}d ago)`;
+  return `${diff} days`;
+}
+
 export function renderExtraSettingsHtml() {
   const lang = getLang();
   const isOwner = (state.role || 'employee').toLowerCase() === 'owner';
   const maxEmp = state.tenantData?.maxEmployees ?? 2;
   const permItems = getModulePermissionItems();
   const editingEmp = editingEmployeeId ? employeesList.find(e => e.id === editingEmployeeId) : null;
+  const expDate = state.tenantData?.expiryDate || '-';
+  const planName = (state.tenantData?.plan || state.plan || 'basic').toUpperCase();
+  const nextMonth = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+
+  const subBody = `
+    <div style="font-size:13.5px; line-height:1.85; margin-bottom:14px;">
+      <div>📦 <b>${esc(t('planLabel'))}:</b> ${esc(planName)}</div>
+      <div>📅 <b>${esc(t('expiryLabel'))}:</b> ${esc(expDate)}</div>
+      <div>⏳ <b>${esc(t('daysLeftLabel'))}:</b> ${esc(getDaysRemainingText(state.tenantData?.expiryDate))}</div>
+    </div>
+    ${isOwner ? `
+      <div style="background:var(--bg, #f8fafc); padding:14px; border-radius:10px; border:1px solid var(--border, #e2e8f0);">
+        <div style="font-weight:700; font-size:13.5px; margin-bottom:10px;">${esc(t('sendPayReqTitle'))}</div>
+        <label class="field-label" style="margin-top:0;">${esc(t('payAmountLbl'))}</label>
+        <input type="number" id="subReqAmount" min="0" step="0.01" placeholder="e.g. 1500">
+        <label class="field-label">${esc(t('payMethodLbl'))}</label>
+        <select id="subReqMethod">
+          <option value="Telebirr">Telebirr</option>
+          <option value="CBE">CBE</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Cash">Cash</option>
+        </select>
+        <label class="field-label">${esc(t('payExpLbl'))}</label>
+        <input type="date" id="subReqExpiry" value="${nextMonth}">
+        <label class="field-label">${esc(t('payNoteLbl'))}</label>
+        <input type="text" id="subReqNote" placeholder="TXN ID or note...">
+        <button type="button" class="btn btn-primary" onclick="window.submitTenantPaymentRequest()" style="margin-top:6px;">${esc(t('sendPayReqBtn'))}</button>
+      </div>
+    ` : ''}
+  `;
 
   const supportBody = `
     <div id="supportInfoContent" style="font-size:13.5px; line-height:1.9;">
@@ -300,23 +300,28 @@ export function renderExtraSettingsHtml() {
 
   const empListHtml = employeesList.length === 0
     ? `<p style="font-size:13px; color:var(--text-muted, #64748b); text-align:center; padding:12px;">ምንም ሰራተኛ አልተመዘገበም</p>`
-    : employeesList.map(emp => {
+    : `<div class="desktop-card-grid">` + employeesList.map(emp => {
       const allowedCount = Array.isArray(emp.permissions) ? emp.permissions.length : permItems.length;
+      const isActive = emp.active !== false;
       return `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--border, #e2e8f0); border-radius:8px; margin-bottom:8px; gap:8px;">
-          <div>
-            <div style="font-weight:700; font-size:13.5px;">📧 ${esc(emp.email || emp.name || '-')}</div>
-            <div style="font-size:12px; color:var(--text-muted, #64748b);">🎯 ${allowedCount} / ${permItems.length} Permissions</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border:1px solid var(--border, #e2e8f0); border-radius:10px; background:var(--card-bg, var(--card, #fff)); gap:10px;">
+          <div style="min-width:0;">
+            <div style="font-weight:700; font-size:13.5px; word-break:break-word;">
+              📧 ${esc(emp.email || emp.name || '-')}
+              <span style="font-size:11px; color:${isActive ? '#16a34a' : '#dc2626'};">(${isActive ? 'Active' : 'Disabled'})</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted, #64748b); margin-top:2px;">🎯 ${allowedCount} / ${permItems.length} Permissions</div>
           </div>
           ${isOwner ? `
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button type="button" onclick="window.toggleEmployeeActive('${emp.id}', ${isActive})" style="background:rgba(100,116,139,0.14); color:inherit; border:none; border-radius:6px; padding:6px 8px; cursor:pointer; font-size:11px;">${isActive ? '⏸️' : '▶️'}</button>
               <button type="button" onclick="window.editEmployee('${emp.id}')" style="background:rgba(59,130,246,0.12); color:#2563eb; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">✏️</button>
               <button type="button" onclick="window.deleteEmployee('${emp.id}', '${escJs(emp.email || emp.name || '')}')" style="background:rgba(239,68,68,0.12); color:#dc2626; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">🗑️</button>
             </div>
           ` : ''}
         </div>
       `;
-    }).join('');
+    }).join('') + `</div>`;
 
   const backupBody = `
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -346,6 +351,7 @@ export function renderExtraSettingsHtml() {
   `;
 
   return `
+    ${collapsibleCard('secSub', esc(t('subTitle')), subBody)}
     ${collapsibleCard('secSupport', esc(t('supportTitle')), supportBody)}
     ${collapsibleCard('secLang', esc(t('langTitle')), langBody)}
     ${collapsibleCard('secEmp', esc(t('empTitle')), empFormHtml + empListHtml)}
@@ -381,7 +387,6 @@ function processExistingSettingsCards() {
     const titleEl = card.querySelector('.card-title');
     const rawTitle = (titleEl?.textContent || card.querySelector('button')?.textContent || '').toLowerCase();
 
-    // 3ኛ፡ Theme ከ Setting ውስጥ ይቀነስ / ይውጣ (ከላይ header ላይ ስላለ)
     if (rawTitle.includes('theme') || card.querySelector('[onclick*="toggleDarkMode"]')) {
       card.style.display = 'none';
       return;
@@ -424,7 +429,7 @@ function processExistingSettingsCards() {
 
 export function mountExtraSettings(appState) {
   const tenantId = appState?.tenantId || state.tenantId;
-  state.language = appState?.tenantData?.language || state.tenantData?.language || 'am';
+  state.language = appState?.tenantData?.language || appState?.tenantData?.language || 'am';
 
   processExistingSettingsCards();
 
@@ -447,6 +452,34 @@ export function mountExtraSettings(appState) {
     if (chev) chev.style.transform = willOpen ? 'rotate(90deg)' : 'rotate(0deg)';
     if (willOpen) OPEN_SECTIONS.add(secId);
     else OPEN_SECTIONS.delete(secId);
+  };
+
+  window.submitTenantPaymentRequest = async () => {
+    if (!tenantId) return;
+    const amount = parseFloat(document.getElementById('subReqAmount')?.value) || 0;
+    const method = document.getElementById('subReqMethod')?.value || 'Telebirr';
+    const requestedExpiryDate = document.getElementById('subReqExpiry')?.value || '';
+    const note = document.getElementById('subReqNote')?.value.trim() || '';
+
+    if (amount <= 0) return showToast('የክፍያ መጠን ያስገቡ', 'error');
+
+    try {
+      await addDoc(collection(db, 'billingRequests'), {
+        tenantId,
+        tenantName: state.tenantData?.name || tenantId,
+        amount,
+        method,
+        requestedExpiryDate,
+        note,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      document.getElementById('subReqAmount').value = '';
+      document.getElementById('subReqNote').value = '';
+      showToast('✅ የክፍያ ጥያቄ ለ Admin ተልኳል');
+    } catch (e) {
+      showToast('❌ ስህተት: ' + e.message, 'error');
+    }
   };
 
   window.setAppLanguage = async (lang) => {
@@ -488,7 +521,6 @@ export function mountExtraSettings(appState) {
 
       if (btn) { btn.disabled = true; btn.textContent = '⏳ በመፍጠር ላይ...'; }
 
-      // Secondary Firebase App በመጠቀም Owner ሳይወጣ አዲስ ሰራተኛ መፍጠር
       const secondaryApp = initializeApp(firebaseConfig, 'EmpCreate-' + Date.now());
       const secAuth = getAuth(secondaryApp);
       let uid;
@@ -501,12 +533,8 @@ export function mountExtraSettings(appState) {
       }
 
       await setDoc(doc(db, 'users', uid), {
-        email,
-        role: 'employee',
-        tenantId,
-        permissions,
-        isTempPassword: true,
-        createdAt: serverTimestamp()
+        email, role: 'employee', tenantId, permissions,
+        active: true, isTempPassword: true, createdAt: serverTimestamp()
       });
 
       showToast('✅ ሰራተኛ ተፈጥሯል');
@@ -516,6 +544,16 @@ export function mountExtraSettings(appState) {
       if (e.code === 'auth/email-already-in-use') msg = 'ይህ Email አስቀድሞ ተመዝግቧል';
       showToast('❌ ስህተት: ' + msg, 'error');
       if (btn) { btn.disabled = false; btn.textContent = editingEmployeeId ? t('updateEmpBtn') : t('createEmpBtn'); }
+    }
+  };
+
+  window.toggleEmployeeActive = async (id, currentActive) => {
+    if ((state.role || 'employee').toLowerCase() !== 'owner') return;
+    try {
+      await updateDoc(doc(db, 'users', id), { active: !currentActive });
+      showToast(!currentActive ? '▶️ ሰራተኛ ነቅቷል' : '⏸️ ሰራተኛ ታግዷል');
+    } catch (e) {
+      showToast('❌ ስህተት: ' + e.message, 'error');
     }
   };
 
@@ -551,9 +589,7 @@ export function mountExtraSettings(appState) {
       const cols = ['products', 'sales', 'expenses', 'payments', 'customers', 'branches'];
       const payload = {
         exportedAt: new Date().toISOString(),
-        tenantId,
-        businessType: state.businessType,
-        data: {}
+        tenantId, businessType: state.businessType, data: {}
       };
       for (const colName of cols) {
         const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', tenantId)));
@@ -591,11 +627,8 @@ export function mountExtraSettings(appState) {
           const docId = copy.id;
           delete copy.id;
           copy.tenantId = tenantId;
-          if (docId) {
-            await setDoc(doc(db, colName, docId), copy, { merge: true });
-          } else {
-            await addDoc(collection(db, colName), copy);
-          }
+          if (docId) await setDoc(doc(db, colName, docId), copy, { merge: true });
+          else await addDoc(collection(db, colName), copy);
           restoredCount++;
         }
       }
@@ -650,9 +683,7 @@ export function mountExtraSettings(appState) {
       const cols = ['products', 'sales', 'expenses', 'payments', 'customers', 'purchases', 'quickSales', 'fixedExpenses', 'creditPayments'];
       for (const colName of cols) {
         const snap = await getDocs(query(collection(db, colName), where('tenantId', '==', tenantId)));
-        for (const d of snap.docs) {
-          await deleteDoc(doc(db, colName, d.id));
-        }
+        for (const d of snap.docs) await deleteDoc(doc(db, colName, d.id));
       }
       showToast('✅ የንግዱ ዳታ ሪሴት ተደርጓል');
     } catch (e) {
@@ -667,9 +698,7 @@ export function mountExtraSettings(appState) {
         const el = document.getElementById('supportInfoContent');
         if (el) el.innerHTML = renderSupportDetailsHtml();
       }
-    }, (err) => {
-      console.warn('appSettings/support read fallback to tenantData:', err.message);
-    });
+    }, () => {});
   }
 
   if (tenantId && !unsubTenant) {
@@ -714,8 +743,9 @@ export function cleanupExtraSettings() {
   employeesList = [];
   editingEmployeeId = null;
   const fns = [
-    'toggleSettingSection', 'setAppLanguage', 'saveEmployee', 'editEmployee',
-    'cancelEditEmployee', 'deleteEmployee', 'downloadBackupJson', 'restoreBackupJson',
+    'toggleSettingSection', 'submitTenantPaymentRequest', 'setAppLanguage',
+    'saveEmployee', 'toggleEmployeeActive', 'editEmployee', 'cancelEditEmployee',
+    'deleteEmployee', 'downloadBackupJson', 'restoreBackupJson',
     'changeUserPassword', 'resetBusinessData'
   ];
   fns.forEach(fn => delete window[fn]);
