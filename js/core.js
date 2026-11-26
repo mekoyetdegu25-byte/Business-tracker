@@ -3,6 +3,7 @@ import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getModule } from './registry.js';
+import { mountExtraSettings, refreshExtraSettings, cleanupExtraSettings } from './settingsHelper.js';
 
 // ═══════════════════════════════════════════
 // 🌐 GLOBAL STATE (የመተግበሪያው ሁኔታ)
@@ -16,6 +17,7 @@ export const state = {
   businessType: null,
   module: null,
   lowStockThreshold: 10,
+  language: 'am',
 };
 
 // ═══════════════════════════════════════════
@@ -45,6 +47,7 @@ export function thisYearStr() {
 // መልእክት (Toast) ማሳያ
 export function showToast(msg, type = 'success') {
   const host = document.getElementById('toastHost');
+  if (!host) return;
   const existing = host.querySelector('.toast-notification');
   if (existing) existing.remove();
   
@@ -92,6 +95,7 @@ window.login = async function() {
 };
 
 window.logout = function() {
+  cleanupExtraSettings();
   if (state.module?.cleanup) state.module.cleanup();
   signOut(auth);
 };
@@ -116,9 +120,9 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('loginScreen').classList.add('hidden');
     await loadUserAndTenant(user);
   } else {
-    // Splash ስክሪኑን መደበቅ
+    cleanupExtraSettings();
     const splash = document.getElementById('splashScreen');
-    if(splash) {
+    if (splash) {
       splash.style.display = 'none'; 
       splash.classList.add('fade-out');
     }
@@ -134,6 +138,8 @@ onAuthStateChanged(auth, async (user) => {
     
     state.user = null;
     state.tenantId = null;
+    state.tenantData = null;
+    state.language = 'am';
   }
 });
 
@@ -161,6 +167,7 @@ async function loadUserAndTenant(user) {
     state.plan = tenant.plan || 'basic';
     state.businessType = tenant.businessType || 'retail';
     state.lowStockThreshold = tenant.lowStockThreshold || 10;
+    state.language = tenant.language || 'am';
 
     // 3. የአካውንት ማብቂያ እና መታገድ ማረጋገጫ
     if (tenant.isSuspended) {
@@ -201,7 +208,8 @@ async function loadUserAndTenant(user) {
     await mountModule(module);
     
     // Splash ጠፍቶ መተግበሪያው እንዲታይ
-    document.getElementById('splashScreen').classList.add('fade-out');
+    const splash = document.getElementById('splashScreen');
+    if (splash) splash.classList.add('fade-out');
 
   } catch (err) {
     console.error(err);
@@ -216,7 +224,8 @@ function showBlockScreen(type, title, message) {
   document.getElementById('blockIcon').textContent = type === 'suspended' ? '⏸️' : type === 'expired' ? '⏰' : '❌';
   document.getElementById('blockTitle').textContent = title;
   document.getElementById('blockMessage').textContent = message;
-  document.getElementById('splashScreen').classList.add('fade-out');
+  const splash = document.getElementById('splashScreen');
+  if (splash) splash.classList.add('fade-out');
 }
 
 // ═══════════════════════════════════════════
@@ -233,7 +242,6 @@ async function mountModule(module) {
   `).join('');
 
   // 2. የሞባይል የታችኛው ማውጫ (Mobile Bottom Nav) ማዘጋጀት
-  // 👇 ከ5 ወደ 6 ተቀይሯል (Settings እንዲካተት)
   const mobileNav = document.getElementById('mobileBottomNav');
   const mobileItems = (module.navItems || []).slice(0, 5);
   mobileNav.innerHTML = mobileItems.map(item => `
@@ -253,7 +261,10 @@ async function mountModule(module) {
   // 4. ዘርፉ የራሱን ስራዎች (Data load, events) እንዲጀምር ማድረግ
   if (module.init) await module.init(state);
 
-  // 5. የመጀመሪያውን ገጽ ማሳየት
+  // 5. የጋራ ተጨማሪ Settings (Support Info, Language, Employee Mgt, Backup/Restore, Password, Danger Zone) መጫን
+  mountExtraSettings(state);
+
+  // 6. የመጀመሪያውን ገጽ ማሳየት
   const defaultItem = (module.navItems || []).find(i => i.default);
   if (defaultItem) switchPage(defaultItem.id, null);
 }
@@ -286,6 +297,8 @@ export function switchPage(panelId, btnEl) {
     const item = state.module?.navItems?.find(i => i.id === panelId);
     titleEl.textContent = item?.label || 'Home';
   }
+
+  if (panelId === 'panel8') refreshExtraSettings();
   
   // ዘርፉ ገጽ ሲቀየር ማወቅ እንዲችል
   if (state.module?.onPageChange) state.module.onPageChange(panelId);
