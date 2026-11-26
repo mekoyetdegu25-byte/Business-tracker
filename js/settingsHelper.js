@@ -2,10 +2,11 @@
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import {
-  collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, onSnapshot
+  collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
 import { auth, db, firebaseConfig } from './firebase.js';
-import { state, esc, escJs, showToast, todayStr } from './core.js';
+import { state, esc, escJs, showToast, todayStr, money } from './core.js';
 
 let unsubSupport = null;
 let unsubTenant = null;
@@ -13,6 +14,18 @@ let unsubEmployees = null;
 let supportData = { phone: '', telegram: '', email: '' };
 let employeesList = [];
 let editingEmployeeId = null;
+
+const CYCLE_DAYS = {
+  monthly: 30,
+  quarterly: 90,
+  semiannual: 180,
+  annual: 365
+};
+
+let pricingConfig = {
+  basic: { monthly: 500, quarterly: 1400, semiannual: 2700, annual: 5000 },
+  pro: { monthly: 1000, quarterly: 2800, semiannual: 5400, annual: 10000 }
+};
 
 const OPEN_SECTIONS = new Set(['secSupport', 'secSub']);
 const EXTRA_MOUNT_ID = 'extraSettingsSectionsMount';
@@ -24,11 +37,13 @@ const I18N = {
     expiryLabel: 'የማብቂያ ቀን',
     daysLeftLabel: 'ቀሪ ቀናት',
     sendPayReqTitle: '💳 የክፍያ / የእድሳት ጥያቄ ይላኩ',
-    payAmountLbl: 'የተከፈለ መጠን (ETB) *',
+    payCycleLbl: 'የክፍያ ጊዜ (Billing Cycle)',
+    payAmountLbl: 'የሚከፈል መጠን (ETB)',
     payMethodLbl: 'የክፍያ ዘዴ',
-    payExpLbl: 'የሚፈለግ አዲስ ማብቂያ ቀን',
+    payExpLbl: 'የሚታሰብ አዲስ ማብቂያ ቀን',
+    payProofLbl: '📸 የክፍያ Screenshot (Proof)',
     payNoteLbl: 'የክፍያ ማጣቀሻ / ማስታወሻ',
-    sendPayReqBtn: '📤 የክፍያ ጥያቄ ላክ',
+    sendPayReqBtn: '📤 የክፍያ ጥያቄ እና Screenshot ላክ',
     langTitle: '🌐 ቋንቋ (Language)',
     langLabel: 'የመተግበሪያ ቋንቋ ይምረጡ',
     supportTitle: '🛟 የድጋፍ መረጃ (Support Info)',
@@ -61,11 +76,13 @@ const I18N = {
     expiryLabel: 'Expiry Date',
     daysLeftLabel: 'Days Remaining',
     sendPayReqTitle: '💳 Submit Payment / Renewal Request',
-    payAmountLbl: 'Amount Paid (ETB) *',
+    payCycleLbl: 'Billing Cycle',
+    payAmountLbl: 'Amount (ETB)',
     payMethodLbl: 'Payment Method',
-    payExpLbl: 'Requested New Expiry Date',
+    payExpLbl: 'Calculated New Expiry Date',
+    payProofLbl: '📸 Payment Screenshot (Proof)',
     payNoteLbl: 'Reference / Note',
-    sendPayReqBtn: '📤 Send Payment Request',
+    sendPayReqBtn: '📤 Send Payment Request & Screenshot',
     langTitle: '🌐 Language',
     langLabel: 'Select Application Language',
     supportTitle: '🛟 Support Info',
@@ -174,6 +191,28 @@ export function t(key, ...args) {
   return typeof val === 'function' ? val(...args) : val;
 }
 
+async function fetchPricingFromFirestore() {
+  try {
+    const snap = await getDoc(doc(db, 'appSettings', 'pricing'));
+    if (snap.exists()) {
+      const d = snap.data();
+      pricingConfig = {
+        basic: { ...pricingConfig.basic, ...(d.basic || {}) },
+        pro: { ...pricingConfig.pro, ...(d.pro || {}) }
+      };
+    }
+  } catch (e) { console.error(e); }
+}
+
+function calcNextExpiry(cycle = 'monthly') {
+  const days = CYCLE_DAYS[cycle] || 30;
+  const curExp = state.tenantData?.expiryDate;
+  const base = (curExp && new Date(curExp) > new Date()) ? new Date(curExp) : new Date();
+  base.setHours(0,0,0,0);
+  base.setDate(base.getDate() + days);
+  return base.toISOString().split('T')[0];
+}
+
 function collapsibleCard(id, titleHtml, bodyHtml) {
   const isOpen = OPEN_SECTIONS.has(id);
   return `
@@ -213,8 +252,10 @@ export function renderExtraSettingsHtml() {
   const permItems = getModulePermissionItems();
   const editingEmp = editingEmployeeId ? employeesList.find(e => e.id === editingEmployeeId) : null;
   const expDate = state.tenantData?.expiryDate || '-';
-  const planName = (state.tenantData?.plan || state.plan || 'basic').toUpperCase();
-  const nextMonth = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+  const planKey = (state.tenantData?.plan || state.plan || 'basic').toLowerCase();
+  const planName = planKey.toUpperCase();
+  const defaultPrice = pricingConfig[planKey]?.monthly ?? 0;
+  const defaultNextExp = calcNextExpiry('monthly');
 
   const subBody = `
     <div style="font-size:13.5px; line-height:1.85; margin-bottom:14px;">
@@ -225,8 +266,21 @@ export function renderExtraSettingsHtml() {
     ${isOwner ? `
       <div style="background:var(--bg, #f8fafc); padding:14px; border-radius:10px; border:1px solid var(--border, #e2e8f0);">
         <div style="font-weight:700; font-size:13.5px; margin-bottom:10px;">${esc(t('sendPayReqTitle'))}</div>
-        <label class="field-label" style="margin-top:0;">${esc(t('payAmountLbl'))}</label>
-        <input type="number" id="subReqAmount" min="0" step="0.01" placeholder="e.g. 1500">
+
+        <label class="field-label" style="margin-top:0;">${esc(t('payCycleLbl'))}</label>
+        <select id="subReqCycle" onchange="window.syncTenantPayReqPrice()">
+          <option value="monthly">Monthly (30 days)</option>
+          <option value="quarterly">Quarterly (90 days)</option>
+          <option value="semiannual">Semi-Annual (180 days)</option>
+          <option value="annual">Annual (365 days)</option>
+        </select>
+
+        <label class="field-label">${esc(t('payAmountLbl'))}</label>
+        <input type="number" id="subReqAmount" value="${defaultPrice}" readonly style="font-weight:700;">
+
+        <label class="field-label">${esc(t('payExpLbl'))}</label>
+        <input type="date" id="subReqExpiry" value="${defaultNextExp}" readonly>
+
         <label class="field-label">${esc(t('payMethodLbl'))}</label>
         <select id="subReqMethod">
           <option value="Telebirr">Telebirr</option>
@@ -234,11 +288,14 @@ export function renderExtraSettingsHtml() {
           <option value="Bank Transfer">Bank Transfer</option>
           <option value="Cash">Cash</option>
         </select>
-        <label class="field-label">${esc(t('payExpLbl'))}</label>
-        <input type="date" id="subReqExpiry" value="${nextMonth}">
+
+        <label class="field-label">${esc(t('payProofLbl'))}</label>
+        <input type="file" id="subReqProofFile" accept="image/*">
+
         <label class="field-label">${esc(t('payNoteLbl'))}</label>
         <input type="text" id="subReqNote" placeholder="TXN ID or note...">
-        <button type="button" class="btn btn-primary" onclick="window.submitTenantPaymentRequest()" style="margin-top:6px;">${esc(t('sendPayReqBtn'))}</button>
+
+        <button type="button" class="btn btn-primary" id="subReqBtn" onclick="window.submitTenantPaymentRequest()" style="margin-top:6px;">${esc(t('sendPayReqBtn'))}</button>
       </div>
     ` : ''}
   `;
@@ -427,10 +484,11 @@ function processExistingSettingsCards() {
   });
 }
 
-export function mountExtraSettings(appState) {
+export async function mountExtraSettings(appState) {
   const tenantId = appState?.tenantId || state.tenantId;
-  state.language = appState?.tenantData?.language || appState?.tenantData?.language || 'am';
+  state.language = appState?.tenantData?.language || state.language || 'am';
 
+  await fetchPricingFromFirestore();
   processExistingSettingsCards();
 
   const panel8 = document.getElementById('panel8');
@@ -454,31 +512,61 @@ export function mountExtraSettings(appState) {
     else OPEN_SECTIONS.delete(secId);
   };
 
+  window.syncTenantPayReqPrice = () => {
+    const cycle = document.getElementById('subReqCycle')?.value || 'monthly';
+    const planKey = (state.tenantData?.plan || state.plan || 'basic').toLowerCase();
+    const price = pricingConfig[planKey]?.[cycle] ?? 0;
+    const amtEl = document.getElementById('subReqAmount');
+    const expEl = document.getElementById('subReqExpiry');
+    if (amtEl) amtEl.value = price;
+    if (expEl) expEl.value = calcNextExpiry(cycle);
+  };
+
   window.submitTenantPaymentRequest = async () => {
     if (!tenantId) return;
-    const amount = parseFloat(document.getElementById('subReqAmount')?.value) || 0;
+    const cycle = document.getElementById('subReqCycle')?.value || 'monthly';
+    const planKey = (state.tenantData?.plan || state.plan || 'basic').toLowerCase();
+    const amount = parseFloat(document.getElementById('subReqAmount')?.value) || (pricingConfig[planKey]?.[cycle] ?? 0);
+    const requestedExpiryDate = document.getElementById('subReqExpiry')?.value || calcNextExpiry(cycle);
     const method = document.getElementById('subReqMethod')?.value || 'Telebirr';
-    const requestedExpiryDate = document.getElementById('subReqExpiry')?.value || '';
     const note = document.getElementById('subReqNote')?.value.trim() || '';
-
-    if (amount <= 0) return showToast('የክፍያ መጠን ያስገቡ', 'error');
+    const proofFile = document.getElementById('subReqProofFile')?.files?.[0] || null;
+    const btn = document.getElementById('subReqBtn');
 
     try {
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading...'; }
+
+      let screenshotUrl = '';
+      if (proofFile) {
+        const storage = getStorage(auth.app);
+        const safeName = `${Date.now()}_${(proofFile.name || 'proof.jpg').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const storageRef = ref(storage, `paymentProofs/${tenantId}/${safeName}`);
+        await uploadBytes(storageRef, proofFile);
+        screenshotUrl = await getDownloadURL(storageRef);
+      }
+
       await addDoc(collection(db, 'billingRequests'), {
         tenantId,
         tenantName: state.tenantData?.name || tenantId,
+        plan: planKey,
+        cycle,
         amount,
         method,
         requestedExpiryDate,
+        screenshotUrl,
         note,
         status: 'pending',
         createdAt: serverTimestamp()
       });
-      document.getElementById('subReqAmount').value = '';
+
       document.getElementById('subReqNote').value = '';
-      showToast('✅ የክፍያ ጥያቄ ለ Admin ተልኳል');
+      const fileEl = document.getElementById('subReqProofFile');
+      if (fileEl) fileEl.value = '';
+      showToast('✅ የክፍያ ጥያቄ እና Screenshot ለ Admin ተልኳል');
     } catch (e) {
       showToast('❌ ስህተት: ' + e.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = t('sendPayReqBtn'); }
     }
   };
 
@@ -743,9 +831,9 @@ export function cleanupExtraSettings() {
   employeesList = [];
   editingEmployeeId = null;
   const fns = [
-    'toggleSettingSection', 'submitTenantPaymentRequest', 'setAppLanguage',
-    'saveEmployee', 'toggleEmployeeActive', 'editEmployee', 'cancelEditEmployee',
-    'deleteEmployee', 'downloadBackupJson', 'restoreBackupJson',
+    'toggleSettingSection', 'syncTenantPayReqPrice', 'submitTenantPaymentRequest',
+    'setAppLanguage', 'saveEmployee', 'toggleEmployeeActive', 'editEmployee',
+    'cancelEditEmployee', 'deleteEmployee', 'downloadBackupJson', 'restoreBackupJson',
     'changeUserPassword', 'resetBusinessData'
   ];
   fns.forEach(fn => delete window[fn]);
