@@ -155,6 +155,13 @@ async function loadUserAndTenant(user) {
       await signOut(auth); return;
     }
     const userData = userDoc.data();
+    if ((userData.role || '').toLowerCase() === 'employee' && userData.active === false) {
+
+  showToast('አካውንትዎ በአሰሪው ተቋርጧል', 'error');
+  await signOut(auth);
+  return;
+}
+
     state.tenantId = userData.tenantId;
     state.role = (userData.role || 'employee').toLowerCase();
     state.permissions = Array.isArray(userData.permissions) ? userData.permissions : null;
