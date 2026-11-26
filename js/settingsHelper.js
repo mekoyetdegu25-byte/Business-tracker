@@ -1,12 +1,14 @@
 // js/settingsHelper.js
-import { auth, db } from './firebase.js';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import {
   collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { auth, db, firebaseConfig } from './firebase.js';
 import { state, esc, escJs, showToast, todayStr } from './core.js';
 
 let unsubSupport = null;
+let unsubTenant = null;
 let unsubEmployees = null;
 let supportData = { phone: '', telegram: '', email: '' };
 let employeesList = [];
@@ -22,11 +24,13 @@ const I18N = {
     supportTitle: '🛟 የድጋፍ መረጃ (Support Info)',
     noSupport: 'የድጋፍ መረጃ አልተቀመጠም',
     empTitle: '👥 ሰራተኞች አስተዳደር (Employee Management)',
-    empName: 'የሰራተኛ ስም *',
-    empPhone: 'ስልክ',
-    empRole: 'ሚና (Role)',
-    addEmpBtn: '➕ ሰራተኛ ጨምር',
-    updateEmpBtn: '💾 ሰራተኛ አድስ',
+    addEmpModalTitle: '➕ Add Employee (ሰራተኛ ጨምር)',
+    editEmpModalTitle: '✏️ Edit Employee Permissions',
+    empEmail: '📧 Employee Email *',
+    empTempPass: '🔒 Temporary Password *',
+    empPerms: '🎯 Permissions (የሚፈቀዱ ገጾች)',
+    createEmpBtn: '💾 Create Employee',
+    updateEmpBtn: '💾 Update Permissions',
     cancelBtn: 'ሰርዝ',
     empLimitReached: (max) => `⚠️ ያለ Admin ፍቃድ ከ ${max} ሰራተኛ በላይ መጨመር አይችሉም። እባክዎ Admin ያነጋግሩ።`,
     backupTitle: '💾 ባካፕ እና ሪስቶር (Backup & Restore)',
@@ -47,11 +51,13 @@ const I18N = {
     supportTitle: '🛟 Support Info',
     noSupport: 'Support info is not set yet',
     empTitle: '👥 Employee Management',
-    empName: 'Employee Name *',
-    empPhone: 'Phone',
-    empRole: 'Role',
-    addEmpBtn: '➕ Add Employee',
-    updateEmpBtn: '💾 Update Employee',
+    addEmpModalTitle: '➕ Add Employee',
+    editEmpModalTitle: '✏️ Edit Employee Permissions',
+    empEmail: '📧 Employee Email *',
+    empTempPass: '🔒 Temporary Password *',
+    empPerms: '🎯 Permissions',
+    createEmpBtn: '💾 Create Employee',
+    updateEmpBtn: '💾 Update Permissions',
     cancelBtn: 'Cancel',
     empLimitReached: (max) => `⚠️ Cannot add more than ${max} employees without Admin approval. Please contact Admin.`,
     backupTitle: '💾 Backup & Restore',
@@ -67,6 +73,135 @@ const I18N = {
     dangerBtn: '🗑️ Reset All Business Data'
   }
 };
+
+// ሙሉ ገጹን ለመተርጎም የሚያገለግል የቃላት መዝገብ (English <-> Amharic)
+const PHRASE_MAP = [
+  ['Home', 'መነሻ'],
+  ['Dashboard', 'ዳሽቦርድ'],
+  ['Sell', 'ሽያጭ'],
+  ['POS / Sell', 'ሽያጭ'],
+  ['Quick Sale', 'ፈጣን ሽያጭ'],
+  ['Sales', 'ሽያጮች'],
+  ['Sales History', 'የሽያጭ ታሪክ'],
+  ['Orders', 'ትዕዛዞች'],
+  ['New Order', 'አዲስ ትዕዛዝ'],
+  ['Customers', 'ደንበኞች'],
+  ['Clients', 'ደንበኞች'],
+  ['Products', 'ምርቶች'],
+  ['Inventory', 'ክምችት'],
+  ['Stock', 'ክምችት'],
+  ['Items', 'እቃዎች'],
+  ['Menu', 'ሜኑ'],
+  ['Rooms', 'ክፍሎች'],
+  ['Bookings', 'ቦታ ማስያዝ'],
+  ['Guests', 'እንግዶች'],
+  ['Services', 'አገልግሎቶች'],
+  ['Appointments', 'ቀጠሮዎች'],
+  ['Expenses', 'ወጪዎች'],
+  ['Purchases', 'ግዢዎች'],
+  ['Payments', 'ክፍያዎች'],
+  ['Credit', 'ብድር'],
+  ['Reports', 'ሪፖርቶች'],
+  ['Analytics', 'ትንታኔ'],
+  ['Settings', 'ቅንብሮች'],
+  ['More', 'ተጨማሪ'],
+  ['Business Information', 'የንግድ መረጃ'],
+  ['Business Info', 'የንግድ መረጃ'],
+  ['Business Name', 'የንግድ ስም'],
+  ['Phone', 'ስልክ'],
+  ['Save Settings', 'ቅንብር አስቀምጥ'],
+  ['Branches', 'ቅርንጫፎች'],
+  ['Add', 'ጨምር'],
+  ['Save', 'አስቀምጥ'],
+  ['Cancel', 'ሰርዝ'],
+  ['Delete', 'አጥፋ'],
+  ['Edit', 'አስተካክል'],
+  ['Search', 'ፈልግ'],
+  ['Filter', 'አጣራ'],
+  ['Total', 'ጠቅላላ'],
+  ['Today', 'ዛሬ'],
+  ['This Month', 'በዚህ ወር'],
+  ['This Year', 'በዚህ ዓመት'],
+  ['Profit', 'ትርፍ'],
+  ['Revenue', 'ገቢ'],
+  ['Expense', 'ወጪ'],
+  ['Balance', 'ቀሪ'],
+  ['Paid', 'የተከፈለ'],
+  ['Unpaid', 'ያልተከፈለ'],
+  ['Pending', 'በመጠባበቅ ላይ'],
+  ['Completed', 'የተጠናቀቀ'],
+  ['Status', 'ሁኔታ'],
+  ['Date', 'ቀን'],
+  ['Amount', 'መጠን'],
+  ['Price', 'ዋጋ'],
+  ['Quantity', 'ብዛት'],
+  ['Category', 'ምድብ'],
+  ['Notes', 'ማስታወሻ'],
+  ['Account', 'አካውንት'],
+  ['Sign Out', 'ውጣ'],
+  ['Logout', 'ውጣ'],
+  ['Low Stock', 'ያለቀበት እቃ'],
+  ['Out of Stock', 'ከክምችት ያለቀ']
+];
+
+const enToAm = new Map(PHRASE_MAP.map(([en, am]) => [en.toLowerCase(), am]));
+const amToEn = new Map(PHRASE_MAP.map(([en, am]) => [am, en]));
+
+export function translateText(raw, targetLang) {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  if (!trimmed) return raw;
+
+  if (targetLang === 'am') {
+    const exact = enToAm.get(trimmed.toLowerCase());
+    if (exact) return raw.replace(trimmed, exact);
+    let out = raw;
+    for (const [en, am] of PHRASE_MAP) {
+      const re = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      out = out.replace(re, am);
+    }
+    return out;
+  } else {
+    const exact = amToEn.get(trimmed);
+    if (exact) return raw.replace(trimmed, exact);
+    let out = raw;
+    for (const [en, am] of PHRASE_MAP) {
+      if (out.includes(am)) out = out.split(am).join(en);
+    }
+    return out;
+  }
+}
+
+export function applyFullPageLanguage(lang) {
+  const targetLang = lang || getLang();
+  document.documentElement.lang = targetLang;
+
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+      const tag = parent.tagName;
+      if (['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'SELECT'].includes(tag)) return NodeFilter.FILTER_REJECT;
+      if (parent.closest('#' + EXTRA_MOUNT_ID)) return NodeFilter.FILTER_REJECT;
+      if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(textNode => {
+    const translated = translateText(textNode.nodeValue, targetLang);
+    if (translated !== textNode.nodeValue) textNode.nodeValue = translated;
+  });
+
+  document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
+    if (el.closest('#' + EXTRA_MOUNT_ID)) return;
+    const ph = el.getAttribute('placeholder');
+    if (ph) el.setAttribute('placeholder', translateText(ph, targetLang));
+  });
+}
 
 export function getLang() {
   return state.language || state.tenantData?.language || 'am';
@@ -96,13 +231,20 @@ function collapsibleCard(id, titleHtml, bodyHtml) {
   `;
 }
 
+function getModulePermissionItems() {
+  const nav = state.module?.navItems || [];
+  return nav.filter(item => item.id !== 'panel8');
+}
+
 export function renderExtraSettingsHtml() {
   const lang = getLang();
   const isOwner = (state.role || 'employee').toLowerCase() === 'owner';
   const maxEmp = state.tenantData?.maxEmployees ?? 2;
+  const permItems = getModulePermissionItems();
+  const editingEmp = editingEmployeeId ? employeesList.find(e => e.id === editingEmployeeId) : null;
 
   const supportBody = `
-    <div id="supportInfoContent" style="font-size:13.5px; line-height:1.8;">
+    <div id="supportInfoContent" style="font-size:13.5px; line-height:1.9;">
       ${renderSupportDetailsHtml()}
     </div>
   `;
@@ -115,46 +257,66 @@ export function renderExtraSettingsHtml() {
     </div>
   `;
 
+  const checkboxesHtml = permItems.map(item => {
+    const checked = editingEmp
+      ? (Array.isArray(editingEmp.permissions) ? editingEmp.permissions.includes(item.id) : true)
+      : true;
+    return `
+      <label style="display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:14px; font-weight:500;">
+        <input type="checkbox" class="emp-perm-cb" value="${esc(item.id)}" ${checked ? 'checked' : ''} style="width:18px; height:18px; margin:0; accent-color:var(--primary, #1a365d);">
+        <span>${esc(translateText(item.label, lang))}</span>
+      </label>
+    `;
+  }).join('');
+
   const empFormHtml = isOwner ? `
-    <div style="background:var(--bg, #f8fafc); padding:14px; border-radius:8px; border:1px solid var(--border, #e2e8f0); margin-bottom:14px;">
-      <div style="font-size:12px; font-weight:700; color:var(--text-muted, #64748b); margin-bottom:10px;">
-        📊 ${employeesList.length} / ${maxEmp} Employees
+    <div style="background:var(--bg, #f8fafc); padding:16px; border-radius:12px; border:1px solid var(--border, #e2e8f0); margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong style="font-size:15px;">${editingEmp ? esc(t('editEmpModalTitle')) : esc(t('addEmpModalTitle'))}</strong>
+        <span style="font-size:12px; font-weight:700; color:var(--text-muted, #64748b);">📊 ${employeesList.length} / ${maxEmp}</span>
       </div>
-      <label class="field-label" style="margin-top:0;">${esc(t('empName'))}</label>
-      <input type="text" id="empNameInput" placeholder="Employee full name">
-      <label class="field-label">${esc(t('empPhone'))}</label>
-      <input type="text" id="empPhoneInput" placeholder="+251...">
-      <label class="field-label">${esc(t('empRole'))}</label>
-      <select id="empRoleInput">
-        <option value="employee">👤 Employee</option>
-        <option value="manager">🎯 Manager</option>
-        <option value="cashier">🧾 Cashier</option>
-      </select>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button type="button" class="btn btn-success" id="saveEmpBtn" onclick="window.saveEmployee()" style="margin-top:0;">
-          ${editingEmployeeId ? esc(t('updateEmpBtn')) : esc(t('addEmpBtn'))}
+
+      <label class="field-label" style="margin-top:0;">${esc(t('empEmail'))}</label>
+      <input type="email" id="empEmailInput" value="${esc(editingEmp?.email || '')}" ${editingEmp ? 'disabled' : ''} placeholder="employee@email.com">
+
+      ${!editingEmp ? `
+        <label class="field-label">${esc(t('empTempPass'))}</label>
+        <input type="text" id="empTempPassInput" value="123456" placeholder="123456">
+      ` : ''}
+
+      <label class="field-label" style="margin-top:6px;">${esc(t('empPerms'))}</label>
+      <div style="margin:6px 0 14px 0;">
+        ${checkboxesHtml}
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-primary" id="saveEmpBtn" onclick="window.saveEmployee()" style="margin-top:0;">
+          ${editingEmp ? esc(t('updateEmpBtn')) : esc(t('createEmpBtn'))}
         </button>
-        ${editingEmployeeId ? `<button type="button" class="btn btn-outline" onclick="window.cancelEditEmployee()" style="margin-top:0; width:auto;">${esc(t('cancelBtn'))}</button>` : ''}
+        ${editingEmp ? `<button type="button" class="btn btn-outline" onclick="window.cancelEditEmployee()" style="margin-top:0; width:auto;">${esc(t('cancelBtn'))}</button>` : ''}
       </div>
     </div>
   ` : `<p style="font-size:12.5px; color:var(--text-muted, #64748b); margin-bottom:10px;">Owner ብቻ ሰራተኞችን ማስተዳደር ይችላል።</p>`;
 
   const empListHtml = employeesList.length === 0
     ? `<p style="font-size:13px; color:var(--text-muted, #64748b); text-align:center; padding:12px;">ምንም ሰራተኛ አልተመዘገበም</p>`
-    : employeesList.map(emp => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--border, #e2e8f0); border-radius:8px; margin-bottom:8px; gap:8px;">
-        <div>
-          <div style="font-weight:700; font-size:13.5px;">👤 ${esc(emp.name)} <small style="font-weight:600; color:var(--text-muted, #64748b);">(${esc(emp.role || 'employee')})</small></div>
-          <div style="font-size:12px; color:var(--text-muted, #64748b);">📞 ${esc(emp.phone || '-')}</div>
-        </div>
-        ${isOwner ? `
-          <div style="display:flex; gap:6px;">
-            <button type="button" onclick="window.editEmployee('${emp.id}')" style="background:rgba(59,130,246,0.12); color:#2563eb; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">✏️</button>
-            <button type="button" onclick="window.deleteEmployee('${emp.id}', '${escJs(emp.name)}')" style="background:rgba(239,68,68,0.12); color:#dc2626; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">🗑️</button>
+    : employeesList.map(emp => {
+      const allowedCount = Array.isArray(emp.permissions) ? emp.permissions.length : permItems.length;
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--border, #e2e8f0); border-radius:8px; margin-bottom:8px; gap:8px;">
+          <div>
+            <div style="font-weight:700; font-size:13.5px;">📧 ${esc(emp.email || emp.name || '-')}</div>
+            <div style="font-size:12px; color:var(--text-muted, #64748b);">🎯 ${allowedCount} / ${permItems.length} Permissions</div>
           </div>
-        ` : ''}
-      </div>
-    `).join('');
+          ${isOwner ? `
+            <div style="display:flex; gap:6px;">
+              <button type="button" onclick="window.editEmployee('${emp.id}')" style="background:rgba(59,130,246,0.12); color:#2563eb; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">✏️</button>
+              <button type="button" onclick="window.deleteEmployee('${emp.id}', '${escJs(emp.email || emp.name || '')}')" style="background:rgba(239,68,68,0.12); color:#dc2626; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;">🗑️</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
 
   const backupBody = `
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -194,28 +356,39 @@ export function renderExtraSettingsHtml() {
 }
 
 function renderSupportDetailsHtml() {
-  const { phone, telegram, email } = supportData;
+  const fromTenant = state.tenantData?.supportInfo || {};
+  const phone = supportData.phone || fromTenant.phone || '';
+  const telegram = supportData.telegram || fromTenant.telegram || '';
+  const email = supportData.email || fromTenant.email || '';
+
   if (!phone && !telegram && !email) {
     return `<div style="color:var(--text-muted, #64748b);">${esc(t('noSupport'))}</div>`;
   }
-  const tgClean = (telegram || '').replace(/^@/, '');
+  const tgClean = telegram.replace(/^@/, '');
   return `
-    ${phone ? `<div>📞 <b>Phone:</b> <a href="tel:${esc(phone)}">${esc(phone)}</a></div>` : ''}
-    ${telegram ? `<div>✈️ <b>Telegram:</b> <a href="https://t.me/${esc(tgClean)}" target="_blank" rel="noopener">${esc(telegram.startsWith('@') ? telegram : '@' + telegram)}</a></div>` : ''}
-    ${email ? `<div>📧 <b>Email:</b> <a href="mailto:${esc(email)}">${esc(email)}</a></div>` : ''}
+    ${phone ? `<div>📞 <b>Phone:</b> <a href="tel:${esc(phone)}" style="color:var(--primary, #2563eb); font-weight:600;">${esc(phone)}</a></div>` : ''}
+    ${telegram ? `<div>✈️ <b>Telegram:</b> <a href="https://t.me/${esc(tgClean)}" target="_blank" rel="noopener" style="color:var(--primary, #2563eb); font-weight:600;">${esc(telegram.startsWith('@') ? telegram : '@' + telegram)}</a></div>` : ''}
+    ${email ? `<div>📧 <b>Email:</b> <a href="mailto:${esc(email)}" style="color:var(--primary, #2563eb); font-weight:600;">${esc(email)}</a></div>` : ''}
   `;
 }
 
-function makeExistingCardsCollapsible() {
+function processExistingSettingsCards() {
   const panel8 = document.getElementById('panel8');
   if (!panel8) return;
 
   const cards = Array.from(panel8.querySelectorAll(':scope > .card'));
   cards.forEach((card, idx) => {
+    const titleEl = card.querySelector('.card-title');
+    const rawTitle = (titleEl?.textContent || card.querySelector('button')?.textContent || '').toLowerCase();
+
+    // 3ኛ፡ Theme ከ Setting ውስጥ ይቀነስ / ይውጣ (ከላይ header ላይ ስላለ)
+    if (rawTitle.includes('theme') || card.querySelector('[onclick*="toggleDarkMode"]')) {
+      card.style.display = 'none';
+      return;
+    }
+
     if (card.dataset.collapsibleBound === '1') return;
     card.dataset.collapsibleBound = '1';
-
-    const titleEl = card.querySelector('.card-title');
     if (!titleEl) return;
 
     const titleHtml = titleEl.innerHTML;
@@ -253,7 +426,7 @@ export function mountExtraSettings(appState) {
   const tenantId = appState?.tenantId || state.tenantId;
   state.language = appState?.tenantData?.language || state.tenantData?.language || 'am';
 
-  makeExistingCardsCollapsible();
+  processExistingSettingsCards();
 
   const panel8 = document.getElementById('panel8');
   if (panel8 && !document.getElementById(EXTRA_MOUNT_ID)) {
@@ -283,6 +456,7 @@ export function mountExtraSettings(appState) {
       try { await updateDoc(doc(db, 'tenants', tenantId), { language: lang }); } catch (e) {}
     }
     refreshExtraSettings();
+    applyFullPageLanguage(lang);
     showToast(lang === 'am' ? 'ቋንቋ ወደ አማርኛ ተቀይሯል' : 'Language switched to English');
   };
 
@@ -290,45 +464,65 @@ export function mountExtraSettings(appState) {
     if ((state.role || 'employee').toLowerCase() !== 'owner') {
       return showToast('Owner ብቻ ሰራተኛ መጨመር/ማስተዳደር ይችላል', 'error');
     }
-    const name = document.getElementById('empNameInput')?.value.trim();
-    const phone = document.getElementById('empPhoneInput')?.value.trim() || '';
-    const role = document.getElementById('empRoleInput')?.value || 'employee';
+    const email = document.getElementById('empEmailInput')?.value.trim().toLowerCase();
+    const tempPass = document.getElementById('empTempPassInput')?.value || '';
+    const permissions = Array.from(document.querySelectorAll('.emp-perm-cb:checked')).map(cb => cb.value);
     const maxEmp = state.tenantData?.maxEmployees ?? 2;
-
-    if (!name) return showToast('የሰራተኛ ስም ያስፈልጋል', 'error');
+    const btn = document.getElementById('saveEmpBtn');
 
     try {
       if (editingEmployeeId) {
-        await updateDoc(doc(db, 'employees', editingEmployeeId), { name, phone, role });
+        if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+        await updateDoc(doc(db, 'users', editingEmployeeId), { permissions });
         editingEmployeeId = null;
-        showToast('✅ ሰራተኛ ተሻሽሏል');
-      } else {
-        if (employeesList.length >= maxEmp) {
-          return showToast(t('empLimitReached', maxEmp), 'error');
-        }
-        await addDoc(collection(db, 'employees'), {
-          tenantId, name, phone, role, active: true, createdAt: serverTimestamp()
-        });
-        showToast('✅ ሰራተኛ ተጨምሯል');
+        showToast('✅ የሰራተኛ ፍቃድ ተሻሽሏል');
+        refreshExtraSettings();
+        return;
       }
+
+      if (!email) return showToast('Employee Email ያስፈልጋል', 'error');
+      if (tempPass.length < 6) return showToast('Temporary Password ቢያንስ 6 ፊደላት መሆን አለበት', 'error');
+      if (employeesList.length >= maxEmp) {
+        return showToast(t('empLimitReached', maxEmp), 'error');
+      }
+
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ በመፍጠር ላይ...'; }
+
+      // Secondary Firebase App በመጠቀም Owner ሳይወጣ አዲስ ሰራተኛ መፍጠር
+      const secondaryApp = initializeApp(firebaseConfig, 'EmpCreate-' + Date.now());
+      const secAuth = getAuth(secondaryApp);
+      let uid;
+      try {
+        const cred = await createUserWithEmailAndPassword(secAuth, email, tempPass);
+        uid = cred.user.uid;
+      } finally {
+        await signOut(secAuth).catch(() => {});
+        await deleteApp(secondaryApp).catch(() => {});
+      }
+
+      await setDoc(doc(db, 'users', uid), {
+        email,
+        role: 'employee',
+        tenantId,
+        permissions,
+        isTempPassword: true,
+        createdAt: serverTimestamp()
+      });
+
+      showToast('✅ ሰራተኛ ተፈጥሯል');
       refreshExtraSettings();
     } catch (e) {
-      showToast('❌ ስህተት: ' + e.message, 'error');
+      let msg = e.message;
+      if (e.code === 'auth/email-already-in-use') msg = 'ይህ Email አስቀድሞ ተመዝግቧል';
+      showToast('❌ ስህተት: ' + msg, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = editingEmployeeId ? t('updateEmpBtn') : t('createEmpBtn'); }
     }
   };
 
   window.editEmployee = (id) => {
-    const emp = employeesList.find(x => x.id === id);
-    if (!emp) return;
     editingEmployeeId = id;
     OPEN_SECTIONS.add('secEmp');
     refreshExtraSettings();
-    const nameEl = document.getElementById('empNameInput');
-    const phoneEl = document.getElementById('empPhoneInput');
-    const roleEl = document.getElementById('empRoleInput');
-    if (nameEl) nameEl.value = emp.name || '';
-    if (phoneEl) phoneEl.value = emp.phone || '';
-    if (roleEl) roleEl.value = emp.role || 'employee';
   };
 
   window.cancelEditEmployee = () => {
@@ -336,15 +530,15 @@ export function mountExtraSettings(appState) {
     refreshExtraSettings();
   };
 
-  window.deleteEmployee = async (id, name) => {
+  window.deleteEmployee = async (id, label) => {
     if ((state.role || 'employee').toLowerCase() !== 'owner') {
       return showToast('Owner ብቻ ማጥፋት ይችላል', 'error');
     }
-    if (!confirm(`"${name}" ን ማጥፋት?`)) return;
+    if (!confirm(`"${label}" ን ማጥፋት?`)) return;
     try {
-      await deleteDoc(doc(db, 'employees', id));
+      await deleteDoc(doc(db, 'users', id));
       if (editingEmployeeId === id) editingEmployeeId = null;
-      showToast('✅ ተጠፍቷል');
+      showToast('✅ ሰራተኛ ተጠፍቷል');
     } catch (e) {
       showToast('❌ ስህተት: ' + e.message, 'error');
     }
@@ -354,7 +548,7 @@ export function mountExtraSettings(appState) {
     if (!tenantId) return;
     try {
       showToast('⏳ Backup በማዘጋጀት ላይ...', 'info');
-      const cols = ['products', 'sales', 'expenses', 'payments', 'customers', 'branches', 'employees'];
+      const cols = ['products', 'sales', 'expenses', 'payments', 'customers', 'branches'];
       const payload = {
         exportedAt: new Date().toISOString(),
         tenantId,
@@ -468,30 +662,53 @@ export function mountExtraSettings(appState) {
 
   if (!unsubSupport) {
     unsubSupport = onSnapshot(doc(db, 'appSettings', 'support'), (snap) => {
-      supportData = snap.exists() ? snap.data() : { phone: '', telegram: '', email: '' };
-      const el = document.getElementById('supportInfoContent');
-      if (el) el.innerHTML = renderSupportDetailsHtml();
+      if (snap.exists()) {
+        supportData = snap.data();
+        const el = document.getElementById('supportInfoContent');
+        if (el) el.innerHTML = renderSupportDetailsHtml();
+      }
+    }, (err) => {
+      console.warn('appSettings/support read fallback to tenantData:', err.message);
+    });
+  }
+
+  if (tenantId && !unsubTenant) {
+    unsubTenant = onSnapshot(doc(db, 'tenants', tenantId), (snap) => {
+      if (snap.exists()) {
+        state.tenantData = snap.data();
+        const el = document.getElementById('supportInfoContent');
+        if (el) el.innerHTML = renderSupportDetailsHtml();
+      }
     });
   }
 
   if (tenantId && !unsubEmployees) {
-    unsubEmployees = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', tenantId)), (snap) => {
+    unsubEmployees = onSnapshot(query(collection(db, 'users'), where('tenantId', '==', tenantId)), (snap) => {
       employeesList = [];
-      snap.forEach(d => employeesList.push({ id: d.id, ...d.data() }));
+      snap.forEach(d => {
+        const data = d.data();
+        if ((data.role || '').toLowerCase() === 'employee') {
+          employeesList.push({ id: d.id, ...data });
+        }
+      });
       employeesList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       refreshExtraSettings();
     });
   }
+
+  applyFullPageLanguage(state.language);
 }
 
 export function refreshExtraSettings() {
-  makeExistingCardsCollapsible();
+  processExistingSettingsCards();
   const mount = document.getElementById(EXTRA_MOUNT_ID);
   if (mount) mount.innerHTML = renderExtraSettingsHtml();
+  applyFullPageLanguage(getLang());
 }
 
 export function cleanupExtraSettings() {
   if (unsubSupport) { unsubSupport(); unsubSupport = null; }
+  if (unsubTenant) { unsubTenant(); unsubTenant = null; }
   if (unsubEmployees) { unsubEmployees(); unsubEmployees = null; }
   document.getElementById(EXTRA_MOUNT_ID)?.remove();
   employeesList = [];
