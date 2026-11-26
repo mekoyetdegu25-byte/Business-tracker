@@ -455,9 +455,19 @@ window.saveSupportInfo = async function() {
   status.innerText = '⏳ በማስቀመጥ ላይ...';
 
   try {
-    await setDoc(doc(db, 'appSettings', 'support'), {
-      phone, telegram, email, updatedAt: serverTimestamp()
-    }, { merge: true });
+    const info = { phone, telegram, email, updatedAt: serverTimestamp() };
+    await setDoc(doc(db, 'appSettings', 'support'), info, { merge: true });
+
+    // ለሁሉም ነባር ተጠቃሚዎች (Tenants) በቀጥታ እንዲታይ ማዘመን
+    const tenantsSnap = await getDocs(collection(db, 'tenants'));
+    const updates = [];
+    tenantsSnap.forEach(tDoc => {
+      updates.push(updateDoc(doc(db, 'tenants', tDoc.id), {
+        supportInfo: { phone, telegram, email }
+      }));
+    });
+    await Promise.all(updates);
+
     status.className = 'show status-success';
     status.innerText = '✅ Support Info ተቀምጧል! ለሁሉም ተጠቃሚዎች ይታያል።';
     setTimeout(() => { status.className = ''; }, 4000);
@@ -466,6 +476,7 @@ window.saveSupportInfo = async function() {
     status.innerText = '❌ ስህተት: ' + e.message;
   }
 };
+
 
 // ═══════════════════════════════════════════
 // 📊 STATS
